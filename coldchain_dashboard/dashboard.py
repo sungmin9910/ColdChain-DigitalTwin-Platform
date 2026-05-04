@@ -264,11 +264,18 @@ with col_right:
 # ----------------------------------------------------------------
 # 4. 실시간 루프
 # ----------------------------------------------------------------
+last_db_save_time = 0
+
 while True:
     while not msg_queue.empty():
         msg = msg_queue.get()
         data_history.append(msg)
-        save_to_mysql(msg)  # MySQL에 실시간 저장
+        
+        # 최적화: 10초에 한 번씩만 DB에 저장 (또는 강한 충격 발생 시 즉시 저장)
+        current_time = time.time()
+        if (current_time - last_db_save_time >= 10) or (msg.get('g_force', 0) > 1.8):
+            save_to_mysql(msg)  
+            last_db_save_time = current_time
         if len(data_history) > 3600:
             data_history.pop(0)
 
