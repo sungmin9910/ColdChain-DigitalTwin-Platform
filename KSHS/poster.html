@@ -61,10 +61,10 @@
             position: relative;
             z-index: 1;
             border-bottom: 8px solid var(--primary);
-            padding-bottom: 60px;
-            margin-bottom: 80px;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
             display: grid;
-            grid-template-columns: 400px 1fr 400px;
+            grid-template-columns: 350px 1fr 350px;
             align-items: center;
         }
 
@@ -119,7 +119,7 @@
 
         .logo-box {
             width: 300px;
-            height: 160px;
+            height: 120px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -158,8 +158,8 @@
         section {
             background: var(--white);
             border-radius: 40px;
-            margin-bottom: 25px; /* Reduced margin */
-            padding: 15px 0; /* Reduced padding */
+            margin-bottom: 15px; /* Reduced margin */
+            padding: 5px 0; /* Reduced padding */
             break-inside: avoid;
             /* 내용 잘림 방지 */
             page-break-inside: avoid;
@@ -173,8 +173,8 @@
             font-weight: 900;
             color: var(--white);
             background: var(--primary);
-            padding: 12px 25px; /* Reduced padding */
-            margin-bottom: 20px; /* Reduced margin */
+            padding: 10px 25px; /* Reduced padding */
+            margin-bottom: 15px; /* Reduced margin */
             border-radius: 10px;
         }
 
@@ -263,6 +263,97 @@
             font-size: 36px;
         }
 
+        /* Nested List Styles for Introduction */
+        .intro-list ul {
+            list-style: none;
+            margin: 10px 0 10px 20px;
+        }
+
+        .intro-list ul li {
+            font-size: 26px;
+            padding-left: 35px;
+            margin-bottom: 10px;
+        }
+
+        .intro-list ul li::before {
+            content: '❖';
+            font-size: 24px;
+            color: var(--primary);
+        }
+
+        .intro-list ul ul li {
+            font-size: 24px;
+            padding-left: 30px;
+        }
+
+        .intro-list ul ul li::before {
+            content: '➤';
+            font-size: 20px;
+            color: var(--text-muted);
+        }
+
+        /* Sensor Grid & Pipeline Styles */
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 25px 0;
+        }
+        .sensor-card {
+            background: #f8fafc;
+            border: 2px solid var(--primary);
+            border-radius: 15px;
+            padding: 20px 10px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .sensor-card i {
+            color: var(--primary);
+            width: 40px;
+            height: 40px;
+            margin-bottom: 10px;
+        }
+        .sensor-card .label {
+            display: block;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+        .sensor-card .items {
+            font-size: 18px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .pipeline-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            margin: 30px 0;
+            padding: 20px;
+            background: var(--accent-light);
+            border-radius: 20px;
+        }
+        .pipeline-node {
+            flex: 1;
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            text-align: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary);
+            border: 2px solid var(--accent);
+        }
+        .pipeline-arrow {
+            color: var(--accent);
+            font-size: 30px;
+            font-weight: 900;
+        }
+
         .highlight-box {
             background: var(--accent-light);
             border-left: 10px solid var(--accent);
@@ -313,7 +404,7 @@
 
         footer {
             margin-top: auto;
-            padding-top: 80px;
+            padding-top: 40px;
             border-top: 4px solid #e2e8f0;
             display: flex;
             justify-content: space-between;
@@ -402,14 +493,14 @@
 <body>
     <div class="poster-container">
         <header>
-            <div class="poster-id">P-1-024</div>
+            <div class="poster-id">P-6-300</div>
             <div class="logo-box logo-left">JBNU LOGO</div>
             <div class="header-content">
                 <h1 class="title-main">농산물 신선 물류 공급망 모니터링을 위한 다이나믹 QR 코드 및 디지털 트윈 기술 통합 연구</h1>
                 <h2 class="title-sub">Integration of Dynamic QR Code and Digital Twin Technology for Agricultural Fresh
                     Product Supply Chain Monitoring</h2>
                 <p class="authors">한성민, 이효은, 이동수, <span>김성민*</span></p>
-                <p class="affiliation">전북대학교 스마트농생명시스템학과 (Jeonbuk National University)</p>
+                <p class="affiliation">전북대학교 농용기계공학과 / 농기계·ICT융합연구소<br>(Jeonbuk National University)</p>
             </div>
             <div class="logo-box logo-right">KSHS LOGO</div>
         </header>
@@ -443,11 +534,34 @@
 
                 <section>
                     <h3 class="section-title"><i data-lucide="info"></i> Introduction</h3>
-                    <div class="image-container">
-                        <div class="photo-placeholder" style="height: 450px;"></div>
-                        <p class="caption">Figure 1. 다이나믹 QR 및 디지털 트윈 통합 플랫폼의 개념적 비전.</p>
+                    <div class="intro-list">
+                        <h4 style="font-size: 34px; color: var(--primary); font-weight: 800; margin-bottom: 20px;">Utilizing Dynamic QR & Digital Twin in Fresh Supply Chain</h4>
+                        <ul>
+                            <li style="font-weight: 700;">Necessity of Integrated Platform
+                                <ul>
+                                    <li>Fragmented information in multi-stage processes (Farm → APC → Consumer)</li>
+                                    <li>Limitations in real-time quality control and demand-supply management</li>
+                                </ul>
+                            </li>
+                            <li style="font-weight: 700;">Digital Twin based Supply Chain Architecture
+                                <ul>
+                                    <li><strong>Data Collection Sector:</strong> Real-time acquisition via Dynamic QR & IoT Sensors</li>
+                                    <li><strong>Virtual Sync Sector:</strong> Mirroring physical conditions in virtual environment</li>
+                                    <li><strong>Monitoring Sector:</strong> Intuitive end-to-end traceability & event detection</li>
+                                </ul>
+                            </li>
+                        </ul>
                     </div>
-                    <p>기존 공급망의 정보 단절 문제를 해결하기 위해, <strong>다이나믹 QR</strong>과 <strong>디지털 트윈</strong>을 결합하여 물리적 현장과 디지털 데이터를 실시간으로 동기화하는 지능형 통합 플랫폼을 제안합니다.</p>
+
+                    <div class="image-container" style="margin-top: 20px;">
+                        <div class="photo-placeholder" style="height: 250px;"></div>
+                        <p class="caption">Figure 1. Digital Twin-based Monitoring Architecture Diagram.</p>
+                    </div>
+                    
+                    <div class="image-container" style="margin-top: 15px;">
+                        <div class="photo-placeholder" style="height: 150px;"></div>
+                        <p class="caption">Figure 2. Real-time Monitoring Data and Event Logs.</p>
+                    </div>
                 </section>
 
                 <section>
@@ -490,93 +604,99 @@
                         <li><span class="badge">Consumer</span> <strong>실시간 품질 정보 공유:</strong> 소비자는 QR 스캔을 통해 APC 및 유통 과정에서 수집된 실시간 환경 데이터를 직접 확인함으로써 제품의 신선도와 신뢰성을 검증함.</li>
                     </ul>
 
-                    <h4 class="sub-section-title" style="margin-top: 90px;"><i data-lucide="cpu"></i> 2. Multi-Dimensional Sensing & Event Detection</h4>
-                    <p>유통 현장의 물리적 상태를 실시간으로 추적하기 위해, 다양한 센서를 통합한 지능형 데이터 수집 및 이벤트 감지 모듈을 구현하였습니다.</p>
+                    <h4 class="sub-section-title" style="margin-top: 50px;"><i data-lucide="cpu"></i> 2. Multi-Dimensional Sensing & Edge Intelligence</h4>
+                    <p>현장의 물리적 상태를 실시간으로 추적하기 위해 5대 핵심 지표를 수집하고, 엣지 컴퓨팅을 통해 이상 상태를 즉각 판별합니다.</p>
                     
-                    <p style="font-weight: 800; color: var(--primary); font-size: 24px; margin: 50px 0 15px 0;">
-                        ▶ 5대 핵심 모니터링 지표 수집
-                    </p>
-                    <ul style="margin-bottom: 40px;">
-                        <li><strong>환경 인자:</strong> 온도(Temperature), 습도(Humidity)</li>
-                        <li><strong>물리 인자:</strong> 개방 감지용 조도(Lux), 누적 충격량(G-force)</li>
-                        <li><strong>공간 인자:</strong> 실시간 위치(Lat/Lng), 이동 속도(Speed)</li>
-                    </ul>
+                    <div class="sensor-grid">
+                        <div class="sensor-card">
+                            <i data-lucide="thermometer"></i>
+                            <span class="label">Environment</span>
+                            <span class="items">Temp / Humidity</span>
+                        </div>
+                        <div class="sensor-card">
+                            <i data-lucide="zap"></i>
+                            <span class="label">Physical</span>
+                            <span class="items">Impact / Lux</span>
+                        </div>
+                        <div class="sensor-card">
+                            <i data-lucide="map-pin"></i>
+                            <span class="label">Spatial</span>
+                            <span class="items">GPS / Speed</span>
+                        </div>
+                    </div>
 
-                    <p style="font-weight: 800; color: #ea580c; font-size: 24px; margin: 0 0 15px 0;">
-                        ▶ 지능형 상태 판별 (Event Classification)
+                    <p style="font-weight: 800; color: var(--primary); font-size: 26px; margin: 35px 0 10px 0; text-align:center;">
+                        [ Edge-to-Twin Data Pipeline ]
                     </p>
-                    <p style="margin-bottom: 25px;">엣지 디바이스 내에서 가속도 데이터를 분석하여 유통 중 발생할 수 있는 이상 상태를 즉각적으로 분류합니다.</p>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; text-align: center; margin-bottom: 40px;">
-                        <div style="background: #fee2e2; padding: 25px 15px; border-radius: 8px; border: 1px solid #ef4444;">
-                            <div style="font-weight: 800; color: #b91c1c;">G-force > 2.0</div>
-                            <div style="font-size: 20px;">강한 충돌 (위험)</div>
-                        </div>
-                        <div style="background: #fef08a; padding: 25px 15px; border-radius: 8px; border: 1px solid #eab308;">
-                            <div style="font-weight: 800; color: #a16207;">G-force > 1.3</div>
-                            <div style="font-size: 20px;">이동 및 진동</div>
-                        </div>
-                        <div style="background: #dcfce7; padding: 25px 15px; border-radius: 8px; border: 1px solid #22c55e;">
-                            <div style="font-weight: 800; color: #15803d;">Otherwise</div>
-                            <div style="font-size: 20px;">안전 상태</div>
-                        </div>
+                    <div class="pipeline-container">
+                        <div class="pipeline-node">Sensing Data<br>(Raw)</div>
+                        <div class="pipeline-arrow">➤</div>
+                        <div class="pipeline-node">Edge Intelligence<br>(Event Detection)</div>
+                        <div class="pipeline-arrow">➤</div>
+                        <div class="pipeline-node">Digital Twin<br>(Real-time Sync)</div>
                     </div>
 
                     <div class="highlight-box" style="margin-top: 30px; font-size: 26px;">
-                        <i data-lucide="check-circle" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 10px;"></i>
-                        <strong>[Edge Intelligence]</strong> 단순 데이터 전송을 넘어, 엣지 단에서 위험 이벤트를 스스로 감지하고 분류하여 <strong>데이터 통신의 효율성과 관제 응답성을 극대화</strong>합니다.
+                        <i data-lucide="alert-triangle" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 10px;"></i>
+                        <strong>[Edge Anomaly Detection]</strong> 엣지 디바이스 내에서 수집된 데이터를 즉각 분석하여, <strong>온도 이탈 및 물리적 충격 등 이상 상황을 현장에서 실시간으로 감지</strong>하고 판별합니다.
                     </div>
+                </section>
+
+                <section>
+                    <h4 class="sub-section-title"><i data-lucide="monitor"></i> 3. Integrated APC Monitoring Dashboard</h4>
+                    <p>센싱 모듈에서 수집된 다차원 데이터를 기반으로, APC 관리자가 물류 환경을 종합적으로 통제할 수 있는 디지털 트윈 관제 대시보드를 구축하였습니다.</p>
+                    <div class="image-container">
+                        <div class="photo-placeholder" style="height: 350px;"></div>
+                        <p class="caption">Figure 3. 실시간 관제 대시보드 (지도 매핑 및 환경 추이 시각화).</p>
+                    </div>
+                    <ul style="margin-bottom: 0;">
+                        <li><span class="badge" style="background:#0284c7;">Real-time Metrics</span> 온도, 습도, 조도, 충격량, 속도 등 5대 지표의 실시간 변화량 모니터링.</li>
+                        <li><span class="badge" style="background:#ea580c;">Event Mapping</span> 발생한 물리적 충격(G-force) 및 박스 개방(Lux) 이벤트를 GPS 경로 상에 즉각 매핑하여 문제 발생 위치 추적.</li>
+                    </ul>
                 </section>
             </div>
 
             <!-- Column 3: Result and Discussion (Part 2) -->
             <div class="column">
                 <section>
-                    <h4 class="sub-section-title"><i data-lucide="monitor"></i> 3. Integrated APC Monitoring Dashboard</h4>
-                    <p>센싱 모듈에서 수집된 다차원 데이터를 기반으로, APC 관리자가 물류 환경을 종합적으로 통제할 수 있는 디지털 트윈 관제 대시보드를 구축하였습니다.</p>
-                    <div class="image-container">
-                        <div class="photo-placeholder" style="height: 530px;"></div>
-                        <p class="caption">Figure 3. 실시간 관제 대시보드 (지도 매핑 및 환경 추이 시각화).</p>
-                    </div>
-                    <ul>
-                        <li><span class="badge" style="background:#0284c7;">Real-time Metrics</span> 온도, 습도, 조도, 충격량, 속도 등 5대 지표의 실시간 변화량 모니터링.</li>
-                        <li><span class="badge" style="background:#ea580c;">Event Mapping</span> 발생한 물리적 충격(G-force) 및 박스 개방(Lux) 이벤트를 GPS 경로 상에 즉각 매핑하여 문제 발생 위치 추적.</li>
-                        <li><span class="badge" style="background:#16a34a;">Proactive Action</span> 시계열 데이터 기반 추이 그래프(Trend Charts)를 통해 품질 저하를 유발하는 환경적 요인을 선제적으로 관리함.</li>
-                    </ul>
-                </section>
-
-                <section>
-                    <h4 class="sub-section-title"><i data-lucide="smartphone"></i> 4. Consumer Information Service (Future Plan)</h4>
-                    <p>APC 관제를 위해 축적된 고해상도 물류 빅데이터는 향후 소비자용 데이터로 요약 가공되어 다이나믹 QR 코드를 통해 제공될 계획입니다.</p>
+                    <h4 class="sub-section-title"><i data-lucide="smartphone"></i> 4. Dynamic QR-based Quality Information Visualization</h4>
+                    <p>수집된 실시간 유통 환경 데이터는 다이나믹 QR 코드를 통해 소비자에게 즉각 시각화되어 제공됩니다. 이는 단순 이력 정보를 넘어 실제 유통 품질을 소비자가 직접 검증할 수 있게 합니다.</p>
                     <div style="background: #fdf2f8; border: 2px solid #ec4899; border-radius: 15px; padding: 25px; margin: 20px 0;">
                         <div style="font-weight: 800; color: #db2777; font-size: 26px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
-                            <i data-lucide="check-square"></i> From Complex Data to Trust Summary
+                            <i data-lucide="shield-check"></i> Real-time Transparency & Consumer Trust
                         </div>
                         <ul style="margin-bottom: 0;">
-                            <li style="font-size: 22px; margin-bottom: 10px; color: #be185d;">전문가용 시계열 그래프를 소비자 친화적인 '신선도 점수'나 '안전 배송 인증' 형태로 직관적으로 요약(Summarization).</li>
-                            <li style="font-size: 22px; margin-bottom: 0; color: #be185d;">단순 텍스트 중심의 기존 이력제를 탈피하고, 센서 데이터로 증명된 투명한 유통 과정을 공개하여 궁극적인 <strong>브랜드 신뢰도(Trust)</strong>를 구축함.</li>
+                            <li style="font-size: 22px; margin-bottom: 10px; color: #be185d;"><strong>데이터 연동성 확인:</strong> 엣지 디바이스에서 수집된 온도·충격 데이터가 QR 스캔 시 웹 인터페이스로 실시간 연동됨을 실험적으로 검증함.</li>
+                            <li style="font-size: 22px; margin-bottom: 0; color: #be185d;"><strong>직관적 정보 제공:</strong> 복잡한 원천 데이터를 '신선도 지표' 및 '안심 배송 알림' 등으로 시각화하여 소비자 친화적인 정보 전달 체계를 구축함.</li>
                         </ul>
                     </div>
                 </section>
 
                 <section>
                     <h3 class="section-title"><i data-lucide="check-circle"></i> Conclusion</h3>
-                    <p>본 연구는 다이나믹 QR 코드와 디지털 트윈 기술의 통합이 <strong>예측 불가능한 환경 변화에 선제적으로 대응</strong>하고, 소비자에게 <strong>최상의
-                            신뢰도</strong>를 제공하는 혁신적인 솔루션임을 입증했습니다.</p>
+                    <p style="font-size: 26px;">
+                        This study investigated a real-time data management and traceability system using dynamic QR codes, focusing on the process from receiving at the APC to the consumer. All information (receiving, washing, sorting, packaging, shipping) is synchronized in real-time.
+                    </p>
+                    <p style="font-size: 26px; margin-top: 15px;">
+                        The system enables precise, data-driven logistics management and enhances consumer trust by providing transparent processing history. In conclusion, dynamic QR codes are a key technology for supply chain transparency and efficiency.
+                    </p>
                 </section>
 
                 <section>
                     <h3 class="section-title"><i data-lucide="book-open"></i> References</h3>
-                    <p style="font-size: 28px; line-height: 1.5;">
-                        [1] 김성민 외. (2024). 스마트 농산물 산지유통센터(APC)를 위한 디지털 트윈 응용 연구.<br>
-                        [2] 한성민 외. (2025). 식품 추적성을 위한 다이나믹 QR 코드 시스템 개발.
-                    </p>
+                    <div style="font-size: 20px; line-height: 1.4; color: var(--text-muted);">
+                        <div style="margin-bottom: 10px; padding-left: 20px; text-indent: -20px;">[1] Baidong, H., and Z. Yukun. 2019. Research on Quickpass Payment Terminal Application System Based on dynamic QR Code. J. Phys.: Conf. Ser. 1168 032059.</div>
+                        <div style="margin-bottom: 10px; padding-left: 20px; text-indent: -20px;">[2] Denso Wave. www.denso-wave.com</div>
+                        <div style="margin-bottom: 10px; padding-left: 20px; text-indent: -20px;">[3] Dey. S., S. Saha, A. Kumar, and K. McDonald-Maier. 2021. FoodSQRBlock: Digitizing Food Production and the Supply Chain with Blockchain. Sustainability, 13, 3486.</div>
+                        <div style="margin-bottom: 10px; padding-left: 20px; text-indent: -20px;">[4] Gouhua, S. 2013. Research on the Fresh Agricultural Product Supply Chain Coordination with Supply Disruption. Discrete Dynamics in Nature and Society.</div>
+                    </div>
                 </section>
             </div>
         </div>
 
         <footer>
             <div class="acknowledgment">
-                본 연구는 농촌진흥청 연구사업(과제번호: PJ017108, 주관: 전북대학교)의 지원으로 수행되었습니다.
+                This work was carried out with the support of "Project No. PJ017108", Rural Development Administration, Korea.
             </div>
             <div class="qr-placeholder">다이나믹 QR<br>데모</div>
         </footer>

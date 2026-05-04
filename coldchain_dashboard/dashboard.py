@@ -161,12 +161,20 @@ while True:
         # 그래프들
         if 'temperature' in df.columns and 'humidity' in df.columns:
             env_chart.line_chart(df[['temperature', 'humidity']])
+        elif 'temperature' in df.columns:
+            env_chart.line_chart(df['temperature'])
+        elif 'humidity' in df.columns:
+            env_chart.line_chart(df['humidity'])
         
         if 'lux' in df.columns:
             lux_chart.area_chart(df['lux'], color="#FFD700") # 금색 영역 차트
             
-        if 'g_force' in df.columns:
+        if 'g_force' in df.columns and 'speed' in df.columns:
             gforce_chart.line_chart(df[['g_force', 'speed']])
+        elif 'g_force' in df.columns:
+            gforce_chart.line_chart(df['g_force'])
+        elif 'speed' in df.columns:
+            gforce_chart.line_chart(df['speed'])
 
         # 로그
         log_container.dataframe(df.iloc[::-1].head(10), width="stretch")
