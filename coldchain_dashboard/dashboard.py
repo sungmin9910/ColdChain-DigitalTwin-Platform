@@ -347,25 +347,29 @@ while True:
         # 데이터프레임 변환
         df = pd.DataFrame(data_history).set_index('timestamp')
         
-        # 그래프들
-        if 'temperature' in df.columns and 'humidity' in df.columns:
-            env_chart.line_chart(df[['temperature', 'humidity']])
-        elif 'temperature' in df.columns:
-            env_chart.line_chart(df['temperature'])
-        elif 'humidity' in df.columns:
-            env_chart.line_chart(df['humidity'])
+        # 최적화: 차트는 최근 100개의 데이터(약 100초)만 그려서 브라우저 렉 방지
+        df_chart = df.tail(100)
         
-        if 'lux' in df.columns:
-            lux_chart.area_chart(df['lux'], color="#FFD700") # 금색 영역 차트
+        # 그래프들
+        if 'temperature' in df_chart.columns and 'humidity' in df_chart.columns:
+            env_chart.line_chart(df_chart[['temperature', 'humidity']])
+        elif 'temperature' in df_chart.columns:
+            env_chart.line_chart(df_chart['temperature'])
+        elif 'humidity' in df_chart.columns:
+            env_chart.line_chart(df_chart['humidity'])
+        
+        if 'lux' in df_chart.columns:
+            lux_chart.area_chart(df_chart['lux'], color="#FFD700") # 금색 영역 차트
             
-        if 'g_force' in df.columns and 'speed' in df.columns:
-            gforce_chart.line_chart(df[['g_force', 'speed']])
-        elif 'g_force' in df.columns:
-            gforce_chart.line_chart(df['g_force'])
-        elif 'speed' in df.columns:
-            gforce_chart.line_chart(df['speed'])
+        if 'g_force' in df_chart.columns and 'speed' in df_chart.columns:
+            gforce_chart.line_chart(df_chart[['g_force', 'speed']])
+        elif 'g_force' in df_chart.columns:
+            gforce_chart.line_chart(df_chart['g_force'])
+        elif 'speed' in df_chart.columns:
+            gforce_chart.line_chart(df_chart['speed'])
 
         # 로그
         log_container.dataframe(df.iloc[::-1].head(10), width="stretch")
 
-    time.sleep(1)
+    # 최적화: 1초 -> 2초 딜레이로 변경하여 클라우드 서버 부하 감소
+    time.sleep(2)
