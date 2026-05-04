@@ -198,7 +198,6 @@ while True:
             map_container.pydeck_chart(pdk.Deck(
                 layers=[path_layer, shock_layer, light_layer],
                 initial_view_state=view_state,
-                map_style="mapbox://styles/mapbox/dark-v10",
                 tooltip={"text": "상태: {status}\n충격: {g_force}G\n조도: {lux}lx"}
             ))
         else:
