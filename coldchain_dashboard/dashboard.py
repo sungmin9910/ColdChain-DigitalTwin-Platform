@@ -5,6 +5,7 @@ import pandas as pd
 import time
 from datetime import datetime
 import queue
+import pydeck as pdk
 
 # ----------------------------------------------------------------
 # 1. 설정 및 공유 자원 초기화
@@ -147,13 +148,61 @@ while True:
         gforce_metric.metric("충격량", f"{latest.get('g_force', 0):.2f} G")
         speed_metric.metric("현재 속도", f"{latest.get('speed', 0):.1f} km/h")
         
-        # 지도 업데이트
-        lat, lng = latest.get('lat', 0), latest.get('lng', 0)
-        if lat != 0 and lng != 0:
-            map_data = pd.DataFrame({'lat': [lat], 'lon': [lng]})
-            map_container.map(map_data, zoom=15)
+        # ----------------------------------------------------------------
+        # 5. 고도화된 지도 시각화 (Pydeck)
+        # ----------------------------------------------------------------
+        df_gps = pd.DataFrame(data_history)
+        # 유효한 GPS 데이터만 필터링
+        df_gps = df_gps[(df_gps['lat'] != 0) & (df_gps['lng'] != 0)]
+        
+        if not df_gps.empty:
+            # 중심점 계산
+            view_state = pdk.ViewState(
+                latitude=df_gps['lat'].iloc[-1],
+                longitude=df_gps['lng'].iloc[-1],
+                zoom=14,
+                pitch=45,
+            )
+
+            # 1. 이동 경로 레이어
+            path_layer = pdk.Layer(
+                "PathLayer",
+                data=[{"path": df_gps[['lng', 'lat']].values.tolist()}],
+                get_path="path",
+                get_color=[0, 212, 255, 200], # 시안 블루
+                width_min_pixels=5,
+            )
+
+            # 2. 충격 지점 레이어 (G-Force > 1.8)
+            shock_df = df_gps[df_gps['g_force'] > 1.8]
+            shock_layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=shock_df,
+                get_position="[lng, lat]",
+                get_color=[255, 0, 0, 200], # 빨간색
+                get_radius=30,
+                pickable=True,
+            )
+
+            # 3. 조도 이벤트 레이어 (Lux > 500)
+            light_df = df_gps[df_gps['lux'] > 500]
+            light_layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=light_df,
+                get_position="[lng, lat]",
+                get_color=[255, 255, 0, 150], # 노란색
+                get_radius=20,
+                pickable=True,
+            )
+
+            map_container.pydeck_chart(pdk.Deck(
+                layers=[path_layer, shock_layer, light_layer],
+                initial_view_state=view_state,
+                map_style="mapbox://styles/mapbox/dark-v10",
+                tooltip={"text": "상태: {status}\n충격: {g_force}G\n조도: {lux}lx"}
+            ))
         else:
-            map_container.info("GPS 수신 대기 중...")
+            map_container.info("GPS 수신 대기 중 (이동 경로를 표시하려면 위경도 데이터가 필요합니다)...")
 
         # 데이터프레임 변환
         df = pd.DataFrame(data_history).set_index('timestamp')
