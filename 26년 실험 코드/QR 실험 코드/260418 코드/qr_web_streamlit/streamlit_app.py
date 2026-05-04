@@ -74,8 +74,14 @@ st.markdown("""
 with st.sidebar:
     st.header("🍎 과일 도감")
     
-    # Navigation
-    menu = st.radio("이동할 페이지", ["📊 대시보드", "🔍 상세 이력 추적", "🏠 소비자 페이지", "🖼️ 이미지 갤러리"])
+    # Navigation with session_state support
+    pages = ["📊 대시보드", "🔍 상세 이력 추적", "🏠 소비자 페이지", "🖼️ 이미지 갤러리"]
+    if "menu_choice" not in st.session_state:
+        st.session_state.menu_choice = pages[0]
+        
+    menu = st.radio("이동할 페이지", pages, index=pages.index(st.session_state.menu_choice))
+    # Update state if manually changed via radio
+    st.session_state.menu_choice = menu
     
     st.divider()
     
@@ -129,7 +135,7 @@ if menu == "📊 대시보드":
                     st.write(f"총 {len(records)} 건의 최신 데이터가 조회되었습니다.")
 
                 # Card-based Display
-                for row in records:
+                for i, row in enumerate(records):
                     with st.container():
                         st.markdown(f"""
                         <div class="card">
@@ -148,12 +154,14 @@ if menu == "📊 대시보드":
                         </div>
                         """, unsafe_allow_html=True)
                         btn_cols = st.columns([1, 1, 4])
-                        if btn_cols[0].button(f"상세 이력", key=f"trace_{row['id']}"):
+                        if btn_cols[0].button(f"상세 이력", key=f"trace_{i}"):
                             st.session_state.trace_fmid = row['FmID']
-                            # Note: Switching pages in radio via state is tricky, usually we set a trigger
-                            # For simplicity, we just show a message or use st.query_params
-                        if btn_cols[1].button(f"소비자 뷰", key=f"consumer_{row['id']}"):
+                            st.session_state.menu_choice = "🔍 상세 이력 추적"
+                            st.rerun()
+                        if btn_cols[1].button(f"소비자 뷰", key=f"consumer_{i}"):
                             st.session_state.consumer_fmid = row['FmID']
+                            st.session_state.menu_choice = "🏠 소비자 페이지"
+                            st.rerun()
             else:
                 st.info("조건에 맞는 데이터가 없습니다.")
     finally:
