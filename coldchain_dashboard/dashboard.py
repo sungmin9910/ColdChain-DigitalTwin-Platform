@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 import queue
 import pydeck as pdk
+import pymysql
 
 # ----------------------------------------------------------------
 # 1. 설정 및 공유 자원 초기화
@@ -40,6 +41,53 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# AWS MySQL 설정
+def get_mysql_connection():
+    try:
+        if "MySQL" in st.secrets:
+            conn = pymysql.connect(
+                host=st.secrets["MySQL"]["MYSQL_HOST"],
+                port=st.secrets["MySQL"].get("MYSQL_PORT", 3306),
+                user=st.secrets["MySQL"]["MYSQL_USER"],
+                password=st.secrets["MySQL"]["MYSQL_PASSWORD"],
+                database=st.secrets["MySQL"]["MYSQL_DATABASE"],
+                cursorclass=pymysql.cursors.DictCursor
+            )
+            return conn
+    except Exception as e:
+        print(f"MySQL 연결 에러 (secrets.toml 확인 필요): {e}")
+    return None
+
+# DB 초기화 (테이블 없으면 자동 생성)
+def init_mysql_table():
+    conn = get_mysql_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                CREATE TABLE IF NOT EXISTS sensor_data (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    device VARCHAR(50),
+                    timestamp_str VARCHAR(50),
+                    temperature FLOAT,
+                    humidity FLOAT,
+                    lux FLOAT,
+                    g_force FLOAT,
+                    speed FLOAT,
+                    lat FLOAT,
+                    lng FLOAT,
+                    status VARCHAR(50),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """)
+            conn.commit()
+        except Exception as e:
+            print(f"테이블 생성 에러: {e}")
+        finally:
+            conn.close()
+
+init_mysql_table()
+
 # 데이터 공유를 위한 큐
 @st.cache_resource
 def get_msg_queue():
@@ -47,10 +95,95 @@ def get_msg_queue():
 
 @st.cache_resource
 def get_data_history():
-    return []
+    history = []
+    # 앱 시작 시 DB에서 최근 데이터 불러오기
+    conn = get_mysql_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM sensor_data ORDER BY id DESC LIMIT 100")
+                items = cursor.fetchall()
+            
+            for item in reversed(items):
+                # DB 결과를 원래 JSON 형태로 매핑
+                parsed_item = {
+                    "device": item.get("device"),
+                    "timestamp": item.get("timestamp_str"),
+                    "temperature": item.get("temperature", 0.0),
+                    "humidity": item.get("humidity", 0.0),
+                    "lux": item.get("lux", 0.0),
+                    "g_force": item.get("g_force", 0.0),
+                    "speed": item.get("speed", 0.0),
+                    "lat": item.get("lat", 0.0),
+                    "lng": item.get("lng", 0.0),
+                    "status": item.get("status")
+                }
+                history.append(parsed_item)
+            print(f"MySQL에서 {len(history)}개의 과거 데이터를 불러왔습니다.")
+        except Exception as e:
+            print(f"MySQL 데이터 로드 실패: {e}")
+        finally:
+            conn.close()
+    return history
 
 msg_queue = get_msg_queue()
 data_history = get_data_history()
+
+# 최근 데이터 삭제를 위한 전역 변수
+last_cleanup_time = 0
+CLEANUP_INTERVAL_SEC = 86400  # 하루(24시간) 마다 한 번씩 정리
+
+def cleanup_old_data():
+    conn = get_mysql_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                # 7일 이상 지난 데이터 자동 삭제
+                cursor.execute("DELETE FROM sensor_data WHERE created_at < NOW() - INTERVAL 7 DAY")
+            conn.commit()
+            print("오래된 데이터 정리 완료 (7일 이전 데이터 삭제)")
+        except Exception as e:
+            print(f"데이터 정리 에러: {e}")
+        finally:
+            conn.close()
+
+def save_to_mysql(msg_dict):
+    global last_cleanup_time
+    
+    # 24시간마다 한 번씩 정리 로직 실행
+    current_time = time.time()
+    if current_time - last_cleanup_time > CLEANUP_INTERVAL_SEC:
+        cleanup_old_data()
+        last_cleanup_time = current_time
+
+    conn = get_mysql_connection()
+    if conn is None:
+        return
+    try:
+        with conn.cursor() as cursor:
+            sql = """
+            INSERT INTO sensor_data 
+            (device, timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+            val = (
+                msg_dict.get("device", "unknown"),
+                msg_dict.get("timestamp", ""),
+                float(msg_dict.get("temperature", 0.0)),
+                float(msg_dict.get("humidity", 0.0)),
+                float(msg_dict.get("lux", 0.0)),
+                float(msg_dict.get("g_force", 0.0)),
+                float(msg_dict.get("speed", 0.0)),
+                float(msg_dict.get("lat", 0.0)),
+                float(msg_dict.get("lng", 0.0)),
+                msg_dict.get("status", "")
+            )
+            cursor.execute(sql, val)
+        conn.commit()
+    except Exception as e:
+        print(f"MySQL 저장 에러: {e}")
+    finally:
+        conn.close()
 
 # ----------------------------------------------------------------
 # 2. MQTT 콜백 설정
@@ -135,7 +268,8 @@ while True:
     while not msg_queue.empty():
         msg = msg_queue.get()
         data_history.append(msg)
-        if len(data_history) > 100:
+        save_to_mysql(msg)  # MySQL에 실시간 저장
+        if len(data_history) > 3600:
             data_history.pop(0)
 
     if len(data_history) > 0:
