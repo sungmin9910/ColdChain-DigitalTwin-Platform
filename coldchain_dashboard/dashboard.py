@@ -229,6 +229,32 @@ mqtt_client = start_mqtt_client()
 # ----------------------------------------------------------------
 # 3. UI 구성
 # ----------------------------------------------------------------
+
+with st.sidebar:
+    st.header("⚙️ 컨트롤 패널")
+    st.markdown("새로운 주행/테스트를 시작할 때 데이터를 초기화하세요.")
+    if st.button("🔄 새 테스트 시작 (모든 데이터 초기화)", type="primary", use_container_width=True):
+        # 1. DB 비우기
+        conn = get_mysql_connection()
+        if conn:
+            try:
+                with conn.cursor() as cursor:
+                    cursor.execute("TRUNCATE TABLE sensor_data")
+                conn.commit()
+            except Exception as e:
+                st.error(f"DB 초기화 실패: {e}")
+            finally:
+                conn.close()
+        
+        # 2. 메모리 비우기
+        data_history.clear()
+        with msg_queue.mutex:
+            msg_queue.queue.clear()
+            
+        st.success("데이터가 완전히 초기화되었습니다! 🚀")
+        time.sleep(1)
+        st.rerun()
+
 st.title("🚚 프리미엄 콜드체인 통합 관제")
 st.markdown(f"**실시간 수신 중...** (Topic: `{MQTT_TOPIC}`)")
 
