@@ -16,11 +16,16 @@ FRUIT_ICONS = {
     '포도': '🍇'
 }
 FRUIT_IMAGES = {
-    '사과': 'static/image/사과.png',
-    '샤인머스켓': 'static/image/샤인머스켓.png',
-    '복숭아': 'static/image/복숭아.png',
-    '배': 'static/image/배.png',
-    '포도': 'static/image/포도.png'
+    '사과': 'static/Apples.png',
+    'Apples': 'static/Apples.png',
+    '배': 'static/Pears.png',
+    'Pears': 'static/Pears.png',
+    '복숭아': 'static/Peaches.png',
+    'Peaches': 'static/Peaches.png',
+    '귤': 'static/Tangerines.png',
+    'Tangerines': 'static/Tangerines.png',
+    '멜론': 'static/Melons.png',
+    'Melons': 'static/Melons.png'
 }
 FRUIT_ENCYCLOPEDIA = {
     '사과': 'https://terms.naver.com/entry.naver?docId=1107936&cid=40942&categoryId=32711',
@@ -176,7 +181,8 @@ if menu == "📊 대시보드":
                 if selected_fruit != "전체 보기":
                     cols = st.columns([1, 5])
                     with cols[0]:
-                        st.image(FRUIT_IMAGES[selected_fruit], width=80)
+                        if selected_fruit in FRUIT_IMAGES:
+                            st.image(FRUIT_IMAGES[selected_fruit], width=80)
                     with cols[1]:
                         st.header(f"{selected_fruit} 데이터")
                         st.write(f"총 {len(grouped_records)} 건의 고유 FmID 데이터가 조회되었습니다.")
