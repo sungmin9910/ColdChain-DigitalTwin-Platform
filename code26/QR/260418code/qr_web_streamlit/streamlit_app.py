@@ -7,13 +7,13 @@ import os
 from pathlib import Path
 
 # --- Configuration ---
-FRUIT_TYPES = ['사과', '샤인머스켓', '복숭아', '배', '포도']
+FRUIT_TYPES = ['사과', '배', '복숭아', '귤', '참외']
 FRUIT_ICONS = {
     '사과': '🍎',
-    '샤인머스켓': '🍇',
-    '복숭아': '🍑',
     '배': '🍐',
-    '포도': '🍇'
+    '복숭아': '🍑',
+    '귤': '🍊',
+    '참외': '🍈'
 }
 FRUIT_IMAGES = {
     '사과': 'static/Apples.png',
@@ -24,15 +24,15 @@ FRUIT_IMAGES = {
     'Peaches': 'static/Peaches.png',
     '귤': 'static/Tangerines.png',
     'Tangerines': 'static/Tangerines.png',
-    '멜론': 'static/Melons.png',
+    '참외': 'static/Melons.png',
     'Melons': 'static/Melons.png'
 }
 FRUIT_ENCYCLOPEDIA = {
     '사과': 'https://terms.naver.com/entry.naver?docId=1107936&cid=40942&categoryId=32711',
-    '샤인머스켓': 'https://terms.naver.com/entry.naver?docId=5704403&cid=40942&categoryId=32711',
-    '복숭아': 'https://terms.naver.com/entry.naver?docId=1103333&cid=40942&categoryId=32711',
     '배': 'https://terms.naver.com/entry.naver?docId=1099988&cid=40942&categoryId=32711',
-    '포도': 'https://terms.naver.com/entry.naver?docId=1158525&cid=40942&categoryId=32711'
+    '복숭아': 'https://terms.naver.com/entry.naver?docId=1103333&cid=40942&categoryId=32711',
+    '귤': 'https://terms.naver.com/entry.naver?docId=1068934&cid=40942&categoryId=32711',
+    '참외': 'https://terms.naver.com/entry.naver?docId=1145558&cid=40942&categoryId=32711'
 }
 BLOCKCHAIN_FILE = "blockchain_ledger.json"
 
@@ -150,10 +150,8 @@ if menu == "📊 대시보드":
                 '사과': 'Apples',
                 '배': 'Pears',
                 '복숭아': 'Peaches',
-                '포도': 'Grapes',
-                '샤인머스켓': 'Shine Muscat',
                 '귤': 'Tangerines',
-                '멜론': 'Melons'
+                '참외': 'Melons'
             }
             
             if selected_fruit != "전체 보기":
