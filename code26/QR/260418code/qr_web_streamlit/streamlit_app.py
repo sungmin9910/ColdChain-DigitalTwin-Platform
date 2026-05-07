@@ -139,9 +139,22 @@ if menu == "📊 대시보드":
         with conn.cursor() as cursor:
             query = "SELECT * FROM qr WHERE 1=1"
             params = []
+            
+            # DB의 FrT 값이 영어(Apples, Pears 등)로 되어 있는 경우를 위한 매핑
+            fruit_db_mapping = {
+                '사과': 'Apples',
+                '배': 'Pears',
+                '복숭아': 'Peaches',
+                '포도': 'Grapes',
+                '샤인머스켓': 'Shine Muscat',
+                '귤': 'Tangerines',
+                '멜론': 'Melons'
+            }
+            
             if selected_fruit != "전체 보기":
-                query += " AND FrT = %s"
-                params.append(selected_fruit)
+                db_name = fruit_db_mapping.get(selected_fruit, selected_fruit)
+                query += " AND (FrT = %s OR FrT = %s)"
+                params.extend([selected_fruit, db_name])
             if search_fmid:
                 query += " AND FmID LIKE %s"
                 params.append(f"%{search_fmid}%")
