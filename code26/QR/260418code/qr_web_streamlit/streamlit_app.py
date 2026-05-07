@@ -28,11 +28,11 @@ FRUIT_IMAGES = {
     'Melons': 'static/Melons.png'
 }
 FRUIT_ENCYCLOPEDIA = {
-    '사과': 'https://terms.naver.com/entry.naver?docId=1107936&cid=40942&categoryId=32711',
-    '배': 'https://terms.naver.com/entry.naver?docId=1099988&cid=40942&categoryId=32711',
-    '복숭아': 'https://terms.naver.com/entry.naver?docId=1103333&cid=40942&categoryId=32711',
-    '귤': 'https://terms.naver.com/entry.naver?docId=1068934&cid=40942&categoryId=32711',
-    '참외': 'https://terms.naver.com/entry.naver?docId=1145558&cid=40942&categoryId=32711'
+    '사과': 'https://www.nongnet.or.kr/front/M000000224/picture/view.do?pictureSn=49&codeBuNo=&codeNo=&pageIndex=1',
+    '배': 'https://www.nongnet.or.kr/front/M000000224/picture/view.do?pictureSn=48&codeBuNo=&codeNo=&pageIndex=1',
+    '복숭아': 'https://www.nongnet.or.kr/front/M000000224/picture/view.do?pictureSn=47&codeBuNo=&codeNo=&pageIndex=1',
+    '귤': 'https://www.nongnet.or.kr/front/M000000224/picture/view.do?pictureSn=45&codeBuNo=&codeNo=&pageIndex=1',
+    '참외': 'https://www.nongnet.or.kr/front/M000000224/picture/view.do?pictureSn=28&codeBuNo=&codeNo=&pageIndex=2'
 }
 BLOCKCHAIN_FILE = "blockchain_ledger.json"
 
