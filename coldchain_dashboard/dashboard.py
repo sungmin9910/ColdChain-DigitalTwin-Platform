@@ -331,41 +331,72 @@ while True:
                 pitch=45,
             )
 
-            # 1. 이동 경로 레이어
+            # 변화량 계산 (급격한 변화 감지용)
+            df_gps['temp_diff'] = df_gps['temperature'].diff().abs().fillna(0)
+            df_gps['humi_diff'] = df_gps['humidity'].diff().abs().fillna(0)
+            df_gps['lux_diff'] = df_gps['lux'].diff().abs().fillna(0)
+
+            # 1. 이동 경로 레이어 (무채색으로 변경하여 이벤트를 돋보이게 함)
             path_layer = pdk.Layer(
                 "PathLayer",
                 data=[{"path": df_gps[['lng', 'lat']].values.tolist()}],
                 get_path="path",
-                get_color=[0, 212, 255, 200], # 시안 블루
-                width_min_pixels=5,
+                get_color=[150, 150, 150, 150], 
+                width_min_pixels=3,
             )
 
-            # 2. 충격 지점 레이어 (G-Force > 1.8)
-            shock_df = df_gps[df_gps['g_force'] > 1.8]
+            # 2. 충격 지점 (강한 충격 > 2.0G) - 빨간색
+            shock_df = df_gps[df_gps['g_force'] > 2.0].copy()
+            shock_df['event_type'] = "🚨 강한 충격"
             shock_layer = pdk.Layer(
                 "ScatterplotLayer",
                 data=shock_df,
                 get_position="[lng, lat]",
-                get_color=[255, 0, 0, 200], # 빨간색
-                get_radius=30,
+                get_color=[255, 0, 0, 200],
+                get_radius=40,
                 pickable=True,
             )
 
-            # 3. 조도 이벤트 레이어 (Lux > 500)
-            light_df = df_gps[df_gps['lux'] > 500]
+            # 3. 조도 급변 지점 (Delta > 300 lx) - 노란색
+            light_df = df_gps[df_gps['lux_diff'] > 300].copy()
+            light_df['event_type'] = "💡 조도 급변"
             light_layer = pdk.Layer(
                 "ScatterplotLayer",
                 data=light_df,
                 get_position="[lng, lat]",
-                get_color=[255, 255, 0, 150], # 노란색
-                get_radius=20,
+                get_color=[255, 255, 0, 200],
+                get_radius=30,
+                pickable=True,
+            )
+
+            # 4. 온도 급변 지점 (Delta > 1.5°C) - 주황색
+            temp_df = df_gps[df_gps['temp_diff'] > 1.5].copy()
+            temp_df['event_type'] = "🌡️ 온도 급변"
+            temp_layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=temp_df,
+                get_position="[lng, lat]",
+                get_color=[255, 128, 0, 200],
+                get_radius=30,
+                pickable=True,
+            )
+
+            # 5. 습도 급변 지점 (Delta > 5%) - 파란색
+            humi_df = df_gps[df_gps['humi_diff'] > 5.0].copy()
+            humi_df['event_type'] = "💧 습도 급변"
+            humi_layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=humi_df,
+                get_position="[lng, lat]",
+                get_color=[0, 128, 255, 200],
+                get_radius=30,
                 pickable=True,
             )
 
             map_container.pydeck_chart(pdk.Deck(
-                layers=[path_layer, shock_layer, light_layer],
+                layers=[path_layer, shock_layer, light_layer, temp_layer, humi_layer],
                 initial_view_state=view_state,
-                tooltip={"text": "상태: {status}\n충격: {g_force}G\n조도: {lux}lx"}
+                tooltip={"text": "{event_type}\n시간: {timestamp}\n온도: {temperature}°C\n습도: {humidity}%\n충격: {g_force}G\n조도: {lux}lx"}
             ))
         else:
             map_container.info("GPS 수신 대기 중 (이동 경로를 표시하려면 위경도 데이터가 필요합니다)...")
