@@ -345,56 +345,80 @@ while True:
                 width_min_pixels=3,
             )
 
-            # 2. 충격 지점 (강한 충격 > 2.0G) - 빨간색
+            # 2. 충격 지점 (강한 충격 > 2.0G) - 빨간색 (반지름 45)
             shock_df = df_gps[df_gps['g_force'] > 2.0].copy()
             shock_df['event_type'] = "🚨 강한 충격"
+            shock_df['icon'] = "🚨"
             shock_layer = pdk.Layer(
                 "ScatterplotLayer",
                 data=shock_df,
                 get_position="[lng, lat]",
-                get_color=[255, 0, 0, 200],
-                get_radius=40,
+                get_fill_color=[255, 0, 0, 80],
+                get_line_color=[255, 0, 0, 255],
+                stroked=True,
+                get_radius=45,
                 pickable=True,
             )
 
-            # 3. 조도 급변 지점 (Delta > 300 lx) - 노란색
+            # 3. 조도 급변 지점 (Delta > 300 lx) - 노란색 (반지름 35)
             light_df = df_gps[df_gps['lux_diff'] > 300].copy()
             light_df['event_type'] = "💡 조도 급변"
+            light_df['icon'] = "💡"
             light_layer = pdk.Layer(
                 "ScatterplotLayer",
                 data=light_df,
                 get_position="[lng, lat]",
-                get_color=[255, 255, 0, 200],
-                get_radius=30,
+                get_fill_color=[255, 255, 0, 80],
+                get_line_color=[255, 255, 0, 255],
+                stroked=True,
+                get_radius=35,
                 pickable=True,
             )
 
-            # 4. 온도 급변 지점 (Delta > 1.5°C) - 주황색
+            # 4. 온도 급변 지점 (Delta > 1.5°C) - 주황색 (반지름 25)
             temp_df = df_gps[df_gps['temp_diff'] > 1.5].copy()
             temp_df['event_type'] = "🌡️ 온도 급변"
+            temp_df['icon'] = "🌡️"
             temp_layer = pdk.Layer(
                 "ScatterplotLayer",
                 data=temp_df,
                 get_position="[lng, lat]",
-                get_color=[255, 128, 0, 200],
-                get_radius=30,
+                get_fill_color=[255, 128, 0, 80],
+                get_line_color=[255, 128, 0, 255],
+                stroked=True,
+                get_radius=25,
                 pickable=True,
             )
 
-            # 5. 습도 급변 지점 (Delta > 5%) - 파란색
+            # 5. 습도 급변 지점 (Delta > 5%) - 파란색 (반지름 15)
             humi_df = df_gps[df_gps['humi_diff'] > 5.0].copy()
             humi_df['event_type'] = "💧 습도 급변"
+            humi_df['icon'] = "💧"
             humi_layer = pdk.Layer(
                 "ScatterplotLayer",
                 data=humi_df,
                 get_position="[lng, lat]",
-                get_color=[0, 128, 255, 200],
-                get_radius=30,
+                get_fill_color=[0, 128, 255, 80],
+                get_line_color=[0, 128, 255, 255],
+                stroked=True,
+                get_radius=15,
                 pickable=True,
             )
 
+            # 모든 이벤트 데이터를 합쳐서 텍스트 아이콘 레이어 생성
+            all_events = pd.concat([shock_df, light_df, temp_df, humi_df]).drop_duplicates(subset=['timestamp', 'icon']) if not (shock_df.empty and light_df.empty and temp_df.empty and humi_df.empty) else pd.DataFrame()
+
+            icon_layer = pdk.Layer(
+                "TextLayer",
+                data=all_events,
+                get_position="[lng, lat]",
+                get_text="icon",
+                get_size=20,
+                get_alignment_baseline="'center'",
+            )
+
             map_container.pydeck_chart(pdk.Deck(
-                layers=[path_layer, shock_layer, light_layer, temp_layer, humi_layer],
+                layers=[path_layer, shock_layer, light_layer, temp_layer, humi_layer, icon_layer],
                 initial_view_state=view_state,
                 tooltip={"text": "{event_type}\n시간: {timestamp}\n온도: {temperature}°C\n습도: {humidity}%\n충격: {g_force}G\n조도: {lux}lx"}
             ))
