@@ -58,6 +58,7 @@ st.markdown("""
         border-radius: 10px;
         padding: 20px;
         background-color: #ffffff;
+        color: #000000;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         margin-bottom: 20px;
         border: 1px solid #dee2e6;
@@ -65,6 +66,7 @@ st.markdown("""
     }
     .card h3 {
         font-size: 1.25rem;
+        color: #000000;
         border-bottom: 1px solid #eee;
         padding-bottom: 10px;
         margin-bottom: 15px;
