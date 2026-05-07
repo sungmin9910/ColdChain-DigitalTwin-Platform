@@ -146,11 +146,19 @@ if menu == "📊 대시보드":
                 query += " AND FmID LIKE %s"
                 params.append(f"%{search_fmid}%")
             
-            query += " ORDER BY APC_AD DESC LIMIT 50"
+            query += " ORDER BY FmID DESC, Lo ASC LIMIT 200"
             cursor.execute(query, params)
             records = cursor.fetchall()
             
             if records:
+                # FmID 기준으로 그룹화
+                grouped_records = {}
+                for row in records:
+                    fmid = row['FmID']
+                    if fmid not in grouped_records:
+                        grouped_records[fmid] = []
+                    grouped_records[fmid].append(row)
+
                 # Header showing selected fruit
                 if selected_fruit != "전체 보기":
                     cols = st.columns([1, 5])
@@ -158,37 +166,46 @@ if menu == "📊 대시보드":
                         st.image(FRUIT_IMAGES[selected_fruit], width=80)
                     with cols[1]:
                         st.header(f"{selected_fruit} 데이터")
-                        st.write(f"총 {len(records)} 건의 데이터가 조회되었습니다.")
+                        st.write(f"총 {len(grouped_records)} 건의 고유 FmID 데이터가 조회되었습니다.")
                 else:
                     st.header("전체 QR 스캔 데이터")
-                    st.write(f"총 {len(records)} 건의 최신 데이터가 조회되었습니다.")
+                    st.write(f"총 {len(grouped_records)} 건의 고유 FmID 데이터가 조회되었습니다.")
 
-                # Card-based Display
-                for i, row in enumerate(records):
+                # Card-based Display (FmID 단위로 그룹화된 카드)
+                for i, (fmid, fmid_records) in enumerate(grouped_records.items()):
+                    latest_row = fmid_records[-1] # 마지막 단계 데이터
+                    
+                    # A00 -> A10 -> A15 타임라인 텍스트 생성
+                    timeline_html = " ➔ ".join(
+                        [f"<span style='color: {'#dc3545' if idx == len(fmid_records)-1 else '#000000'}; font-weight: {'bold' if idx == len(fmid_records)-1 else 'normal'};'>{r['Lo']}</span>" 
+                         for idx, r in enumerate(fmid_records)]
+                    )
+
                     with st.container():
                         st.markdown(f"""
                         <div class="card">
-                            <h3>{row['FrT']} - {row['Vt']}</h3>
+                            <h3>{latest_row['FrT']} - {latest_row['Vt']}</h3>
                             <div style="display: flex; gap: 20px;">
                                 <div>
-                                    <p><strong>FmID:</strong> <span style="color: blue;">{row['FmID']}</span></p>
-                                    <p><strong>현재 공정:</strong> <span style="color: red; font-weight: bold;">{row['Lo']}</span></p>
-                                    <p><strong>APC 도착 시간:</strong> {row['APC_AD']}</p>
+                                    <p><strong>FmID:</strong> <span style="color: blue;">{fmid}</span></p>
+                                    <p><strong>공정 진행:</strong> {timeline_html}</p>
+                                    <p><strong>최종 도착 시간:</strong> {latest_row['APC_AD']}</p>
                                 </div>
                                 <div style="border-left: 1px solid #ddd; padding-left: 20px;">
-                                    <p><strong>생산지 코드:</strong> {row['AC']}</p>
-                                    <p><strong>수량:</strong> {row['Qt']} {row['Mt']}</p>
+                                    <p><strong>생산지 코드:</strong> {latest_row['AC']}</p>
+                                    <p><strong>최종 수량:</strong> {latest_row['Qt']} {latest_row['Mt']}</p>
                                 </div>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
+                        
                         btn_cols = st.columns([1, 1, 4])
                         if btn_cols[0].button(f"상세 이력", key=f"trace_{i}"):
-                            st.session_state.trace_fmid = row['FmID']
+                            st.session_state.trace_fmid = fmid
                             st.session_state.menu_choice = "🔍 상세 이력 추적"
                             st.rerun()
                         if btn_cols[1].button(f"소비자 뷰", key=f"consumer_{i}"):
-                            st.session_state.consumer_fmid = row['FmID']
+                            st.session_state.consumer_fmid = fmid
                             st.session_state.menu_choice = "🏠 소비자 페이지"
                             st.rerun()
             else:
