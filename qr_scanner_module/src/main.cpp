@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#define USE_ESP32_WIFI true
 #include <MySQL_Generic.h>
 #include <HTTPClient.h>
 
