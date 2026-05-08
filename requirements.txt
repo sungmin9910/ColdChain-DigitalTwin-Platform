@@ -3,3 +3,6 @@ pymysql
 toml
 pandas
 plotly
+python-dotenv
+pymysql
+pandas
