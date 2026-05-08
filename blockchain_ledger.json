@@ -16,5 +16,14 @@
             "Type": "Grading Result"
         },
         "stage": "A12 (Sorting & Grading)"
+    },
+    {
+        "timestamp": "2026-05-08 15:43:42",
+        "hash": "1101183ed9cecb34ba29e1baa1506a277d180f641c0fd5208424eb1c215afb5b",
+        "metadata": {
+            "FmID": "98",
+            "Type": "Grading Result"
+        },
+        "stage": "A12 (Sorting & Grading)"
     }
 ]

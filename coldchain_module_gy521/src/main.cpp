@@ -6,14 +6,15 @@
 #include <BH1750.h>
 #include <TinyGPS++.h>
 #include <WiFi.h>
+#include <WiFiMulti.h>
+#include "secrets.h"
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
 // -----------------------------------------
 // 1. 와이파이 및 MQTT 설정
 // -----------------------------------------
-const char* ssid = "225";
-const char* password = "123698745";
+// 와이파이 설정은 secrets.h에서 다중으로 관리합니다.
 const char* mqtt_server = "broker.emqx.io";
 const int mqtt_port = 1883;
 const char* mqtt_topic = "coldchain/truck01/sensor";
@@ -29,6 +30,7 @@ TinyGPSPlus gps;
 // GPS는 Serial2 사용 (RX: 16, TX: 17)
 #define GPS_SERIAL Serial2
 
+WiFiMulti wifiMulti;
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -36,13 +38,19 @@ unsigned long lastMsg = 0;
 
 void setup_wifi() {
   delay(10);
-  Serial.println("\nConnecting to WiFi...");
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+  Serial.print("Connecting to WiFi...");
+  
+  for (int i = 0; i < num_wifi_networks; i++) {
+    wifiMulti.addAP(wifi_networks[i].ssid, wifi_networks[i].password);
+  }
+
+  while (wifiMulti.run() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\nWiFi connected!");
+  Serial.println("\n✅ WiFi connected!");
+  Serial.print("Connected SSID: ");
+  Serial.println(WiFi.SSID());
 }
 
 void reconnect() {

@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiMulti.h>
+#include <WebServer.h> // 스마트폰 리모컨용 웹서버
 #define USE_ESP32_WIFI true
 #include <MySQL_Generic.h>
 
@@ -12,19 +13,52 @@ uint16_t db_port = 3306;
 char user[] = "admin";
 char db[] = "lab225";
 
-// --- 핀 설정 (ESP32-DevKit 결선에 맞게 변경) ---
-#define SCANNER_RX_PIN 16 // DE2110 TX -> ESP32 RX2 (16)
-#define SCANNER_TX_PIN 17 // DE2110 RX -> ESP32 TX2 (17)
+// --- 핀 설정 (VN이 있는 왼쪽 열의 입출력 가능 핀) ---
+// 주의: VP, VN(39), 34, 35는 입력 전용이므로 TX로 쓸 수 없습니다.
+#define SCANNER_RX_PIN 32 // QR 스캐너의 TX 선 연결
+#define SCANNER_TX_PIN 33 // QR 스캐너의 RX 선 연결
 #define BUTTON_PIN 0      // ESP32 기본 BOOT 버튼
 
 // 객체 명시적 생성
 HardwareSerial ScannerSerial(2);
-// MySQL_Generic_WiFi.h에 WiFiClient client가 이미 선언되어 있으므로 여기서는 선언하지 않습니다.
 MySQL_Connection conn((Client *)&client);
-WiFiMulti wifiMulti; // 다중 와이파이 연결용 객체
+WiFiMulti wifiMulti;
+WebServer server(80); // 80번 포트에 웹서버 생성
 
 // 현재 스캔 단계 (A10 = scan1.py, A11 = scan2.py ...)
 String currentMode = "A10";
+
+// --- 스마트폰 리모컨 UI 함수 ---
+void handleRoot() {
+  String html = "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>";
+  html += "<style>body{font-family:'Malgun Gothic',sans-serif;text-align:center;margin-top:50px;background:#f4f4f9;} ";
+  html += "button{padding:20px 40px;font-size:24px;background:#007BFF;color:white;border:none;border-radius:15px;box-shadow: 0 4px 6px rgba(0,0,0,0.1);}</style></head><body>";
+  html += "<h2>🚚 콜드체인 QR 스캐너</h2>";
+  html += "<h1>현재 스캔 모드: <span style='color:#FF5722;font-size:50px;'>" + currentMode + "</span></h1>";
+  
+  if (currentMode == "A10") html += "<p style='font-size:20px;'>(박스 입고 단계)</p>";
+  else if (currentMode == "A11") html += "<p style='font-size:20px;'>(세척 완료 단계)</p>";
+  else if (currentMode == "A13") html += "<p style='font-size:20px;'>(포장 완료 단계)</p>";
+  else if (currentMode == "A14") html += "<p style='font-size:20px;'>(저장 단계)</p>";
+  else if (currentMode == "A15") html += "<p style='font-size:20px;'>(최종 출하 단계)</p>";
+  
+  html += "<br><br><a href='/next'><button>👉 다음 단계로 변경</button></a>";
+  html += "</body></html>";
+  server.send(200, "text/html", html);
+}
+
+void handleNext() {
+  if (currentMode == "A10") currentMode = "A11";
+  else if (currentMode == "A11") currentMode = "A13";
+  else if (currentMode == "A13") currentMode = "A14";
+  else if (currentMode == "A14") currentMode = "A15";
+  else if (currentMode == "A15") currentMode = "A10";
+  
+  Serial.println("\n📱 폰에서 모드 변경됨 -> " + currentMode);
+  
+  server.sendHeader("Location", "/");
+  server.send(303);
+}
 
 void setup() {
   Serial.begin(115200);
@@ -52,13 +86,18 @@ void setup() {
   Serial.println("\n✅ WiFi Connected!");
   Serial.print("Connected to SSID: ");
   Serial.println(WiFi.SSID()); // 실제 연결된 와이파이 이름 출력
-  Serial.print("IP Address: ");
+  Serial.print("📱 스마트폰 리모컨 주소: http://");
   Serial.println(WiFi.localIP()); // ESP32의 현재 IP 출력
+
+  // 웹서버 라우팅 및 시작
+  server.on("/", handleRoot);
+  server.on("/next", handleNext);
+  server.begin();
   
   Serial.println("==========================================");
   Serial.println("ESP32 Standalone Scanner Ready. (DB Fetch Mode)");
   Serial.println("Current Mode: " + currentMode);
-  Serial.println("버튼(GPIO 0)을 누르거나 'MODE:A11' 텍스트 QR을 스캔하여 단계를 변경하세요.");
+  Serial.println("버튼(GPIO 0)을 누르거나 스마트폰 웹페이지(http://" + WiFi.localIP().toString() + ")에서 단계를 변경하세요.");
   Serial.println("==========================================");
 }
 
@@ -213,5 +252,8 @@ void loop() {
     Serial.println("\n🔘 버튼 눌림 - 스캔 단계가 " + currentMode + "(으)로 변경되었습니다.");
     lastButtonPress = millis();
   }
+
+  // 웹서버 클라이언트 처리 (스마트폰 접속 대기)
+  server.handleClient();
 }
 
