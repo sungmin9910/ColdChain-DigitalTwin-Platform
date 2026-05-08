@@ -1,7 +1,7 @@
+#include <Arduino.h>
 #include <WiFi.h>
 #define USE_ESP32_WIFI true
 #include <MySQL_Generic.h>
-#include <HTTPClient.h>
 
 // --- 설정 (한성민 님의 환경에 맞게 수정) ---
 const char* ssid = "225";
@@ -13,21 +13,26 @@ char user[] = "admin";
 char password_db[] = "12345678";
 char db[] = "lab225";
 
-// UART1 (DE2110 연결, ESP32-C6는 UART0과 UART1만 지원)
+// --- 핀 설정 (보드 결선에 맞게 변경하세요) ---
+#define SCANNER_RX_PIN 18 // DE2110 TX
+#define SCANNER_TX_PIN 17 // DE2110 RX
+#define BUTTON_PIN 0      // ESP32-S3 기본 BOOT 버튼
+
+// 객체
 HardwareSerial ScannerSerial(1);
-
-// ESP32-C6-Mini 보드의 여유 핀으로 변경 (보드에 맞게 조정 가능)
-#define RXD_PIN 4
-#define TXD_PIN 5
-
-// DB 객체
 MySQL_Connection conn((Client *)&client);
-MySQL_Query *query_mem;
-// WiFiClient client; 는 MySQL_Generic.h에 이미 포함되어 있으므로 삭제합니다.
+
+// 현재 스캔 단계 (A10 = scan1.py, A11 = scan2.py ...)
+String currentMode = "A10";
 
 void setup() {
   Serial.begin(115200);
-  ScannerSerial.begin(115200, SERIAL_8N1, RXD_PIN, TXD_PIN); // 기존 16, 17은 ESP32-C6의 기본 시리얼과 충돌하므로 변경
+  
+  // 시리얼 초기화
+  ScannerSerial.begin(115200, SERIAL_8N1, SCANNER_RX_PIN, SCANNER_TX_PIN);
+  
+  // 버튼을 입력용으로 설정 (내부 풀업)
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
 
   // Wi-Fi 연결
   WiFi.begin(ssid, password);
@@ -36,9 +41,14 @@ void setup() {
     Serial.print(".");
   }
   Serial.println("\nWiFi Connected!");
+  Serial.println("==========================================");
+  Serial.println("ESP32 Standalone Scanner Ready. (DB Fetch Mode)");
+  Serial.println("Current Mode: " + currentMode);
+  Serial.println("버튼(GPIO 0)을 누르거나 'MODE:A11' 텍스트 QR을 스캔하여 단계를 변경하세요.");
+  Serial.println("==========================================");
 }
 
-// URL에서 쿼리 파라미터 추출 함수 (Python의 parse_qs 역할)
+// URL 파라미터 파싱
 String getQueryParam(String url, String param) {
   int start = url.indexOf(param + "=");
   if (start == -1) return "NULL";
@@ -56,46 +66,106 @@ String getFmID(String url) {
   return "'" + url.substring(lastSlash + 1, questionMark) + "'";
 }
 
-void saveToDatabase(String rawUrl) {
+void processScan(String rawData) {
+  // 1. 모드 변경용 특수 QR 코드 인식
+  if (rawData.startsWith("MODE:")) {
+    currentMode = rawData.substring(5);
+    currentMode.trim();
+    Serial.println("\n=================================");
+    Serial.println("스캔 단계가 변경되었습니다: " + currentMode);
+    Serial.println("=================================\n");
+    return;
+  }
+
+  // 2. 일반 과일 QR URL 파싱
+  String fmId = getFmID(rawData);
+  if (fmId == "NULL" || fmId == "''") {
+    Serial.println("❌ FmID를 찾을 수 없습니다.");
+    return;
+  }
+
+  String ac = getQueryParam(rawData, "AC");
+  String frt = getQueryParam(rawData, "FrT");
+  String vt = getQueryParam(rawData, "Vt");
+  String ct = getQueryParam(rawData, "Ct");
+  String hd = getQueryParam(rawData, "HD");
+  String dd = getQueryParam(rawData, "DD");
+  String qt = getQueryParam(rawData, "Qt");
+  String mt = getQueryParam(rawData, "Mt");
+  String hn = getQueryParam(rawData, "HN");
+  String std = getQueryParam(rawData, "StD");
+  String rp = getQueryParam(rawData, "Rp");
+
+  // 3. DB 접속 및 처리
   if (conn.connect(server_addr, db_port, user, password_db)) {
-    delay(500);
     MySQL_Query query_executor(&conn);
 
-    // 1. 최신 GPS 정보 가져오기
+    // [GPS 데이터 가져오기]
+    String latStr = "NULL", lonStr = "NULL";
     String gps_query = "SELECT latitude, longitude FROM gps_log ORDER BY recorded_at DESC LIMIT 1";
-    query_executor.execute(gps_query.c_str());
-    
-    column_names *cols = query_executor.get_columns();
-    row_values *row = query_executor.get_next_row();
-    String lat = "NULL", lon = "NULL";
-    if (row != NULL) {
-      lat = row->values[0];
-      lon = row->values[1];
+    if (query_executor.execute(gps_query.c_str())) {
+      column_names *cols = query_executor.get_columns();
+      row_values *row = query_executor.get_next_row();
+      if (row != NULL && row->values[0] != NULL && row->values[1] != NULL) {
+        latStr = row->values[0];
+        lonStr = row->values[1];
+      }
+      // 버퍼 비우기
+      while (row != NULL) { row = query_executor.get_next_row(); }
     }
 
-    // 2. 데이터 파싱 및 INSERT 쿼리 생성
-    // Python 코드의 로직을 그대로 따름 (Lo: A10 고정)
-    String fmId = getFmID(rawUrl);
-    String ac = getQueryParam(rawUrl, "AC");
-    String frt = getQueryParam(rawUrl, "FrT");
-    String vt = getQueryParam(rawUrl, "Vt");
-    String ct = getQueryParam(rawUrl, "Ct");
-    String hd = getQueryParam(rawUrl, "HD");
-    String dd = getQueryParam(rawUrl, "DD");
-    String qt = getQueryParam(rawUrl, "Qt");
-    String mt = getQueryParam(rawUrl, "Mt");
-    String hn = getQueryParam(rawUrl, "HN");
-    String std = getQueryParam(rawUrl, "StD");
-    String rp = getQueryParam(rawUrl, "Rp");
+    // [온습도 데이터 가져오기 (A14 등에서 사용)]
+    // *주의: 실제 온습도 테이블/컬럼명(sensor_log, temperature 등)에 맞춰 쿼리를 수정하세요.
+    String tpStr = "NULL", hmStr = "NULL";
+    if (currentMode == "A14") {
+      String dht_query = "SELECT temperature, humidity FROM sensor_log ORDER BY recorded_at DESC LIMIT 1";
+      if (query_executor.execute(dht_query.c_str())) {
+        column_names *cols = query_executor.get_columns();
+        row_values *row = query_executor.get_next_row();
+        if (row != NULL && row->values[0] != NULL && row->values[1] != NULL) {
+          tpStr = row->values[0];
+          hmStr = row->values[1];
+        }
+        while (row != NULL) { row = query_executor.get_next_row(); }
+      }
+    }
 
-    String insert_query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, Lat, lon) VALUES ";
-    insert_query += "('A10', " + ac + ", " + fmId + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", " + rp + ", NOW(), " + lat + ", " + lon + ")";
+    // [INSERT 쿼리 생성 (INSERT ... SELECT 사용)]
+    String query = "";
+    if (currentMode == "A10") {
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, Lat, lon) VALUES ";
+      query += "('A10', " + ac + ", " + fmId + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", " + rp + ", NOW(), " + latStr + ", " + lonStr + ")";
+    }
+    else if (currentMode == "A11") {
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, Lat, lon) ";
+      query += "SELECT 'A11', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, NOW(), " + latStr + ", " + lonStr + " ";
+      query += "FROM lab225.qr WHERE FmID = " + fmId + " AND APC_AD IS NOT NULL ORDER BY APC_AD DESC LIMIT 1";
+    }
+    else if (currentMode == "A12") {
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, Lat, lon) ";
+      query += "SELECT 'A12', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, NOW(), " + latStr + ", " + lonStr + " ";
+      query += "FROM lab225.qr WHERE Lo = 'A11' AND FmID = " + fmId + " ORDER BY APC_WD DESC LIMIT 1";
+    }
+    else if (currentMode == "A13") {
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon) ";
+      query += "SELECT 'A13', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, NOW(), " + latStr + ", " + lonStr + " ";
+      query += "FROM lab225.qr WHERE Lo = 'A12' AND FmID = " + fmId + " ORDER BY APC_RT DESC LIMIT 1";
+    }
+    else if (currentMode == "A14") {
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon) ";
+      query += "SELECT 'A14', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, NOW(), " + tpStr + ", " + hmStr + ", " + latStr + ", " + lonStr + " ";
+      query += "FROM lab225.qr WHERE Lo = 'A13' AND FmID = " + fmId + " ORDER BY APC_PT DESC LIMIT 1";
+    }
+    else if (currentMode == "A15") {
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Lat, lon) ";
+      query += "SELECT 'A15', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, NOW(), " + latStr + ", " + lonStr + " ";
+      query += "FROM lab225.qr WHERE Lo = 'A14' AND FmID = " + fmId + " ORDER BY APC_StD DESC LIMIT 1";
+    }
 
-    // 3. 실행
-    if (query_executor.execute(insert_query.c_str())) {
-      Serial.println("✅ A10 데이터가 DB에 저장되었습니다.");
+    if (query_executor.execute(query.c_str())) {
+      Serial.println("✅ DB 저장 성공! (단계: " + currentMode + ")");
     } else {
-      Serial.println("❌ DB 저장 실패");
+      Serial.println("❌ DB 저장 실패: 쿼리 오류 또는 이전 단계 데이터 없음");
     }
     conn.close();
   } else {
@@ -103,14 +173,30 @@ void saveToDatabase(String rawUrl) {
   }
 }
 
+unsigned long lastButtonPress = 0;
+
 void loop() {
+  // 스캐너 데이터 처리
   if (ScannerSerial.available()) {
     String scannedData = ScannerSerial.readStringUntil('\r');
     scannedData.trim();
-
     if (scannedData.length() > 0) {
-      Serial.println("📷 스캔된 데이터: " + scannedData);
-      saveToDatabase(scannedData);
+      Serial.println("\n📷 스캔된 데이터: " + scannedData);
+      processScan(scannedData);
     }
   }
+
+  // 버튼을 통한 수동 모드 전환 (디바운스 500ms 적용)
+  if (digitalRead(BUTTON_PIN) == LOW && millis() - lastButtonPress > 500) {
+    if (currentMode == "A10") currentMode = "A11";
+    else if (currentMode == "A11") currentMode = "A12";
+    else if (currentMode == "A12") currentMode = "A13";
+    else if (currentMode == "A13") currentMode = "A14";
+    else if (currentMode == "A14") currentMode = "A15";
+    else if (currentMode == "A15") currentMode = "A10";
+    
+    Serial.println("\n🔘 버튼 눌림 - 스캔 단계가 " + currentMode + "(으)로 변경되었습니다.");
+    lastButtonPress = millis();
+  }
 }
+
