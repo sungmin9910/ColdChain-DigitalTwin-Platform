@@ -6,14 +6,18 @@
 const char* ssid = "225";
 const char* password = "123698745";
 
-IPAddress server_addr(203,254,153,113); // DB 호스트 IP
-uint16_t db_port = 3307;
-char user[] = "root";
-char password_db[] = "Lab22512251!";
+const char server_addr[] = "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com"; // DB 호스트 IP
+uint16_t db_port = 3306;
+char user[] = "admin";
+char password_db[] = "12345678";
 char db[] = "lab225";
 
-// UART2 (DE2110 연결)
-HardwareSerial ScannerSerial(2);
+// UART1 (DE2110 연결, ESP32-C6는 UART0과 UART1만 지원)
+HardwareSerial ScannerSerial(1);
+
+// ESP32-C6-Mini 보드의 여유 핀으로 변경 (보드에 맞게 조정 가능)
+#define RXD_PIN 4
+#define TXD_PIN 5
 
 // DB 객체
 MySQL_Connection conn((Client *)&client);
@@ -22,7 +26,7 @@ MySQL_Query *query_mem;
 
 void setup() {
   Serial.begin(115200);
-  ScannerSerial.begin(115200, SERIAL_8N1, 16, 17); // RX:16, TX:17
+  ScannerSerial.begin(115200, SERIAL_8N1, RXD_PIN, TXD_PIN); // 기존 16, 17은 ESP32-C6의 기본 시리얼과 충돌하므로 변경
 
   // Wi-Fi 연결
   WiFi.begin(ssid, password);
