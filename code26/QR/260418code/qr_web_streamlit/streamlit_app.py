@@ -40,8 +40,8 @@ if not fm_id:
 try:
     conn = get_db_connection()
     cursor = conn.cursor()
-    # FmID에 해당하는 모든 이력을 시간순으로 가져옵니다
-    query = "SELECT * FROM qr WHERE FmID = %s ORDER BY id ASC"
+    # FmID에 해당하는 모든 이력을 단계(A10~A15) 순서로 가져옵니다
+    query = "SELECT * FROM qr WHERE FmID = %s ORDER BY Lo ASC"
     cursor.execute(query, (fm_id,))
     records = cursor.fetchall()
     conn.close()
