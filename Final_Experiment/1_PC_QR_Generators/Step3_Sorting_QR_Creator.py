@@ -14,12 +14,12 @@ import json
 from dotenv import load_dotenv
 load_dotenv()
 
-# --- DB 연결 정보 ---
-DB_HOST = "203.254.153.113"
-DB_USER = "root"
+# --- DB 연결 정보 (AWS RDS) ---
+DB_HOST = "15.165.68.30"
+DB_USER = "admin"
 DB_PASSWORD = os.getenv("DB_PASSWORD", "12345678")
 DB_NAME = "lab225"
-DB_PORT = 3307
+DB_PORT = 3306
 TABLE_NAME = "qr"
 
 # --- 블록체인 원장 파일 ---

@@ -22,12 +22,12 @@ import os
 from dotenv import load_dotenv
 load_dotenv() # .env 파일에서 비밀번호를 안전하게 불러옵니다.
 
-# --- DB 연결 정보 (기존 유지) ---
-DB_HOST = "203.254.153.113"
-DB_USER = "root"
+# --- DB 연결 정보 (AWS RDS) ---
+DB_HOST = "15.165.68.30"
+DB_USER = "admin"
 DB_PASSWORD = os.getenv("DB_PASSWORD", "12345678")
 DB_NAME = "lab225"
-DB_PORT = 3307
+DB_PORT = 3306
 
 # --- [추가] 블록체인 시뮬레이션 파일 ---
 BLOCKCHAIN_FILE = r"Z:\docker\smartfarm_app\blockchain_ledger.json"
