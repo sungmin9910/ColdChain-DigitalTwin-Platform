@@ -161,6 +161,9 @@ def save_to_mysql(msg_dict):
         return
     try:
         with conn.cursor() as cursor:
+            # AWS RDS 시간에 +09:00 적용
+            cursor.execute("SET time_zone = '+09:00'")
+            
             sql = """
             INSERT INTO sensor_data 
             (device, timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status)
@@ -198,7 +201,11 @@ def on_connect(client, userdata, flags, rc, properties=None):
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
-        payload['timestamp'] = datetime.now().strftime("%H:%M:%S")
+        
+        # 한국 시간(UTC+9) 강제 적용
+        kst_time = datetime.utcnow() + pd.Timedelta(hours=9)
+        payload['timestamp'] = kst_time.strftime("%H:%M:%S")
+        
         # 데이터가 문자열로 올 경우를 대비해 숫자로 변환
         for key in ['temperature', 'humidity', 'lux', 'g_force', 'speed', 'lat', 'lng']:
             if key in payload:

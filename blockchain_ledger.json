@@ -1,0 +1,20 @@
+[
+    {
+        "timestamp": "2026-05-08 14:41:28",
+        "hash": "9f881ac5020529b542a1d41c36bb888c64aa53764afa5654f9b3932589691cba",
+        "metadata": {
+            "FmID": "98",
+            "Type": "Grading Result"
+        },
+        "stage": "A12 (Sorting & Grading)"
+    },
+    {
+        "timestamp": "2026-05-08 15:02:24",
+        "hash": "074450b6a500790728fb0fb50a3116e62b9b279e43a8340a7d5fc0d9a2688bc7",
+        "metadata": {
+            "FmID": "98",
+            "Type": "Grading Result"
+        },
+        "stage": "A12 (Sorting & Grading)"
+    }
+]

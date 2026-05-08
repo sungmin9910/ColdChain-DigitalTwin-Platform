@@ -124,6 +124,9 @@ void processScan(String rawData) {
   if (conn.connect(server_addr, db_port, user, password_db)) {
     Serial.println("✅ AWS DB Connection Success!");
     MySQL_Query query_executor(&conn);
+    
+    // [추가] AWS RDS 기본 시간(UTC)을 한국 시간(KST, +09:00)으로 맞춰주기
+    query_executor.execute("SET time_zone = '+09:00'");
 
     // [센서 데이터 통합 가져오기 (GPS, 온습도)]
     String latStr = "NULL", lonStr = "NULL", tpStr = "NULL", hmStr = "NULL";
@@ -158,18 +161,18 @@ void processScan(String rawData) {
       query += "FROM lab225.qr WHERE Lo = 'A11' AND FmID = " + fmId + " ORDER BY APC_WD DESC LIMIT 1";
     }
     else if (currentMode == "A13") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon) ";
-      query += "SELECT 'A13', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, NOW(), " + latStr + ", " + lonStr + " ";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
+      query += "SELECT 'A13', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, NOW(), " + latStr + ", " + lonStr + ", AGrade, BGrade, CGrade, DefectRate ";
       query += "FROM lab225.qr WHERE Lo = 'A12' AND FmID = " + fmId + " ORDER BY APC_RT DESC LIMIT 1";
     }
     else if (currentMode == "A14") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon) ";
-      query += "SELECT 'A14', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, NOW(), " + tpStr + ", " + hmStr + ", " + latStr + ", " + lonStr + " ";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
+      query += "SELECT 'A14', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, NOW(), " + tpStr + ", " + hmStr + ", " + latStr + ", " + lonStr + ", AGrade, BGrade, CGrade, DefectRate ";
       query += "FROM lab225.qr WHERE Lo = 'A13' AND FmID = " + fmId + " ORDER BY APC_PT DESC LIMIT 1";
     }
     else if (currentMode == "A15") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Lat, lon) ";
-      query += "SELECT 'A15', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, NOW(), " + latStr + ", " + lonStr + " ";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
+      query += "SELECT 'A15', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, NOW(), " + latStr + ", " + lonStr + ", AGrade, BGrade, CGrade, DefectRate ";
       query += "FROM lab225.qr WHERE Lo = 'A14' AND FmID = " + fmId + " ORDER BY APC_StD DESC LIMIT 1";
     }
 
@@ -202,8 +205,7 @@ void loop() {
   // 버튼을 통한 수동 모드 전환 (디바운스 500ms 적용)
   if (digitalRead(BUTTON_PIN) == LOW && millis() - lastButtonPress > 500) {
     if (currentMode == "A10") currentMode = "A11";
-    else if (currentMode == "A11") currentMode = "A12";
-    else if (currentMode == "A12") currentMode = "A13";
+    else if (currentMode == "A11") currentMode = "A13"; // A12는 PC에서 발급하므로 건너뜀
     else if (currentMode == "A13") currentMode = "A14";
     else if (currentMode == "A14") currentMode = "A15";
     else if (currentMode == "A15") currentMode = "A10";

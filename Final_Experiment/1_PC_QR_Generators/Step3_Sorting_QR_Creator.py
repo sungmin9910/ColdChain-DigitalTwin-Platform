@@ -141,10 +141,18 @@ def handle_qr_data(event=None):
     qr_entry.delete(0, tk.END)
     
     try:
+        from urllib.parse import parse_qs
         parsed_url = urlparse(qr_data)
-        fm_id = parsed_url.path.split('/')[-1]
-
+        query_params = parse_qs(parsed_url.query)
+        
+        # 1. 새 Streamlit 쿼리 파라미터 방식 (?FmID=33)
+        fm_id = query_params.get('FmID', [None])[0]
+        
+        # 2. 기존 방식 (/qr/33) - 역호환성
         if not fm_id:
+            fm_id = parsed_url.path.split('/')[-1]
+
+        if not fm_id or fm_id == "":
             status_label.config(text="QR에서 FmID를 찾을 수 없음", foreground="red"); return
 
         conn = get_db_connection()
