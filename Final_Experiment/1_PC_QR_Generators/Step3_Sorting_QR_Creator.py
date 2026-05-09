@@ -226,13 +226,14 @@ def save_and_generate():
             conn.close()
 
         # QR 생성
-        base_url = "https://qrwebapp-jpae97jawqkduxxjzkfqrf.streamlit.app/"
+        # 이제 하단에서 명시적인 서비스 주소를 사용합니다.
         for i, (grade_count, qr_label, text_label, grade_name_kr, grade_name_en) in enumerate(zip(
             [a, b, c], [a_qr_label, b_qr_label, c_qr_label],
             [a_text_label, b_text_label, c_text_label],
             ['상', '중', '하'], ['A', 'B', 'C'])):
 
-            qr_url = f"{base_url}?FmID={prev_data['FmID']}&grade={grade_name_kr}&AC={prev_data.get('AC','')}&FrT={prev_data.get('FrT','')}"
+            # ESP32 호환성 및 안전한 데이터 전달을 위해 파라미터 구성 유지
+            qr_url = f"https://step5rundashboardpy-eu2ci93skt85rq8dgn5zxm.streamlit.app/?FmID={prev_data['FmID']}&grade={grade_name_kr}&AC={prev_data.get('AC','')}&FrT={prev_data.get('FrT','')}"
             img = generate_qr_with_image(qr_url, prev_data["FrT"], i)
             qr_filename = f"{prev_data['FmID']}_{grade_name_en}_QR.png"
             img.save(qr_filename)

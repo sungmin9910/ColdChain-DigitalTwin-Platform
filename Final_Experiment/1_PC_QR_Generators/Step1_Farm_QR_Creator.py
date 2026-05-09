@@ -99,7 +99,7 @@ def generate_filename(area_code, farmer_id, harvest_date):
 
 # QR 코드 생성 함수 (기존 유지)
 def generate_qr_code(data, filename):
-    base_url = "https://qrwebapp-jpae97jawqkduxxjzkfqrf.streamlit.app/"
+    # 이제 하단에서 명시적인 서비스 주소를 사용합니다.
     key_map = {
         "Area Code": "AC", "Farmer ID": "FmID", "Contact Info": "Ct", "Fruit Type": "FrT",
         "Variety": "Vt", "Harvest Date": "HD", "Deliver Date": "DD", "Storage Date": "StD",
@@ -111,10 +111,10 @@ def generate_qr_code(data, filename):
         if mapped_key:
             params[mapped_key] = value
 
-    # FmID를 제거하지 않고 파라미터로 함께 넘기도록 수정
+    # ESP32(A10 단계)와의 호환성을 위해 모든 파라미터를 유지하되, 주소만 새로운 대시보드로 변경합니다.
     farmer_id = params.get('FmID', '')
     query_string = urlencode(params)
-    qr_url = f"{base_url}?{query_string}&source=A00"
+    qr_url = f"https://step5rundashboardpy-eu2ci93skt85rq8dgn5zxm.streamlit.app/?{query_string}"
 
     print(f"[INFO] QR URL: {qr_url}")
 
