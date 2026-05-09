@@ -25,5 +25,13 @@
             "Type": "Grading Result"
         },
         "stage": "A12 (Sorting & Grading)"
+    },
+    {
+        "timestamp": "2026-05-09 10:15:59",
+        "hash": "34fa3e3a0c13598b4e04a071563a9733e2fff57115ed8a7127ad6be8468e9e71",
+        "metadata": {
+            "FarmerID": "98",
+            "Date": "2026-05-08"
+        }
     }
 ]

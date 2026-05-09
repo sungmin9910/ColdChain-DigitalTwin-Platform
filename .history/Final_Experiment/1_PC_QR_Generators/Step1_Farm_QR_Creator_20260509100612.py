@@ -30,7 +30,7 @@ DB_NAME = "lab225"
 DB_PORT = 3306
 
 # --- [추가] 블록체인 시뮬레이션 파일 ---
-BLOCKCHAIN_FILE = "blockchain_ledger.json"
+BLOCKCHAIN_FILE = r"Z:\docker\smartfarm_app\blockchain_ledger.json"
 
 def get_db_connection():
     return mysql.connector.connect(
