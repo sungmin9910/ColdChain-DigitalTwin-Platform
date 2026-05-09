@@ -188,7 +188,7 @@ variety = latest.get('Vt', '')
 origin = get_origin_name(latest.get('AC'))
 # DB에 등급 정보가 있을 수도 있고(A12 레코드), URL에 있을 수도 있음
 db_grade = next((r.get('grade') for r in records if r.get('grade')), None)
-display_grade = url_grade or db_grade or "품질 인증 완료"
+display_grade = url_grade or db_grade or "선별 전"
 
 # --- 메인 화면 렌더링 ---
 st.markdown(f'<h1 class="hero-title">🍎 {fruit_type} 안심 이력</h1>', unsafe_allow_html=True)
