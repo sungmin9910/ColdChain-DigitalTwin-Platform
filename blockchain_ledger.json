@@ -33,5 +33,14 @@
             "FarmerID": "98",
             "Date": "2026-05-08"
         }
+    },
+    {
+        "timestamp": "2026-05-09 10:23:20",
+        "hash": "45664998d7c349306854bc6d1baae1e74b7ac319543659babbf3ff6493762ec0",
+        "metadata": {
+            "FmID": "98",
+            "Type": "Grading Result"
+        },
+        "stage": "A12 (Sorting & Grading)"
     }
 ]
