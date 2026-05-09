@@ -108,7 +108,8 @@ def main():
 
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT * FROM qr ORDER BY id DESC")
+            # id 컬럼이 없을 수 있으므로 정렬 없이 조회합니다.
+            cursor.execute("SELECT * FROM qr")
             rows = cursor.fetchall()
             
             print(f"📊 총 {len(rows)}개의 레코드를 발견했습니다. 복원을 시작합니다...")
