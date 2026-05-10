@@ -167,57 +167,48 @@ void processScan(String rawData) {
     // [추가] AWS RDS 기본 시간(UTC)을 한국 시간(KST, +09:00)으로 맞춰주기
     query_executor.execute("SET time_zone = '+09:00'");
 
-    // [센서 데이터 통합 가져오기 (GPS, 온습도)]
-    String latStr = "NULL", lonStr = "NULL", tpStr = "NULL", hmStr = "NULL";
-    String sensor_query = "SELECT lat, lng, temperature, humidity FROM sensor_data ORDER BY id DESC LIMIT 1";
-    if (query_executor.execute(sensor_query.c_str())) {
-      column_names *cols = query_executor.get_columns();
-      row_values *row = query_executor.get_next_row();
-      if (row != NULL) {
-        if (row->values[0] != NULL) latStr = row->values[0];
-        if (row->values[1] != NULL) lonStr = row->values[1];
-        if (row->values[2] != NULL) tpStr = row->values[2];
-        if (row->values[3] != NULL) hmStr = row->values[3];
-        Serial.printf("📍 센서 데이터 로드 성공: Lat:%s, Lng:%s, Temp:%s, Humi:%s\n", latStr.c_str(), lonStr.c_str(), tpStr.c_str(), hmStr.c_str());
-      }
-      // 버퍼 비우기
-      while (row != NULL) { row = query_executor.get_next_row(); }
-    }
-
-    // [INSERT 쿼리 생성 (INSERT ... SELECT 사용)]
+    // [쿼리 개선] 서브쿼리를 사용하여 DB 서버에서 직접 최신 센서 데이터를 결합합니다.
     String query = "";
+    String sensor_sub = "(SELECT lat, lng, temperature, humidity FROM lab225.sensor_data ORDER BY id DESC LIMIT 1) S";
+
     if (currentMode == "A10") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, Lat, lon) VALUES ";
-      query += "('A10', " + ac + ", " + fmId + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", " + rp + ", NOW(), " + latStr + ", " + lonStr + ")";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, Lat, lon) ";
+      query += "SELECT 'A10', " + ac + ", " + fmId + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", " + rp + ", NOW(), S.lat, S.lng ";
+      query += "FROM " + sensor_sub;
     }
     else if (currentMode == "A11") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, Lat, lon) ";
-      query += "SELECT 'A11', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, NOW(), " + latStr + ", " + lonStr + " ";
-      query += "FROM lab225.qr WHERE FmID = " + fmId + " AND APC_AD IS NOT NULL ORDER BY APC_AD DESC LIMIT 1";
+      query += "SELECT 'A11', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, NOW(), S.lat, S.lng ";
+      query += "FROM lab225.qr Q, " + sensor_sub + " ";
+      query += "WHERE Q.FmID = " + fmId + " AND Q.APC_AD IS NOT NULL ORDER BY Q.APC_AD DESC LIMIT 1";
     }
     else if (currentMode == "A12") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, Lat, lon) ";
-      query += "SELECT 'A12', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, NOW(), " + latStr + ", " + lonStr + " ";
-      query += "FROM lab225.qr WHERE Lo = 'A11' AND FmID = " + fmId + " ORDER BY APC_WD DESC LIMIT 1";
+      query += "SELECT 'A12', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, NOW(), S.lat, S.lng ";
+      query += "FROM lab225.qr Q, " + sensor_sub + " ";
+      query += "WHERE Q.Lo = 'A11' AND Q.FmID = " + fmId + " ORDER BY Q.APC_WD DESC LIMIT 1";
     }
     else if (currentMode == "A13") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
-      query += "SELECT 'A13', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, NOW(), " + latStr + ", " + lonStr + ", AGrade, BGrade, CGrade, DefectRate ";
-      query += "FROM lab225.qr WHERE Lo = 'A12' AND FmID = " + fmId + " ORDER BY APC_RT DESC LIMIT 1";
+      query += "SELECT 'A13', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, NOW(), S.lat, S.lng, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate ";
+      query += "FROM lab225.qr Q, " + sensor_sub + " ";
+      query += "WHERE Q.Lo = 'A12' AND Q.FmID = " + fmId + " ORDER BY Q.APC_RT DESC LIMIT 1";
     }
     else if (currentMode == "A14") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
-      query += "SELECT 'A14', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, NOW(), " + tpStr + ", " + hmStr + ", " + latStr + ", " + lonStr + ", AGrade, BGrade, CGrade, DefectRate ";
-      query += "FROM lab225.qr WHERE Lo = 'A13' AND FmID = " + fmId + " ORDER BY APC_PT DESC LIMIT 1";
+      query += "SELECT 'A14', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, NOW(), S.temperature, S.humidity, S.lat, S.lng, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate ";
+      query += "FROM lab225.qr Q, " + sensor_sub + " ";
+      query += "WHERE Q.Lo = 'A13' AND Q.FmID = " + fmId + " ORDER BY Q.APC_PT DESC LIMIT 1";
     }
     else if (currentMode == "A15") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
-      query += "SELECT 'A15', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, NOW(), " + latStr + ", " + lonStr + ", AGrade, BGrade, CGrade, DefectRate ";
-      query += "FROM lab225.qr WHERE Lo = 'A14' AND FmID = " + fmId + " ORDER BY APC_StD DESC LIMIT 1";
+      query += "SELECT 'A15', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, Q.APC_StD, NOW(), S.lat, S.lng, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate ";
+      query += "FROM lab225.qr Q, " + sensor_sub + " ";
+      query += "WHERE Q.Lo = 'A14' AND Q.FmID = " + fmId + " ORDER BY Q.APC_StD DESC LIMIT 1";
     }
 
     if (query_executor.execute(query.c_str())) {
-      Serial.println("✅ DB 저장 성공! (단계: " + currentMode + ")");
+      Serial.println("✅ DB 저장 성공! (최신 센서 데이터 자동 병합 완료)");
     } else {
       Serial.println("❌ DB 저장 실패: 쿼리 오류 또는 이전 단계 데이터 없음");
     }
