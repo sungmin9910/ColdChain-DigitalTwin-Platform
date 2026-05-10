@@ -169,7 +169,7 @@ void processScan(String rawData) {
 
     // [센서 데이터 통합 가져오기 (GPS, 온습도)]
     String latStr = "NULL", lonStr = "NULL", tpStr = "NULL", hmStr = "NULL";
-    String sensor_query = "SELECT lat, lng, temperature, humidity FROM sensor_data ORDER BY created_at DESC LIMIT 1";
+    String sensor_query = "SELECT lat, lng, temperature, humidity FROM sensor_data ORDER BY id DESC LIMIT 1";
     if (query_executor.execute(sensor_query.c_str())) {
       column_names *cols = query_executor.get_columns();
       row_values *row = query_executor.get_next_row();
@@ -178,6 +178,7 @@ void processScan(String rawData) {
         if (row->values[1] != NULL) lonStr = row->values[1];
         if (row->values[2] != NULL) tpStr = row->values[2];
         if (row->values[3] != NULL) hmStr = row->values[3];
+        Serial.printf("📍 센서 데이터 로드 성공: Lat:%s, Lng:%s, Temp:%s, Humi:%s\n", latStr.c_str(), lonStr.c_str(), tpStr.c_str(), hmStr.c_str());
       }
       // 버퍼 비우기
       while (row != NULL) { row = query_executor.get_next_row(); }

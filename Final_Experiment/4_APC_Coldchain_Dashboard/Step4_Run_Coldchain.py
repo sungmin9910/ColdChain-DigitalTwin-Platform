@@ -166,8 +166,8 @@ def save_to_mysql(msg_dict):
             
             sql = """
             INSERT INTO sensor_data 
-            (device, timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            (device, timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
             """
             val = (
                 msg_dict.get("device", "unknown"),
