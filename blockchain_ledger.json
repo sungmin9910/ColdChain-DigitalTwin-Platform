@@ -42,5 +42,22 @@
             "Type": "Grading Result"
         },
         "stage": "A12 (Sorting & Grading)"
+    },
+    {
+        "timestamp": "2026-05-10 13:49:09",
+        "hash": "beb49a85f0bd2ff78edfa91941d42935ab3763b9e274cf7b817d970c2e07ce19",
+        "metadata": {
+            "FarmerID": "88",
+            "Date": "2026-05-10"
+        }
+    },
+    {
+        "timestamp": "2026-05-10 13:51:24",
+        "hash": "1922406bc198f9b2a75399edfe38baef36bfcbdfd9211b9bd2b55ad0633e6b93",
+        "metadata": {
+            "FmID": "88",
+            "Type": "Grading Result"
+        },
+        "stage": "A12 (Sorting & Grading)"
     }
 ]
