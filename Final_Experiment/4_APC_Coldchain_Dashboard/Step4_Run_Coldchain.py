@@ -202,9 +202,11 @@ def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
         
-        # 한국 시간(UTC+9) 강제 적용
-        kst_time = datetime.utcnow() + pd.Timedelta(hours=9)
-        payload['timestamp'] = kst_time.strftime("%H:%M:%S")
+        # 보드에서 보낸 시간 정보가 있으면 사용, 없으면 현재 시간 생성
+        if 'timestamp_str' in payload:
+            payload['timestamp'] = payload['timestamp_str']
+        else:
+            payload['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         # 데이터가 문자열로 올 경우를 대비해 숫자로 변환
         for key in ['temperature', 'humidity', 'lux', 'g_force', 'speed', 'lat', 'lng']:

@@ -98,6 +98,11 @@ void setup() {
   }
 
   setup_wifi();
+  
+  // 한국 시간(KST, GMT+9) 설정
+  configTime(9 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.println("⏰ NTP Time Syncing...");
+
   client.setServer(mqtt_server, mqtt_port);
 }
 
@@ -135,9 +140,17 @@ void loop() {
     if (g_force > 2.0) status = "강한 충돌!!";
     else if (g_force > 1.3 || g_force < 0.7) status = "이동/진동";
 
+    // 시간 정보 가져오기
+    struct tm timeinfo;
+    char timeStr[20] = "00:00:00";
+    if (getLocalTime(&timeinfo)) {
+      strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
+    }
+
     // JSON 구성
     StaticJsonDocument<512> doc;
     doc["device"] = "gy521";
+    doc["timestamp_str"] = timeStr;
     doc["temperature"] = String(temp_sht.temperature, 2);
     doc["humidity"] = String(humidity.relative_humidity, 2);
     doc["lux"] = String(lux, 1);
