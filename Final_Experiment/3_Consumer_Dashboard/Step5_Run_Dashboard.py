@@ -66,7 +66,36 @@ st.markdown("""
         border: none;
     }
 
-    /* 헤더 스타일 */
+    /* 생산자 프로필 카드 전용 스타일 */
+    .farmer-card {
+        background-color: #f8f9fa;
+        border-radius: 12px;
+        padding: 20px 30px;
+        border-left: 5px solid #2ecc71;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .farmer-info-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .farmer-label {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 2px;
+    }
+
+    .farmer-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1d1d1f;
+    }
     .hero-title {
         font-weight: 800;
         font-size: 2.2rem;
@@ -263,20 +292,24 @@ with col3:
 with col4:
     st.markdown(f'<div class="info-card"><small style="color:#666;">재배 방식</small><br><b>{latest.get("Mt", "자연재배")}</b></div>', unsafe_allow_html=True)
 
-# 농가 정보 (Farmer Info) 추가
+# 농가 정보 (Farmer Info) 리디자인
 st.markdown("### 👨‍🌾 생산자 정보")
 farmer_id_display = latest.get("FmID", "미등록")
 farmer_contact = mask_contact(latest.get("Ct", ""))
 st.markdown(f"""
-<div class="info-card">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
+<div class="farmer-card">
+    <div class="farmer-info-item">
+        <div style="font-size: 1.8rem;">🆔</div>
         <div>
-            <small style="color:#666;">생산 농가 ID</small><br>
-            <b style="color:#1d1d1f;">{farmer_id_display}</b>
+            <div class="farmer-label">생산 농가 ID</div>
+            <div class="farmer-value">{farmer_id_display}</div>
         </div>
-        <div style="text-align: right;">
-            <small style="color:#666;">연락처 (안심번호)</small><br>
-            <b style="color:#1d1d1f;">{farmer_contact}</b>
+    </div>
+    <div class="farmer-info-item">
+        <div style="font-size: 1.8rem;">📞</div>
+        <div>
+            <div class="farmer-label">연락처 (안심번호)</div>
+            <div class="farmer-value">{farmer_contact}</div>
         </div>
     </div>
 </div>
