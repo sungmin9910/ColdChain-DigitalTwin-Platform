@@ -33,15 +33,37 @@ st.markdown("""
         background-color: #ffffff;
     }
 
-    /* 카드 스타일 */
+    /* 카드 스타일 (높이 균일화 및 중앙 정렬) */
     .info-card {
         background: #ffffff;
-        border-radius: 15px;
-        padding: 20px;
-        border: 1px solid #e0e0e0;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid #eef0f2;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
         margin-bottom: 20px;
         color: #1d1d1f;
+        height: 130px; /* 모든 카드 높이 통일 */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+    }
+
+    /* 버튼 스타일 커스텀 */
+    div.stButton > button {
+        background-color: #f0f2f6;
+        color: #1d1d1f;
+        border-radius: 20px;
+        border: none;
+        padding: 8px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:hover {
+        background-color: #e0e4ea;
+        color: #2ecc71;
+        border: none;
     }
 
     /* 헤더 스타일 */
@@ -214,22 +236,25 @@ display_grade = url_grade or db_grade or "선별 전"
 
 # --- 메인 화면 렌더링 ---
 st.markdown(f'<h1 class="hero-title">🍎 {fruit_type} 안심 이력</h1>', unsafe_allow_html=True)
-st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
 
-# 새로고침 버튼
-if st.button("🔄 정보 새로고침"):
-    st.rerun()
+# 새로고침 버튼 (중앙 배치)
+col_l, col_btn, col_r = st.columns([1, 1, 1])
+with col_btn:
+    if st.button("🔄 정보 새로고침", use_container_width=True):
+        st.rerun()
+
+st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
 
 # 핵심 정보 카드 (4열로 확장)
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">원산지</small><br><b style="color:#1d1d1f; font-size:1.0rem;">{origin}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card"><small style="color:#666;">원산지</small><br><b>{origin}</b></div>', unsafe_allow_html=True)
 with col2:
-    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">품종</small><br><b style="color:#1d1d1f; font-size:1.0rem;">{variety}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card"><small style="color:#666;">품종</small><br><b>{variety}</b></div>', unsafe_allow_html=True)
 with col3:
-    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">선별 등급</small><br><b style="color:#2ecc71; font-size:1.1rem;">{display_grade}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card"><small style="color:#666;">선별 등급</small><br><b style="color:#2ecc71; font-size:1.4rem;">{display_grade}</b></div>', unsafe_allow_html=True)
 with col4:
-    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">재배 방식</small><br><b style="color:#1d1d1f; font-size:1.0rem;">{latest.get("Mt", "자연재배")}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card"><small style="color:#666;">재배 방식</small><br><b>{latest.get("Mt", "자연재배")}</b></div>', unsafe_allow_html=True)
 
 # 농가 정보 (Farmer Info) 추가
 st.markdown("### 👨‍🌾 생산자 정보")
