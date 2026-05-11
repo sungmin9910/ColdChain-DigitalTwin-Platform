@@ -20,8 +20,9 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100;300;400;500;700;900&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Noto Sans KR', sans-serif;
+    /* 글로벌 텍스트 색상 강제 지정 */
+    html, body, [class*="css"], [data-testid="stMarkdownContainer"] {
+        color: #1d1d1f !important;
     }
 
     .main {
@@ -40,19 +41,20 @@ st.markdown("""
         border: 1px solid #e0e0e0;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         margin-bottom: 20px;
+        color: #1d1d1f;
     }
 
     /* 헤더 스타일 */
     .hero-title {
         font-weight: 800;
         font-size: 2.2rem;
-        color: #1d1d1f;
+        color: #1d1d1f !important;
         text-align: center;
         margin-bottom: 5px;
     }
 
     .hero-subtitle {
-        color: #515154;
+        color: #515154 !important;
         font-weight: 500;
         text-align: center;
         margin-bottom: 30px;
@@ -64,6 +66,7 @@ st.markdown("""
         padding-left: 20px;
         margin-bottom: 30px;
         position: relative;
+        color: #1d1d1f;
     }
 
     .timeline-item::before {
@@ -79,12 +82,17 @@ st.markdown("""
 
     .elapsed-tag {
         background-color: #e8f5e9;
-        color: #2e7d32;
+        color: #2e7d32 !important;
         padding: 2px 8px;
         border-radius: 12px;
         font-size: 0.8rem;
         font-weight: 600;
         margin-left: 10px;
+    }
+
+    /* 알림창 텍스트 색상 보정 */
+    .stAlert p {
+        color: #1d1d1f !important;
     }
 
     /* 랜딩 페이지 전용 */
@@ -112,24 +120,32 @@ def get_db_connection():
 # --- 유틸리티 함수 ---
 def format_elapsed_time(timestamp):
     if not timestamp: return ""
+    
+    # 타입 처리 (문자열인 경우 파싱)
     if isinstance(timestamp, str):
         try:
             timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
         except:
             return ""
     
+    # date 객체인 경우 datetime으로 변환 (시간 비교를 위해)
+    if type(timestamp).__name__ == 'date':
+        timestamp = datetime.combine(timestamp, datetime.min.time())
+    
     now = datetime.now()
     diff = now - timestamp
+    total_seconds = int(diff.total_seconds())
     
-    if diff.days > 0:
-        return f"{diff.days}일 전"
-    hours = diff.seconds // 3600
-    if hours > 0:
-        return f"{hours}시간 전"
-    minutes = (diff.seconds % 3600) // 60
-    if minutes > 0:
-        return f"{minutes}분 전"
-    return "방금 전"
+    if total_seconds < 0: return "방금 전" # 미래 시간 대비
+    
+    if total_seconds >= 86400: # 1일 이상
+        return f"{total_seconds // 86400}일 전"
+    elif total_seconds >= 3600: # 1시간 이상
+        return f"{total_seconds // 3600}시간 전"
+    elif total_seconds >= 60: # 1분 이상
+        return f"{total_seconds // 60}분 전"
+    else:
+        return "방금 전"
 
 def get_origin_name(ac):
     origin_map = {
@@ -252,10 +268,10 @@ for row in records:
         with st.container():
             st.markdown(f"""
             <div class="timeline-item">
-                <span style="font-weight:700; font-size:1.1rem;">{title}</span>
+                <span style="font-weight:700; font-size:1.1rem; color:#1d1d1f;">{title}</span>
                 <span class="elapsed-tag">{elapsed}</span>
-                <p style="color:#666; margin-top:5px; font-size:0.9rem;">{desc}</p>
-                <small style="color:#999;">{stage_time if stage_time else ""}</small>
+                <p style="color:#515154; margin-top:5px; font-size:0.9rem; font-weight:400;">{desc}</p>
+                <small style="color:#86868b; font-size:0.8rem;">{stage_time if stage_time else ""}</small>
             </div>
             """, unsafe_allow_html=True)
             
