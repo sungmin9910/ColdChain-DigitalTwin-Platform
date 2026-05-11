@@ -161,10 +161,10 @@ def get_origin_name(ac):
 def mask_contact(contact):
     if not contact: return "정보 없음"
     contact = str(contact).strip()
-    if len(contact) >= 10:
-        # 01012345678 -> 010-****-5678
-        return f"{contact[:3]}-****-{contact[-4:]}"
-    return contact
+    if len(contact) > 4:
+        # 뒤에서 4자리를 ****로 변경
+        return contact[:-4] + "****"
+    return "****"
 
 # --- 로직 시작 ---
 query_params = st.query_params
