@@ -2,7 +2,7 @@ import streamlit as st
 import pymysql
 import pandas as pd
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -151,15 +151,22 @@ def format_elapsed_time(timestamp):
         except:
             return ""
     
-    # date 객체인 경우 datetime으로 변환 (시간 비교를 위해)
+    # date 객체인 경우 datetime으로 변환
     if type(timestamp).__name__ == 'date':
         timestamp = datetime.combine(timestamp, datetime.min.time())
     
     now = datetime.now()
+    
+    # [시차 보정 로직]
+    # 서버 시간이 UTC이고 데이터가 KST(+9)일 경우 diff가 큰 음수가 됨
     diff = now - timestamp
+    if diff.total_seconds() < -18000: # 5시간 이상 미래 시간으로 잡힌다면 시차 문제로 판단
+        now = now + timedelta(hours=9)
+        diff = now - timestamp
+
     total_seconds = int(diff.total_seconds())
     
-    if total_seconds < 0: return "방금 전" # 미래 시간 대비
+    if total_seconds < 0: return "방금 전" 
     
     if total_seconds >= 86400: # 1일 이상
         return f"{total_seconds // 86400}일 전"
