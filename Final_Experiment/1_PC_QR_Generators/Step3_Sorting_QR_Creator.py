@@ -9,6 +9,7 @@ import datetime as dt
 from urllib.parse import urlparse
 import hashlib
 import json
+import random
 
 # --- [추가] 보안을 위한 dotenv 환경 변수 로드 ---
 from dotenv import load_dotenv
@@ -175,11 +176,48 @@ def handle_qr_data(event=None):
         for key, entry in all_entries.items():
             entry.delete(0, tk.END); entry.insert(0, str(prev_data.get(key, "") or ""))
             
-        a_entry.delete(0, tk.END); b_entry.delete(0, tk.END); c_entry.delete(0, tk.END); defect_entry.delete(0, tk.END)
-        status_label.config(text="✅ QR 스캔 완료 - 수량을 입력해주세요.", foreground="green")
-        
-        # 스캔이 성공하면 바로 수량을 입력할 수 있도록 A등급 입력칸으로 커서 자동 이동
-        a_entry.focus()
+        # --- [자동화 추가] 수량 랜덤 생성 로직 (A등급 80% 및 합계 일치 보정) ---
+        try:
+            total_qt = int(prev_data.get('Qt', 0) or 0)
+            
+            if total_qt > 0:
+                # 1. 결점수(DefectRate) 먼저 결정 (1~3)
+                defect_val = random.randint(1, min(3, total_qt))
+                remaining_after_defect = total_qt - defect_val
+                
+                # 2. A등급을 전체의 약 80%로 설정 (78%~82% 사이 변동폭)
+                a_val = int(total_qt * random.uniform(0.78, 0.82))
+                if a_val > remaining_after_defect: a_val = remaining_after_defect
+                
+                # 3. 남은 수량을 B와 C에 배분
+                remaining_for_bc = remaining_after_defect - a_val
+                if remaining_for_bc > 0:
+                    b_val = random.randint(0, remaining_for_bc)
+                    c_val = remaining_for_bc - b_val
+                else:
+                    b_val = 0
+                    c_val = 0
+                
+                # 4. 최종 합계 보정 (정수 변환 오차 해결)
+                # A + B + C + Defect = Total_Qt가 되도록 A값을 최종 조정
+                a_val = total_qt - (b_val + c_val + defect_val)
+            else:
+                a_val, b_val, c_val, defect_val = 0, 0, 0, 0
+            
+            # 입력창에 자동 삽입
+            a_entry.delete(0, tk.END); a_entry.insert(0, str(a_val))
+            b_entry.delete(0, tk.END); b_entry.insert(0, str(b_val))
+            c_entry.delete(0, tk.END); c_entry.insert(0, str(c_val))
+            defect_entry.delete(0, tk.END); defect_entry.insert(0, str(defect_val))
+            
+            status_label.config(text=f"✅ 스캔 완료 (자동 배분: A={a_val}, B={b_val}, C={c_val}, Defect={defect_val})", foreground="green")
+            
+            # --- [자동화 핵심] 즉시 저장 및 QR 생성 호출 ---
+            root.after(500, save_and_generate)
+            
+        except Exception as ex:
+            print(f"[Error in Auto-calc] {ex}")
+            status_label.config(text="수량 자동 생성 중 오류 발생", foreground="red")
         
     except Exception as e:
         status_label.config(text=f"QR 처리 오류: {e}", foreground="red")

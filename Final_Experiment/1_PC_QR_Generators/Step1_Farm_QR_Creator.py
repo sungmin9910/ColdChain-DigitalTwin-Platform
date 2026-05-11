@@ -179,9 +179,12 @@ def save_all_formats():
         return
 
     # 3. 데이터 딕셔너리 생성 (DB 저장 및 QR 생성용)
+    now = datetime.datetime.now()
+    harvest_datetime = datetime.datetime.combine(harvest_date, now.time()).strftime('%Y-%m-%d %H:%M:%S')
+    
     data = {
         "Area Code": area_code, "Farmer ID": farmer_id, "Contact Info": contact_info,
-        "Fruit Type": fruit_type, "Variety": variety, "Harvest Date": harvest_date.strftime('%Y-%m-%d'),
+        "Fruit Type": fruit_type, "Variety": variety, "Harvest Date": harvest_datetime,
         "Deliver Date": deliver_date.strftime('%Y-%m-%d'), "Storage Date": storage_date.strftime('%Y-%m-%d'),
         "Farming Method": farming_method, "Harvesting Number": harvesting_number,
         "Quantity": quantity, "Ag Practice": ag_practice
@@ -209,7 +212,7 @@ def save_all_formats():
         """
         db_data = (
             "A00", area_code, farmer_id, fruit_type, variety, contact_info,
-            harvest_date.strftime('%Y-%m-%d'), deliver_date.strftime('%Y-%m-%d'),
+            harvest_datetime, deliver_date.strftime('%Y-%m-%d'),
             quantity, farming_method, harvesting_number, 
             storage_date.strftime('%Y-%m-%d'), ag_practice
         )
@@ -292,100 +295,147 @@ def on_fruit_type_change(event):
 # --- GUI Setup ---
 root = tk.Tk()
 root.title("A00 Farm Data Collection (with Integrity Layer)")
-root.geometry("1120x800")
+root.geometry("1120x880")
+root.configure(bg="#1a1a1a")
 root.resizable(True, True)
+
+# --- Modern Style Configuration (Muted Professional Theme) ---
+style = ttk.Style()
+style.theme_use("clam")
+
+# Color Palette Definitions
+BG_COLOR = "#1a1a1a"
+CARD_BG = "#262626"
+TEXT_COLOR = "#e0e0e0"
+ACCENT_BLUE = "#78909c" # Muted Steel Blue
+ACCENT_GREEN = "#81c784" # Soft Sage Green
+ACCENT_GOLD = "#d4af37" # Muted Gold for title
+
+# Background and Frame Styles
+style.configure("TFrame", background=BG_COLOR)
+style.configure("Card.TFrame", background=CARD_BG, relief="flat", borderwidth=0)
+style.configure("TLabel", background=BG_COLOR, foreground=TEXT_COLOR, font=("Segoe UI", 11))
+style.configure("Header.TLabel", background=CARD_BG, foreground=ACCENT_BLUE, font=("Segoe UI", 13, "bold"))
+style.configure("Card.TLabel", background=CARD_BG, foreground=TEXT_COLOR, font=("Segoe UI", 11))
+style.configure("Title.TLabel", background=BG_COLOR, foreground=ACCENT_GREEN, font=("Segoe UI", 22, "bold"))
+
+# Button Styles
+style.configure("TButton", font=("Segoe UI", 11, "bold"), background=ACCENT_BLUE, foreground="#1a1a1a", borderwidth=0, focuscolor="none")
+style.map("TButton", background=[("active", "#90a4ae")])
+
+style.configure("Action.TButton", font=("Segoe UI", 12, "bold"), background=ACCENT_GREEN, foreground="#1a1a1a")
+style.map("Action.TButton", background=[("active", "#a5d6a7")])
+
+# Notebook / Tabs
+style.configure("TNotebook", background=BG_COLOR, borderwidth=0)
+style.configure("TNotebook.Tab", background="#333333", foreground=TEXT_COLOR, padding=[15, 5], font=("Segoe UI", 10))
+style.map("TNotebook.Tab", background=[("selected", BG_COLOR)], foreground=[("selected", ACCENT_BLUE)])
+
+# Combobox and Entry
+style.configure("TCombobox", fieldbackground="#333333", background="#333333", foreground=TEXT_COLOR, arrowcolor=ACCENT_BLUE)
+style.map("TCombobox", 
+    fieldbackground=[("readonly", "#333333")], 
+    foreground=[("readonly", TEXT_COLOR)],
+    selectbackground=[("readonly", "#333333")],
+    selectforeground=[("readonly", TEXT_COLOR)]
+)
+
+style.configure("TEntry", fieldbackground="#333333", foreground=TEXT_COLOR, insertcolor=TEXT_COLOR)
 
 validate_numeric_cmd = root.register(validate_numeric_input)
 
+# Title Label at the top
+title_label = ttk.Label(root, text="🛡️  FARM Information", style="Title.TLabel", anchor="center")
+title_label.pack(pady=(20, 10))
+
 notebook = ttk.Notebook(root)
-notebook.pack(fill='both', expand=True)
+notebook.pack(fill='both', expand=True, padx=10, pady=10)
 
-main_section_frame = ttk.Frame(notebook)
+main_section_frame = ttk.Frame(notebook, style="TFrame")
 main_section_frame.pack(fill='both', expand=True)
-notebook.add(main_section_frame, text="Main Section")
+notebook.add(main_section_frame, text="Main Data Entry")
 
-# Frame 배치 (기존과 동일)
-frame1 = ttk.Frame(main_section_frame, borderwidth=2, relief="sunken", padding=10)
-frame1.place(x=20, y=20, width=550, height=350)
-frame2 = ttk.Frame(main_section_frame, borderwidth=2, relief="sunken", padding=10)
-frame2.place(x=560, y=20, width=550, height=350)
-frame3 = ttk.Frame(main_section_frame, borderwidth=2, relief="sunken", padding=10)
-frame3.place(x=20, y=360, width=550, height=350)
-frame4 = ttk.Frame(main_section_frame, borderwidth=2, relief="sunken", padding=10)
-frame4.place(x=560, y=360, width=550, height=350)
+# Frame 배치 (카드 스타일 적용)
+frame1 = ttk.Frame(main_section_frame, style="Card.TFrame", padding=15)
+frame1.place(x=20, y=20, width=530, height=340)
+frame2 = ttk.Frame(main_section_frame, style="Card.TFrame", padding=15)
+frame2.place(x=560, y=20, width=530, height=340)
+frame3 = ttk.Frame(main_section_frame, style="Card.TFrame", padding=15)
+frame3.place(x=20, y=370, width=530, height=340)
+frame4 = ttk.Frame(main_section_frame, style="Card.TFrame", padding=15)
+frame4.place(x=560, y=370, width=530, height=340)
 
-# 타이틀
-ttk.Label(frame1, text="FARM INFORMATION", font=("Helvetica", font_size, "bold"), anchor="center").place(x=0, y=0, width=530, height=30)
-ttk.Label(frame2, text="HARVEST INFORMATION", font=("Helvetica", font_size, "bold"), anchor="center").place(x=0, y=0, width=530, height=30)
-ttk.Label(frame3, text="CULTIVATION INFORMATION", font=("Helvetica", font_size, "bold"), anchor="center").place(x=0, y=0, width=530, height=30)
-ttk.Label(frame4, text="RESULT & VERIFICATION", font=("Helvetica", font_size, "bold"), anchor="center").place(x=0, y=0, width=530, height=30)
+# 타이틀 (Card Header Style)
+ttk.Label(frame1, text="FARMER INFO", style="Header.TLabel", anchor="w").place(x=0, y=0, width=500, height=35)
+ttk.Label(frame2, text="HARVEST LOGISTICS", style="Header.TLabel", anchor="w").place(x=0, y=0, width=500, height=35)
+ttk.Label(frame3, text="CULTIVATION DETAILS", style="Header.TLabel", anchor="w").place(x=0, y=0, width=500, height=35)
+ttk.Label(frame4, text="VERIFICATION & OUTPUT", style="Header.TLabel", anchor="w").place(x=0, y=0, width=500, height=35)
 
 # --- Frame 1~3 위젯들 (기존 코드와 동일하게 복원) ---
 # Frame 1
-ttk.Label(frame1, text="Farmer ID").place(x=10, y=40, width=130, height=30)
+ttk.Label(frame1, text="Farmer ID", style="Card.TLabel").place(x=10, y=45, width=130, height=30)
 validate_id = root.register(on_farmer_id_validate)
-farmer_id_entry = ttk.Entry(frame1, font=("Helvetica", font_size), width=uniform_combobox_width, justify='center', validate="key", validatecommand=(validate_id, "%S", "%P"))
-farmer_id_entry.place(x=150, y=40, width=350, height=30)
+farmer_id_entry = ttk.Entry(frame1, font=("Segoe UI", 11), justify='center', validate="key", validatecommand=(validate_id, "%S", "%P"))
+farmer_id_entry.place(x=150, y=45, width=350, height=30)
 
-ttk.Label(frame1, text="Area Code").place(x=10, y=80, width=130, height=30)
-area_code_combobox = ttk.Combobox(frame1, values=zip_codes, state="readonly", font=("Helvetica", font_size), width=uniform_combobox_width, justify='center')
-area_code_combobox.place(x=150, y=80, width=350, height=30)
+ttk.Label(frame1, text="Area Code", style="Card.TLabel").place(x=10, y=85, width=130, height=30)
+area_code_combobox = ttk.Combobox(frame1, values=zip_codes, state="readonly", font=("Segoe UI", 11), justify='center')
+area_code_combobox.place(x=150, y=85, width=350, height=30)
 
-ttk.Label(frame1, text="Contact Info").place(x=10, y=120, width=130, height=30)
+ttk.Label(frame1, text="Contact Info", style="Card.TLabel").place(x=10, y=125, width=130, height=30)
 validate_contact_info_cmd = root.register(validate_contact_info)
-contact_info_entry = ttk.Entry(frame1, font=("Helvetica", font_size), justify='center', width=uniform_combobox_width, validate="key", validatecommand=(validate_contact_info_cmd, "%S", "%P"))
-contact_info_entry.place(x=150, y=120, width=350, height=30)
+contact_info_entry = ttk.Entry(frame1, font=("Segoe UI", 11), justify='center', validate="key", validatecommand=(validate_contact_info_cmd, "%S", "%P"))
+contact_info_entry.place(x=150, y=125, width=350, height=30)
 contact_info_entry.bind("<KeyRelease>", lambda event: format_phone_number(contact_info_entry))
 
 # Frame 2
-ttk.Label(frame2, text="Harvest Date").place(x=10, y=40, width=130, height=30)
-harvest_date_picker = DateEntry(frame2, font=("Helvetica", font_size), width=20, justify='center')
-harvest_date_picker.place(x=150, y=40, width=350, height=30)
+ttk.Label(frame2, text="Harvest Date", style="Card.TLabel").place(x=10, y=45, width=130, height=30)
+harvest_date_picker = DateEntry(frame2, font=("Segoe UI", 11), width=20, justify='center')
+harvest_date_picker.place(x=150, y=45, width=350, height=30)
 
-ttk.Label(frame2, text="Harvesting No.").place(x=10, y=80, width=130, height=30)
-harvesting_number_entry = ttk.Entry(frame2, font=("Helvetica", font_size), justify='center', width=uniform_combobox_width, validate="key", validatecommand=(validate_numeric_cmd, "%S", "%P"))
-harvesting_number_entry.place(x=150, y=80, width=350, height=30)
+ttk.Label(frame2, text="Harvesting No.", style="Card.TLabel").place(x=10, y=85, width=130, height=30)
+harvesting_number_entry = ttk.Entry(frame2, font=("Segoe UI", 11), justify='center', validate="key", validatecommand=(validate_numeric_cmd, "%S", "%P"))
+harvesting_number_entry.place(x=150, y=85, width=350, height=30)
 
-ttk.Label(frame2, text="Storage Date").place(x=10, y=120, width=130, height=30)
-storage_date_picker = DateEntry(frame2, font=("Helvetica", font_size), width=20, justify='center')
-storage_date_picker.place(x=150, y=120, width=350, height=30)
+ttk.Label(frame2, text="Storage Date", style="Card.TLabel").place(x=10, y=125, width=130, height=30)
+storage_date_picker = DateEntry(frame2, font=("Segoe UI", 11), width=20, justify='center')
+storage_date_picker.place(x=150, y=125, width=350, height=30)
 
-ttk.Label(frame2, text="Delivery Date").place(x=10, y=160, width=130, height=30)
-deliver_date_picker = DateEntry(frame2, font=("Helvetica", font_size), width=20, justify='center')
-deliver_date_picker.place(x=150, y=160, width=350, height=30)
+ttk.Label(frame2, text="Delivery Date", style="Card.TLabel").place(x=10, y=165, width=130, height=30)
+deliver_date_picker = DateEntry(frame2, font=("Segoe UI", 11), width=20, justify='center')
+deliver_date_picker.place(x=150, y=165, width=350, height=30)
 
-ttk.Label(frame2, text="Quantity(box)").place(x=10, y=200, width=130, height=30)
-quantity_entry = ttk.Entry(frame2, font=("Helvetica", font_size), justify='center', width=uniform_combobox_width, validate="key", validatecommand=(validate_numeric_cmd, "%S", "%P"))
-quantity_entry.place(x=150, y=200, width=350, height=30)
+ttk.Label(frame2, text="Quantity(box)", style="Card.TLabel").place(x=10, y=205, width=130, height=30)
+quantity_entry = ttk.Entry(frame2, font=("Segoe UI", 11), justify='center', validate="key", validatecommand=(validate_numeric_cmd, "%S", "%P"))
+quantity_entry.place(x=150, y=205, width=350, height=30)
 
 # Frame 3
-ttk.Label(frame3, text="Fruit Type").place(x=10, y=40, width=130, height=30)
-fruit_type_combobox = ttk.Combobox(frame3, values=fruit_types, state="readonly", font=("Helvetica", font_size), width=uniform_combobox_width, justify='center')
-fruit_type_combobox.place(x=150, y=40, width=350, height=30)
+ttk.Label(frame3, text="Fruit Type", style="Card.TLabel").place(x=10, y=45, width=130, height=30)
+fruit_type_combobox = ttk.Combobox(frame3, values=fruit_types, state="readonly", font=("Segoe UI", 11), justify='center')
+fruit_type_combobox.place(x=150, y=45, width=350, height=30)
 fruit_type_combobox.bind("<<ComboboxSelected>>", on_fruit_type_change)
 
-ttk.Label(frame3, text="Variety").place(x=10, y=80, width=130, height=30)
-variety_combobox = ttk.Combobox(frame3, state="readonly", font=("Helvetica", font_size), width=uniform_combobox_width, justify='center')
-variety_combobox.place(x=150, y=80, width=350, height=30)
+ttk.Label(frame3, text="Variety", style="Card.TLabel").place(x=10, y=85, width=130, height=30)
+variety_combobox = ttk.Combobox(frame3, state="readonly", font=("Segoe UI", 11), justify='center')
+variety_combobox.place(x=150, y=85, width=350, height=30)
 
-ttk.Label(frame3, text="Farming Method").place(x=10, y=120, width=130, height=30)
-farming_method_combobox = ttk.Combobox(frame3, values=farming_methods, state="readonly", font=("Helvetica", font_size), width=uniform_combobox_width, justify='center')
-farming_method_combobox.place(x=150, y=120, width=350, height=30)
+ttk.Label(frame3, text="Farming Method", style="Card.TLabel").place(x=10, y=125, width=130, height=30)
+farming_method_combobox = ttk.Combobox(frame3, values=farming_methods, state="readonly", font=("Segoe UI", 11), justify='center')
+farming_method_combobox.place(x=150, y=125, width=350, height=30)
 
-ttk.Label(frame3, text="Ag Practice").place(x=10, y=160, width=130, height=30)
-ag_practice_entry = ttk.Entry(frame3, font=("Helvetica", font_size), justify='center', width=uniform_combobox_width)
-ag_practice_entry.place(x=150, y=160, width=350, height=30)
+ttk.Label(frame3, text="Ag Practice", style="Card.TLabel").place(x=10, y=165, width=130, height=30)
+ag_practice_entry = ttk.Entry(frame3, font=("Segoe UI", 11), justify='center')
+ag_practice_entry.place(x=150, y=165, width=350, height=30)
 
 # --- [수정] Frame 4 (Result & Verification) ---
-qr_label = ttk.Label(frame4)
-# QR 코드도 중앙 정렬을 확실하게 하려면 아래와 같이 바꾸셔도 좋습니다 (선택 사항)
-qr_label.place(relx=0.5, y=30, width=150, height=150, anchor="n")
+qr_label = ttk.Label(frame4, background="#2b2b3b")
+qr_label.place(relx=0.5, y=40, width=150, height=150, anchor="n")
 
 # [수정] Save 버튼 중앙 정렬
 # relx=0.5: 부모 프레임의 가로 50% 지점에 배치
 # anchor="n": 버튼의 '북쪽(상단) 가운데'를 기준점으로 삼음 (즉, 정중앙 정렬됨)
-save_button = ttk.Button(frame4, text="Save (DB + Hash)", command=save_all_formats)
-save_button.place(relx=0.5, y=200, width=250, height=40, anchor="n")
+save_button = ttk.Button(frame4, text="🚀 SAVE (DB + BLOCKCHAIN)", style="Action.TButton", command=save_all_formats)
+save_button.place(relx=0.5, y=210, width=300, height=45, anchor="n")
 
 # [추가] Hack 버튼
 #hack_button = ttk.Button(frame4, text="😈 Hack Data", command=simulate_hack)
@@ -395,8 +445,8 @@ save_button.place(relx=0.5, y=200, width=250, height=40, anchor="n")
 #verify_button = ttk.Button(frame4, text="🔍 Verify Integrity", command=verify_data)
 #verify_button.place(x=50, y=250, width=450, height=40)
 
-# 상태 메시지도 중앙 정렬 (기존 x=50, width=450도 중앙이긴 하지만, relx가 더 확실합니다)
-status_label_main_section = ttk.Label(frame4, text="", anchor="center")
+# 상태 메시지도 중앙 정렬
+status_label_main_section = ttk.Label(frame4, text="", style="TLabel", anchor="center")
 status_label_main_section.place(relx=0.5, y=300, width=450, height=30, anchor="n")
 
 # XML Path Label (기존 유지)

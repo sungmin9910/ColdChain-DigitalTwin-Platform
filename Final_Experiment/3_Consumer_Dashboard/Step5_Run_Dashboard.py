@@ -25,40 +25,37 @@ st.markdown("""
     }
 
     .main {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        background-color: #ffffff;
     }
 
     .stApp {
-        background-color: transparent;
+        background-color: #ffffff;
     }
 
     /* 카드 스타일 */
     .info-card {
-        background: rgba(255, 255, 255, 0.7);
-        backdrop-filter: blur(10px);
-        border-radius: 20px;
-        padding: 25px;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+        background: #ffffff;
+        border-radius: 15px;
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
         margin-bottom: 20px;
     }
 
     /* 헤더 스타일 */
     .hero-title {
-        font-weight: 900;
-        font-size: 2.5rem;
+        font-weight: 800;
+        font-size: 2.2rem;
         color: #1d1d1f;
         text-align: center;
-        margin-bottom: 10px;
-        background: -webkit-linear-gradient(#2ecc71, #27ae60);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        margin-bottom: 5px;
     }
 
     .hero-subtitle {
-        color: #86868b;
+        color: #515154;
+        font-weight: 500;
         text-align: center;
-        margin-bottom: 40px;
+        margin-bottom: 30px;
     }
 
     /* 타임라인 스타일 */
@@ -145,6 +142,14 @@ def get_origin_name(ac):
     }
     return origin_map.get(str(ac), "대한민국")
 
+def mask_contact(contact):
+    if not contact: return "정보 없음"
+    contact = str(contact).strip()
+    if len(contact) >= 10:
+        # 01012345678 -> 010-****-5678
+        return f"{contact[:3]}-****-{contact[-4:]}"
+    return contact
+
 # --- 로직 시작 ---
 query_params = st.query_params
 fm_id = query_params.get("FmID", None)
@@ -153,11 +158,11 @@ url_grade = query_params.get("grade", None)
 # 1. 랜딩 페이지 (FmID가 없을 때)
 if not fm_id:
     st.markdown('<div class="landing-container">', unsafe_allow_html=True)
-    st.markdown('<h1 class="hero-title">과일의 진실된 이야기를 스캔하세요</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="hero-title" style="background:none; -webkit-text-fill-color:initial; color:#2ecc71;">과일의 진실된 이야기를 스캔하세요</h1>', unsafe_allow_html=True)
     st.markdown('<p class="hero-subtitle">고객님이 구매하신 과일이 생산지에서 식탁까지 온 정직한 과정을 투명하게 보여드립니다.</p>', unsafe_allow_html=True)
     
-    # 가이드 이미지 표시
-    guide_img_path = r"C:\Users\yuyub\.gemini\antigravity\brain\c2ccf74d-f504-4cfc-ad00-1767cfa1c705\consumer_qr_guide_1778287608691.png"
+    # 가이드 이미지 표시 (상대 경로로 수정)
+    guide_img_path = os.path.join(os.path.dirname(__file__), "consumer_guide.png")
     if os.path.exists(guide_img_path):
         st.image(guide_img_path, use_container_width=True)
     
@@ -197,17 +202,37 @@ st.markdown(f'<p class="hero-subtitle">{variety} | {origin}</p>', unsafe_allow_h
 # 핵심 정보 카드
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.markdown(f'<div class="info-card" style="text-align:center;"><small>원산지</small><br><b>{origin}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">원산지</small><br><b style="color:#1d1d1f; font-size:1.1rem;">{origin}</b></div>', unsafe_allow_html=True)
 with col2:
-    st.markdown(f'<div class="info-card" style="text-align:center;"><small>선별 등급</small><br><b style="color:#2ecc71;">{display_grade}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">선별 등급</small><br><b style="color:#2ecc71; font-size:1.2rem;">{display_grade}</b></div>', unsafe_allow_html=True)
 with col3:
-    st.markdown(f'<div class="info-card" style="text-align:center;"><small>재배 방식</small><br><b>{latest.get("Mt", "자연재배")}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">재배 방식</small><br><b style="color:#1d1d1f; font-size:1.1rem;">{latest.get("Mt", "자연재배")}</b></div>', unsafe_allow_html=True)
+
+# 농가 정보 (Farmer Info) 추가
+st.markdown("### 👨‍🌾 생산자 정보")
+farmer_id_display = latest.get("FmID", "미등록")
+farmer_contact = mask_contact(latest.get("Ct", ""))
+st.markdown(f"""
+<div class="info-card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <small style="color:#666;">생산 농가 ID</small><br>
+            <b style="color:#1d1d1f;">{farmer_id_display}</b>
+        </div>
+        <div style="text-align: right;">
+            <small style="color:#666;">연락처 (안심번호)</small><br>
+            <b style="color:#1d1d1f;">{farmer_contact}</b>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 st.divider()
 st.subheader("🚚 신선 타임라인")
 
-# 단계 설정
+# 단계 설정 (A00 농장 단계 추가)
 stage_names = {
+    "A00": ("🌱 농장 수확", "정성껏 재배한 과일을 정직하게 수확했습니다.", "HD"),
     "A10": ("🏢 입고", "생산지에서 신선한 상태로 센터에 도착했습니다.", "APC_AD"),
     "A11": ("💦 세척", "깨끗하고 안전한 물로 세척 과정을 마쳤습니다.", "APC_WD"),
     "A12": ("🔍 선별", "크기와 당도, 품질을 엄격하게 선별했습니다.", "APC_RT"),

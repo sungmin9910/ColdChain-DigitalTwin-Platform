@@ -59,5 +59,30 @@
             "Type": "Grading Result"
         },
         "stage": "A12 (Sorting & Grading)"
+    },
+    {
+        "timestamp": "2026-05-11 16:45:09",
+        "hash": "5737b437d07fe2c24f4d1fa174c055ed676c5d15967b6b25ff311647b31ab754",
+        "metadata": {
+            "FarmerID": "11",
+            "Date": "2026-05-11 16:45:09"
+        }
+    },
+    {
+        "timestamp": "2026-05-11 16:46:38",
+        "hash": "1d4cd4a905a447308dbebeb4be53c3d9e1a49d07e5a01867255d55d3cbbe78b2",
+        "metadata": {
+            "FarmerID": "11",
+            "Date": "2026-05-11 16:46:38"
+        }
+    },
+    {
+        "timestamp": "2026-05-11 16:56:48",
+        "hash": "e802394e51cf9a70b7b7bcbfeecf30ef21d5ac9b463ef2a374355f30a127c2bb",
+        "metadata": {
+            "FmID": "11",
+            "Type": "Grading Result"
+        },
+        "stage": "A12 (Sorting & Grading)"
     }
 ]
