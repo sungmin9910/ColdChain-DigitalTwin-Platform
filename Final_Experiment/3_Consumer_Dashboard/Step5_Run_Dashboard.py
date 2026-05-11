@@ -55,7 +55,8 @@ st.markdown("""
 
     .hero-subtitle {
         color: #515154 !important;
-        font-weight: 500;
+        font-weight: 600;
+        font-size: 1.5rem; /* 품종 글씨 크기 확대 */
         text-align: center;
         margin-bottom: 30px;
     }
@@ -213,7 +214,7 @@ display_grade = url_grade or db_grade or "선별 전"
 
 # --- 메인 화면 렌더링 ---
 st.markdown(f'<h1 class="hero-title">🍎 {fruit_type} 안심 이력</h1>', unsafe_allow_html=True)
-st.markdown(f'<p class="hero-subtitle">{variety} | {origin}</p>', unsafe_allow_html=True)
+st.markdown(f'<p class="hero-subtitle">{variety}</p>', unsafe_allow_html=True)
 
 # 핵심 정보 카드
 col1, col2, col3 = st.columns(3)
@@ -244,7 +245,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 st.divider()
-st.subheader("🚚 신선 타임라인")
+st.subheader("🚚 과일 타임라인")
 
 # 단계 설정 (A00 농장 단계 추가)
 stage_names = {
