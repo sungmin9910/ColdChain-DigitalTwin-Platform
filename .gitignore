@@ -8,3 +8,5 @@
 .env
 secrets.h
 
+# Generated QR codes
+*_QR.png
