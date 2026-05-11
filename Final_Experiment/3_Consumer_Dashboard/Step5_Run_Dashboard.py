@@ -2,7 +2,7 @@ import streamlit as st
 import pymysql
 import pandas as pd
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -173,6 +173,9 @@ def get_db_connection():
 def format_elapsed_time(timestamp):
     if not timestamp: return ""
     
+    # 한국 시간대(KST, UTC+9) 설정
+    kst = timezone(timedelta(hours=9))
+    
     # 타입 처리 (문자열인 경우 파싱)
     if isinstance(timestamp, str):
         try:
@@ -184,27 +187,26 @@ def format_elapsed_time(timestamp):
     if type(timestamp).__name__ == 'date':
         timestamp = datetime.combine(timestamp, datetime.min.time())
     
-    now = datetime.now()
+    # timestamp가 naive인 경우 KST로 간주 (DB 데이터 특성상)
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=kst)
     
-    # [시차 보정 로직]
-    # 서버 시간이 UTC이고 데이터가 KST(+9)일 경우 diff가 큰 음수가 됨
+    # 현재 시간을 KST로 가져옴
+    now = datetime.now(kst)
+    
     diff = now - timestamp
-    if diff.total_seconds() < -18000: # 5시간 이상 미래 시간으로 잡힌다면 시차 문제로 판단
-        now = now + timedelta(hours=9)
-        diff = now - timestamp
-
     total_seconds = int(diff.total_seconds())
     
-    if total_seconds < 0: return "방금 전" 
-    
-    if total_seconds >= 86400: # 1일 이상
-        return f"{total_seconds // 86400}일 전"
-    elif total_seconds >= 3600: # 1시간 이상
-        return f"{total_seconds // 3600}시간 전"
-    elif total_seconds >= 60: # 1분 이상
-        return f"{total_seconds // 60}분 전"
-    else:
+    if total_seconds < 60:
         return "방금 전"
+    
+    if total_seconds < 3600:
+        return f"{total_seconds // 60}분 전"
+    
+    if total_seconds < 86400:
+        return f"{total_seconds // 3600}시간 전"
+    
+    return f"{diff.days}일 전"
 
 def get_origin_name(ac):
     origin_map = {
