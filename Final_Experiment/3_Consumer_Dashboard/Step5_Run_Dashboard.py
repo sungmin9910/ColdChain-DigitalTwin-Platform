@@ -214,16 +214,22 @@ display_grade = url_grade or db_grade or "선별 전"
 
 # --- 메인 화면 렌더링 ---
 st.markdown(f'<h1 class="hero-title">🍎 {fruit_type} 안심 이력</h1>', unsafe_allow_html=True)
-st.markdown(f'<p class="hero-subtitle">{variety}</p>', unsafe_allow_html=True)
+st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
 
-# 핵심 정보 카드
-col1, col2, col3 = st.columns(3)
+# 새로고침 버튼
+if st.button("🔄 정보 새로고침"):
+    st.rerun()
+
+# 핵심 정보 카드 (4열로 확장)
+col1, col2, col3, col4 = st.columns(4)
 with col1:
-    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">원산지</small><br><b style="color:#1d1d1f; font-size:1.1rem;">{origin}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">원산지</small><br><b style="color:#1d1d1f; font-size:1.0rem;">{origin}</b></div>', unsafe_allow_html=True)
 with col2:
-    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">선별 등급</small><br><b style="color:#2ecc71; font-size:1.2rem;">{display_grade}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">품종</small><br><b style="color:#1d1d1f; font-size:1.0rem;">{variety}</b></div>', unsafe_allow_html=True)
 with col3:
-    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">재배 방식</small><br><b style="color:#1d1d1f; font-size:1.1rem;">{latest.get("Mt", "자연재배")}</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">선별 등급</small><br><b style="color:#2ecc71; font-size:1.1rem;">{display_grade}</b></div>', unsafe_allow_html=True)
+with col4:
+    st.markdown(f'<div class="info-card" style="text-align:center;"><small style="color:#666;">재배 방식</small><br><b style="color:#1d1d1f; font-size:1.0rem;">{latest.get("Mt", "자연재배")}</b></div>', unsafe_allow_html=True)
 
 # 농가 정보 (Farmer Info) 추가
 st.markdown("### 👨‍🌾 생산자 정보")
