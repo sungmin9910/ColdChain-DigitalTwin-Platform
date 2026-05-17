@@ -1,33 +1,97 @@
-# 👋 안녕하세요, 한성민(Sung Min Han)입니다!
+# ❄️ ColdChain-DigitalTwin-Platform
 
-전북대학교 생물산업기계공학 전공생이자, 농업기계공학과 석사과정에 있는 한성민입니다. 저는 현재 Python과 라즈베리파이, Jetson Board를 이용해 생산정보 연계 농산물 수확후 관리 품질기준, 표시방법 표준화 연구를 진행하고 있습니다. 해당 과제는 Dynamic QR code를 활용하여 농산물이 생산되었을 때부터 정보를 수집하여 DB에 축적하고 저장, 선별, 출고 등의 과정을 거치는 동안 각각 변하거나 쌓이는 정보들을 소비자들이 웹페이지를 통해 알아볼 수 있도록 합니다. 현재는 전체적인 과정과 양방향 디지털 트윈을 적용하여 Cold-Chain 차량 내부의 온습도와 차량의 GPS, 가속도 센서를 수집하여 해당 차량에 가해지는 충격에 따라 과일이 받는 충격량을 계산하고 노선을 확인하여 경로를 바꿀 수 있도록 합니다. 그리고 농가와 APC에 있는 저장고의 경우 내부 온도를 측정하여 과일에 가장 적당한 온도에 맞도록 조절합니다. 마지막으로 전체적인 과정이 소비자들이 보는 웹페이지에 실시간으로 볼 수 있도록 합니다.
-
-### 🔭 관심 분야 및 현재 활동
-- **연구실:** Agricultural Sensor and Robotics Lab 학부연구생 (3년차) & 석사 1년차
-- **핵심 연구:** 농산물 수확 후 관리 표준화 및 실시간 트래킹(Dynamic QR)
-- **목표:** 데이터 기반의 정밀 농업 시스템 구축 및 디지털 트윈 구현
-
-### 🛠 기술 스택 (Tech Stack)
-- **Languages:** ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![C++](https://img.shields.io/badge/C%2B%2B-00599C?style=flat-square&logo=c%2B%2B&logoColor=white)
-- **Hardware:** ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-A22846?style=flat-square&logo=raspberry-pi&logoColor=white) ![Arduino](https://img.shields.io/badge/Arduino-00979D?style=flat-square&logo=arduino&logoColor=white) ![NVIDIA](https://img.shields.io/badge/Jetson%20Orin%20Nano-76B900?style=flat-square&logo=nvidia&logoColor=white)
-- **CAD/Engineering:** AutoCAD
-
-### 🛠 자격증 (Lisence & Certificate)
-- 컴퓨터활용능력 2급
-- ADsP(데이터분석 준전문가)
-- 한국사검정능력시험 2급
-- MOS(Excel, Powerpoint 2010)
-- 정보처리기사 필기(실기 진행중)
-
-### 🏆 수상 및 경력
-- 2024 전주 ICT 이노베이션 스퀘어 아이디어톤 **대상**
---> 고령화 사회 대비 인공지능 버스 정류장 키오스크
----> 현재 버스 정류장의 키오스크 기능은 단순히 
-- 스마트 모빌리티 아이디어 경진대회 **최우수상**
-
-- JST 공유대학 해커톤 **장려상**
-
-- 2023 생물산업기계공학부 **학생회장**
+> **수확 후 농산물의 신선도 보장을 위한 양방향 디지털 트윈 기반 실시간 유통 관제 및 신뢰성 검증(블록체인) 플랫폼**
 
 ---
-📫 **Contact:** [성민 님의 이메일이나 SNS 주소]
+
+## 📌 프로젝트 개요 (Overview)
+본 플랫폼은 산지유통센터(APC)에서 출고된 신선 농산물이 최종 소비자에게 도달하기까지의 전 과정(Cold-Chain)을 **실시간 IoT 센서 데이터 수집, 다이나믹 QR 코드, 디지털 트윈 가시화, 블록체인 원장 기록**을 통해 모니터링하고 가치를 보장하는 통합 유통 추적 솔루션입니다.
+
+* **연구 분야**: 생산정보 연계 농산물 수확 후 품질 표준화 및 양방향 디지털 트윈 관제
+* **핵심 타겟**: APC 관리자(차량 노선 우회, 실시간 저장고 온도 조절) & 소비자(유통 이력, 신선 품질 신뢰성 조회)
+
+---
+
+## 🏗️ 시스템 아키텍처 (System Architecture)
+
+```mermaid
+flowchart TD
+    subgraph Hardware_Layer [1. IoT 하드웨어 센서 노드]
+        ESP32[ESP32 QR 스캐너/센서 노드] -->|WiFi/MQTT| CloudDB[(AWS Cloud MySQL)]
+        Sensors[MPU6050 가속도 / GY-25 자이로 / 온습도 센서] -->|실시간 데이터 수집| ESP32
+    end
+
+    subgraph Core_Engine [2. 데이터 수집 및 가공 엔진]
+        CloudDB -->|유통 이력 추출| QR_Gen[다이나믹 QR 생성 및 등급 매핑]
+        CloudDB -->|실시간 스트리밍| Dashboards
+        QR_Gen -->|품질 검증 데이터| BC[블록체인 원장 기록 시뮬레이터]
+    end
+
+    subgraph Application_Layer [3. 통합 대시보드 & 관제]
+        Dashboards[Streamlit Dual-Dashboard System]
+        Dashboards -->|관제용| APC[APC 콜드체인 통합 관제 대시보드]
+        Dashboards -->|소비자용| Consumer[소비자 신뢰도 이력 조회 대시보드]
+    end
+```
+
+---
+
+## 🌟 핵심 기능 (Key Features)
+
+1. **양방향 디지털 트윈 관제**: 운송 차량 내부의 온습도, 실시간 GPS 및 3축 가속도/자이로 센서를 매핑하여 차량 충격에 의한 농산물 손상량을 실시간 예측 및 최적화 노선 우회 제안.
+2. **다이나믹 QR 코드 & 데이터 매핑**: 유통 구간별 상태 변화 정보를 동적으로 QR에 주입하고, 누락되거나 소실된 QR 배송 이력을 데이터베이스로부터 고화질 품질 등급(특/상/보통) 및 브랜드 로고와 함께 복구하는 자동화 파이프라인 탑재.
+3. **블록체인 기반 이력 신뢰성 검증**: 데이터 위변조 방지를 위해 수집된 운송 및 품질 정보를 블록체인 트랜잭션 형태로 로컬 원장(`blockchain_ledger.json`)에 기록 및 동기화.
+4. **듀얼 관제 시스템**: Streamlit 프레임워크를 기반으로 APC 물류 마스터용 화면과, 일반 소비자가 스마트폰 QR 스캔을 통해 "몇 시간 전 어디서 출고되어 어떤 온도 관리를 받았는지"를 즉시 조회하는 소비자 화면의 분리 구현.
+
+---
+
+## 📂 디렉터리 구성 (Directory Structure)
+
+본 프로젝트는 프로토타입 연구 개발 단계부터 최종 실험실(PoC) 완성 단계까지의 전체 여정을 담고 있습니다.
+
+### 🏆 1. [Final_Experiment/](./Final_Experiment/) (최종 완성 PoC)
+실험실 단계에서 최종 검증을 마친 안정 버전의 시스템입니다.
+* `1_PC_QR_Generators/`: 브랜드 로고 및 품질 등급 연계 다이나믹 QR 자동 생성 엔진.
+* `2_ESP32_Firmware/`: OLED가 없는 경량 하드웨어용 Multi-WiFi 및 보안 Secrets 헤더 포함 스캔/송신 펌웨어.
+* `3_Consumer_Dashboard/`: 소비자가 한눈에 KST 기준 정확한 운송 경과 시간과 품질 등급을 확인하는 대시보드.
+* `4_APC_Coldchain_Dashboard/`: 관제용 대시보드 시스템.
+* `QR_Recovery_Script.py`: 데이터베이스 정밀 쿼리를 통한 QR 코드 일괄 자동 복구 유틸리티.
+
+### 🧪 2. [Hardware_Prototypes/](./Hardware_Prototypes/) (센서/레거시 샌드박스)
+다양한 IoT 환경과 센서 피팅을 연구했던 과거 하드웨어 개발 역사와 실험 자료를 보관하는 공간입니다.
+* `coldchain_module`: 온습도/충격 감지 기본 ESP32 모듈 기초 설계 소스.
+* `coldchain_module_gy25` / `gy521`: GY-25 자이로 및 MPU6050 센서 연동 캘리브레이션 테스트 샌드박스.
+* `qr_scanner_module`: 아두이노 기반 바코드/QR 스캐너 트리거 및 수집 모듈.
+* `code26/`: 초기 학습 및 실험 코딩 소스.
+
+### 📄 3. [KSHS/](./KSHS/) (학술 발표 및 학회 성과 아카이브)
+* 본 기술 플랫폼의 독창성과 학술적 기여를 인정받은 **한국원예학회(KSHS)** 제출 최종 초록, 포스터(PDF/HTML), 그리고 슬라이드 PPTX 파일이 들어있습니다.
+
+---
+
+## 🛠️ 시작 가이드 (Quick Start)
+
+### 1. 환경 설정 (Dependencies)
+Python 3.10+ 환경에서 다음 명령어를 실행하여 필수 패키지를 설치합니다:
+```bash
+pip install -r requirements.txt
+```
+
+### 2. 소비자 대시보드 구동
+```bash
+cd Final_Experiment/3_Consumer_Dashboard
+streamlit run Step5_Run_Dashboard.py
+```
+
+### 3. QR 복구 스크립트 실행
+```bash
+cd Final_Experiment
+python QR_Recovery_Script.py
+```
+
+---
+
+## 👨‍🔬 담당 연구 및 연락처
+* **한성민 ( 전북대학교 농업기계공학과 / 석사과정 )**
+* **Agricultural Sensor and Robotics Lab** 학부연구생 3년 & 석사 1년차
+* 📧 **Contact**: `yuyu6243@gmail.com`
