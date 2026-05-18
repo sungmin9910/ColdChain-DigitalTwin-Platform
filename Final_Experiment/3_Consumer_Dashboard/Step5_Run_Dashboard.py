@@ -83,8 +83,20 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
         margin-bottom: 30px;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        grid-template-columns: repeat(4, 1fr);
         gap: 20px;
+    }
+    
+    @media (max-width: 992px) {
+        .farmer-card {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 480px) {
+        .farmer-card {
+            grid-template-columns: 1fr;
+        }
     }
 
     .farmer-info-item {
@@ -337,17 +349,24 @@ db_grade = next((r.get('grade') for r in records if r.get('grade')), None)
 display_grade = url_grade or db_grade or "선별 전"
 
 def get_fruit_image_path(fruit_type):
+    fruit_type_lower = fruit_type.lower()
     mapping = {
         "사과": "apple",
+        "apple": "apple",
         "참외": "koreanmelon",
+        "melon": "koreanmelon",
         "복숭아": "peach",
+        "peach": "peach",
         "배": "pear",
+        "pear": "pear",
         "귤": "tangerine",
-        "감귤": "tangerine"
+        "감귤": "tangerine",
+        "tangerine": "tangerine",
+        "orange": "tangerine"
     }
     fruit_key = None
     for k, v in mapping.items():
-        if k in fruit_type:
+        if k in fruit_type_lower:
             fruit_key = v
             break
             
@@ -365,8 +384,8 @@ def get_fruit_image_path(fruit_type):
 st.markdown(f'<h1 class="hero-title">🍏 {fruit_type} 안심 이력</h1>', unsafe_allow_html=True)
 st.markdown(f'<p style="text-align:center; color:#515154; margin-top:-5px; font-weight: 500;">블록체인 기반의 먹거리 안심 정보 서비스</p>', unsafe_allow_html=True)
 
-# 새로고침 버튼
-col_l, col_btn, col_r = st.columns([2, 1, 2])
+# 새로고침 버튼 (텍스트 줄바꿈 방지를 위해 너비 넓게 확보)
+col_l, col_btn, col_r = st.columns([1.2, 1.6, 1.2])
 with col_btn:
     if st.button("🔄 실시간 정보 갱신", use_container_width=True):
         st.rerun()
