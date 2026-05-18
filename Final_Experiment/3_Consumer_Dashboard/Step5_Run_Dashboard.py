@@ -26,12 +26,39 @@ st.markdown("""
         font-family: 'Noto Sans KR', sans-serif !important;
     }
 
-    .main {
-        background-color: #ffffff;
+    /* 앱 전체 배경화면: 프리미엄 실크 그레이-민트 그라데이션 */
+    .stApp {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ee 100%) !important;
     }
 
-    .stApp {
-        background-color: #ffffff;
+    .main {
+        background: transparent !important;
+    }
+
+    /* Streamlit 메인 콘텐트 컨테이너 스타일링 (데스크톱 플로팅 디바이스 뷰) */
+    [data-testid="stAppViewBlockContainer"], [data-testid="stMainBlockContainer"] {
+        background-color: #ffffff !important;
+        border-radius: 24px !important;
+        padding: 45px 35px !important;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.06) !important;
+        border: 1px solid rgba(225, 228, 232, 0.6) !important;
+        max-width: 680px !important;
+        margin: 40px auto !important;
+    }
+
+    /* 모바일 브라우저 대응 (테두리 및 외부 배경 제거) */
+    @media (max-width: 768px) {
+        [data-testid="stAppViewBlockContainer"], [data-testid="stMainBlockContainer"] {
+            border-radius: 0px !important;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 20px 15px !important;
+            margin: 0px auto !important;
+            max-width: 100% !important;
+        }
+        .stApp {
+            background: #ffffff !important;
+        }
     }
 
     /* 카드 스타일 (높이 균일화 및 중앙 정렬) */
