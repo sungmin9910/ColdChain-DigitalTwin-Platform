@@ -83,7 +83,7 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
         margin-bottom: 30px;
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 20px;
     }
     
@@ -399,9 +399,22 @@ with tab1:
     st.markdown(f'<h2 style="text-align:center; font-weight:800; color:#1d1d1f; margin-bottom:5px; margin-top:10px;">🍎 Premium {fruit_type}</h2>', unsafe_allow_html=True)
     st.markdown(f'<p style="text-align:center; font-size:1rem; color:#666; margin-bottom:25px;">원산지에서 식탁까지 온 정직한 과정을 투명하게 검증받은 최상의 {fruit_type}입니다.</p>', unsafe_allow_html=True)
 
-    # 해당 등급 수량 추출 및 포맷
-    grade_qty = latest.get("Qt", "미등록")
-    if grade_qty != "미등록":
+    # 해당 등급의 구체적인 수량 추출 (A12 선별 단계의 AGrade, BGrade, CGrade 컬럼 참조)
+    a12_record = next((r for r in records if r.get("Lo") == "A12"), None)
+    grade_qty = None
+    if a12_record:
+        if display_grade == "상":
+            grade_qty = a12_record.get("AGrade")
+        elif display_grade == "중":
+            grade_qty = a12_record.get("BGrade")
+        elif display_grade == "하":
+            grade_qty = a12_record.get("CGrade")
+
+    if grade_qty is None or grade_qty == "":
+        # 만약 A12에 구체적인 등급 수량이 없으면 전체 수량(Qt)을 백업으로 사용
+        grade_qty = latest.get("Qt", "미등록")
+
+    if grade_qty != "미등록" and grade_qty is not None:
         grade_qty_display = f"{grade_qty} 박스"
     else:
         grade_qty_display = "수량 미등록"
@@ -433,20 +446,12 @@ with tab1:
         harvest_date = str(harvest_date)
 
     # 농가 정보 (Farmer Info) 리디자인
-    st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-top:20px;'>👨‍🌾 생산자 및 수확 정보</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-top:20px;'>🚜 농가 및 수확 정보</h3>", unsafe_allow_html=True)
     farmer_id_display = latest.get("FmID", "미등록")
     farmer_contact = mask_contact(latest.get("Ct", ""))
-    producer_name = latest.get("Rp", "미등록")
     
     st.markdown(f"""
     <div class="farmer-card">
-        <div class="farmer-info-item">
-            <div style="font-size: 1.8rem;">👨‍🌾</div>
-            <div>
-                <div class="farmer-label">생산자</div>
-                <div class="farmer-value">{producer_name}</div>
-            </div>
-        </div>
         <div class="farmer-info-item">
             <div style="font-size: 1.8rem;">🆔</div>
             <div>
