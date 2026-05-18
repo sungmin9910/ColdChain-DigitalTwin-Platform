@@ -387,19 +387,41 @@ with tab1:
     st.markdown(f'<h2 style="text-align:center; font-weight:800; color:#1d1d1f; margin-bottom:5px;">🍎 Premium {fruit_type}</h2>', unsafe_allow_html=True)
     st.markdown(f'<p style="text-align:center; font-size:1rem; color:#666; margin-bottom:25px;">원산지에서 식탁까지 온 정직한 과정을 투명하게 검증받은 최상의 {fruit_type}입니다.</p>', unsafe_allow_html=True)
 
+    # 해당 등급 수량 추출 및 포맷
+    grade_qty = latest.get("Qt", "미등록")
+    if grade_qty != "미등록":
+        grade_qty_display = f"{grade_qty} 박스"
+    else:
+        grade_qty_display = "수량 미등록"
+
     # 핵심 정보 카드 (4열)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.markdown(f'<div class="info-card"><small style="color:#666; font-size:0.8rem;">원산지</small><br><b style="font-size:1.05rem;">{origin}</b></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="info-card" style="min-height: 85px;"><small style="color:#666; font-size:0.8rem;">원산지</small><br><b style="font-size:1.05rem; display:block; margin-top:2px;">{origin}</b></div>', unsafe_allow_html=True)
     with col2:
-        st.markdown(f'<div class="info-card"><small style="color:#666; font-size:0.8rem;">품종</small><br><b style="font-size:1.05rem;">{variety}</b></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="info-card" style="min-height: 85px;"><small style="color:#666; font-size:0.8rem;">품종</small><br><b style="font-size:1.05rem; display:block; margin-top:2px;">{variety}</b></div>', unsafe_allow_html=True)
     with col3:
-        st.markdown(f'<div class="info-card"><small style="color:#666; font-size:0.8rem;">선별 등급</small><br><b style="color:#2ecc71; font-size:1.3rem;">{display_grade}</b></div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="info-card" style="min-height: 85px;">
+            <small style="color:#666; font-size:0.8rem;">선별 등급</small><br>
+            <b style="color:#2ecc71; font-size:1.25rem; display:block; margin: 1px 0;">{display_grade}</b>
+            <span style="color:#8e8e93; font-size:0.75rem; font-weight:500;">수량: {grade_qty_display}</span>
+        </div>
+        """, unsafe_allow_html=True)
     with col4:
-        st.markdown(f'<div class="info-card"><small style="color:#666; font-size:0.8rem;">재배 방식</small><br><b style="font-size:1.05rem;">{latest.get("Mt", "자연재배")}</b></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="info-card" style="min-height: 85px;"><small style="color:#666; font-size:0.8rem;">재배 방식</small><br><b style="font-size:1.05rem; display:block; margin-top:2px;">{latest.get("Mt", "자연재배")}</b></div>', unsafe_allow_html=True)
+
+    # 수확 일자 포맷팅
+    harvest_date = latest.get("HD", "미등록")
+    if isinstance(harvest_date, str) and len(harvest_date) > 10:
+        harvest_date = harvest_date[:10]
+    elif hasattr(harvest_date, 'strftime'):
+        harvest_date = harvest_date.strftime('%Y-%m-%d')
+    else:
+        harvest_date = str(harvest_date)
 
     # 농가 정보 (Farmer Info) 리디자인
-    st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-top:20px;'>👨‍🌾 생산자 정보</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-top:20px;'>👨‍🌾 생산자 및 수확 정보</h3>", unsafe_allow_html=True)
     farmer_id_display = latest.get("FmID", "미등록")
     farmer_contact = mask_contact(latest.get("Ct", ""))
     producer_name = latest.get("Rp", "미등록")
@@ -409,7 +431,7 @@ with tab1:
         <div class="farmer-info-item">
             <div style="font-size: 1.8rem;">👨‍🌾</div>
             <div>
-                <div class="farmer-label">생산자 대표</div>
+                <div class="farmer-label">생산자</div>
                 <div class="farmer-value">{producer_name}</div>
             </div>
         </div>
@@ -427,45 +449,11 @@ with tab1:
                 <div class="farmer-value">{farmer_contact}</div>
             </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # 수확 및 생산 정보 추가
-    st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-top:20px;'>🌾 수확 및 생산 정보</h3>", unsafe_allow_html=True)
-    harvest_date = latest.get("HD", "미등록")
-    if isinstance(harvest_date, str) and len(harvest_date) > 10:
-        harvest_date = harvest_date[:10]
-    elif hasattr(harvest_date, 'strftime'):
-        harvest_date = harvest_date.strftime('%Y-%m-%d')
-    else:
-        harvest_date = str(harvest_date)
-        
-    harvest_num = latest.get("HN", "미등록")
-    harvest_qty = latest.get("Qt", "미등록")
-    if harvest_qty != "미등록":
-        harvest_qty = f"{harvest_qty} 박스"
-        
-    st.markdown(f"""
-    <div class="farmer-card" style="border-left: 5px solid #e67e22; background-color: #fffdf6;">
         <div class="farmer-info-item">
             <div style="font-size: 1.8rem;">📅</div>
             <div>
-                <div class="farmer-label" style="color: #a0522d;">수확 일자</div>
+                <div class="farmer-label">수확 일자</div>
                 <div class="farmer-value">{harvest_date}</div>
-            </div>
-        </div>
-        <div class="farmer-info-item">
-            <div style="font-size: 1.8rem;">🔢</div>
-            <div>
-                <div class="farmer-label" style="color: #a0522d;">수확 번호 (Batch)</div>
-                <div class="farmer-value">{harvest_num}</div>
-            </div>
-        </div>
-        <div class="farmer-info-item">
-            <div style="font-size: 1.8rem;">📦</div>
-            <div>
-                <div class="farmer-label" style="color: #a0522d;">생산 수량</div>
-                <div class="farmer-value">{harvest_qty}</div>
             </div>
         </div>
     </div>
@@ -508,43 +496,8 @@ with tab2:
             </div>
             """, unsafe_allow_html=True)
             
-            # A00 단계일 때 추가 수확 정보 표시
-            if code == "A00":
-                harvest_date_val = row.get("HD")
-                if isinstance(harvest_date_val, str) and len(harvest_date_val) > 10:
-                    harvest_date_val = harvest_date_val[:10]
-                elif hasattr(harvest_date_val, 'strftime'):
-                    harvest_date_val = harvest_date_val.strftime('%Y-%m-%d')
-                else:
-                    harvest_date_val = str(harvest_date_val)
-                    
-                hn_val = row.get("HN", "미등록")
-                qt_val = row.get("Qt", "미등록")
-                if qt_val != "미등록":
-                    qt_val = f"{qt_val} 박스"
-                    
-                st.markdown(f"""
-                <div style="background-color: #fffdf6; border-radius: 8px; padding: 12px 18px; border: 1px solid #fceec7; margin: -15px 0 20px 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 1.3rem;">🌾</span>
-                        <span style="font-weight: 700; color: #b25d00; font-size: 0.95rem;">수확 생산 상세</span>
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <div style="background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #fbe3a1; min-width: 90px; text-align: center;">
-                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">수확 일자</small>
-                            <b style="color: #b25d00; font-size: 0.95rem;">{harvest_date_val}</b>
-                        </div>
-                        <div style="background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #fbe3a1; min-width: 90px; text-align: center;">
-                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">수확 번호</small>
-                            <b style="color: #b25d00; font-size: 0.95rem;">{hn_val}</b>
-                        </div>
-                        <div style="background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #fbe3a1; min-width: 90px; text-align: center;">
-                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">수량</small>
-                            <b style="color: #b25d00; font-size: 0.95rem;">{qt_val}</b>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+            # A00 단계 추가 정보 표시 생략 (수확일자가 타임라인 메인 시간에 표기되므로)
+            pass
 
             # A14 단계일 때 추가 센서 정보 표시
             if code == "A14" and row.get("Tp") is not None:
