@@ -114,7 +114,7 @@ def generate_qr_code(data, filename):
     # ESP32(A10 단계)와의 호환성을 위해 모든 파라미터를 유지하되, 주소만 새로운 대시보드로 변경합니다.
     farmer_id = params.get('FmID', '')
     query_string = urlencode(params)
-    qr_url = f"https://step5rundashboardpy-eu2ci93skt85rq8dgn5zxm.streamlit.app/?{query_string}"
+    qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app//?{query_string}"
 
     print(f"[INFO] QR URL: {qr_url}")
 

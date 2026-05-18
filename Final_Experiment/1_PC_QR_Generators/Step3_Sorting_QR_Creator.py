@@ -271,7 +271,7 @@ def save_and_generate():
             ['상', '중', '하'], ['A', 'B', 'C'])):
 
             # ESP32 호환성 및 안전한 데이터 전달을 위해 파라미터 구성 유지
-            qr_url = f"https://step5rundashboardpy-eu2ci93skt85rq8dgn5zxm.streamlit.app/?FmID={prev_data['FmID']}&grade={grade_name_kr}&AC={prev_data.get('AC','')}&FrT={prev_data.get('FrT','')}"
+            qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app//?FmID={prev_data['FmID']}&grade={grade_name_kr}&AC={prev_data.get('AC','')}&FrT={prev_data.get('FrT','')}"
             img = generate_qr_with_image(qr_url, prev_data["FrT"], i)
             qr_filename = f"{prev_data['FmID']}_{grade_name_en}_QR.png"
             img.save(qr_filename)
