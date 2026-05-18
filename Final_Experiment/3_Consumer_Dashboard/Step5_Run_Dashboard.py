@@ -396,14 +396,7 @@ st.markdown('<div style="height: 15px;"></div>', unsafe_allow_html=True)
 tab1, tab2, tab3 = st.tabs(["✨ 안심 요약", "🚚 생산·유통 이력", "📍 이동 경로"])
 
 with tab1:
-    # 과일 이미지 표시 (있는 경우)
-    fruit_img_path = get_fruit_image_path(fruit_type)
-    if fruit_img_path:
-        col_img_l, col_img, col_img_r = st.columns([1, 1.2, 1])
-        with col_img:
-            st.image(fruit_img_path, use_container_width=True)
-            
-    st.markdown(f'<h2 style="text-align:center; font-weight:800; color:#1d1d1f; margin-bottom:5px;">🍎 Premium {fruit_type}</h2>', unsafe_allow_html=True)
+    st.markdown(f'<h2 style="text-align:center; font-weight:800; color:#1d1d1f; margin-bottom:5px; margin-top:10px;">🍎 Premium {fruit_type}</h2>', unsafe_allow_html=True)
     st.markdown(f'<p style="text-align:center; font-size:1rem; color:#666; margin-bottom:25px;">원산지에서 식탁까지 온 정직한 과정을 투명하게 검증받은 최상의 {fruit_type}입니다.</p>', unsafe_allow_html=True)
 
     # 해당 등급 수량 추출 및 포맷
