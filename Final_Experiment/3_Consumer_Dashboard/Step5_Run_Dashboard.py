@@ -180,11 +180,41 @@ st.markdown("""
         padding: 50px 20px;
     }
     
-    /* 탭 스타일 폰트 향상 */
-    .stTabs [data-baseweb="tab-list"] button {
+    /* 탭 스타일 대폭 향상 (iOS 세그먼트 스타일) */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 6px;
+        background-color: #f1f2f6;
+        padding: 5px;
+        border-radius: 25px;
+        border: none;
+        margin-bottom: 25px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent !important;
+        color: #515154 !important;
         font-size: 1.05rem !important;
-        font-weight: 600 !important;
-        padding: 10px 20px !important;
+        font-weight: 700 !important;
+        border-radius: 20px !important;
+        padding: 8px 16px !important;
+        transition: all 0.25s ease !important;
+        border: none !important;
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover {
+        color: #2ecc71 !important;
+        background-color: rgba(46, 204, 113, 0.05) !important;
+    }
+    
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #ffffff !important;
+        color: #2ecc71 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+    }
+    
+    /* 탭 하단의 기본 라인 제거 */
+    .stTabs [data-baseweb="tab-highlight-bar"] {
+        display: none !important;
     }
 </style>
 """, unsafe_allow_html=True)
