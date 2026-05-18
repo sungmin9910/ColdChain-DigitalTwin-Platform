@@ -151,7 +151,7 @@ st.markdown("""
         font-weight: 800;
         font-size: 2.2rem;
         color: #1d1d1f !important;
-        text-align: center;
+        text-align: left;
         margin-bottom: 5px;
     }
 
@@ -410,17 +410,69 @@ def get_fruit_image_path(fruit_type):
             return path
     return None
 
-# --- 메인 화면 렌더링 ---
-st.markdown(f'<h1 class="hero-title">🍏 {fruit_type} 안심 이력</h1>', unsafe_allow_html=True)
-st.markdown(f'<p style="text-align:center; color:#515154; margin-top:-5px; font-weight: 500;">블록체인 기반의 먹거리 안심 정보 서비스</p>', unsafe_allow_html=True)
+# --- 메인 화면 렌더링 (헤더 2열 구성: 좌측 타이틀/새로고침, 우측 정품 인증 QR) ---
+col_header_left, col_header_right = st.columns([3.2, 1.2])
 
-# 새로고침 버튼 (텍스트 줄바꿈 방지를 위해 너비 넓게 확보)
-col_l, col_btn, col_r = st.columns([1.2, 1.6, 1.2])
-with col_btn:
-    if st.button("🔄 실시간 정보 갱신", use_container_width=True):
+with col_header_left:
+    st.markdown(f'<h1 class="hero-title" style="text-align:left; margin-bottom:5px;">🍏 {fruit_type} 안심 이력</h1>', unsafe_allow_html=True)
+    st.markdown(f'<p style="text-align:left; color:#515154; margin-top:-5px; font-weight: 500; font-size: 0.95rem; margin-bottom: 15px;">블록체인 기반의 먹거리 안심 정보 서비스</p>', unsafe_allow_html=True)
+    
+    # 새로고침 버튼을 타이틀 아래에 콤팩트하게 배치
+    if st.button("🔄 실시간 정보 갱신", key="top_refresh_btn"):
         st.rerun()
 
-st.markdown('<div style="height: 15px;"></div>', unsafe_allow_html=True)
+with col_header_right:
+    # 1. 과일 카테고리 매핑 (Step3_Sorting_QR_Creator와 일치)
+    fruit_images_mapping = {
+        "Apples": ["apple4.png", "apple3.png", "apple2.png"],
+        "Pears": ["pear4.png", "pear3.png", "pear2.png"],
+        "Peaches": ["peach4.png", "peach3.png", "peach2.png"],
+        "Tangerines": ["tangerine4.png", "tangerine3.png", "tangerine2.png"],
+        "Melons": ["koreanmelon4.png", "koreanmelon3.png", "koreanmelon2.png"]
+    }
+    
+    category_key = None
+    for k in fruit_images_mapping.keys():
+        if k.lower() in fruit_type.lower():
+            category_key = k
+            break
+            
+    # 2. 등급 인덱스 매핑 (A/상=0, B/중=1, C/하=2)
+    grade_idx = 0
+    if display_grade == "상":
+        grade_idx = 0
+    elif display_grade == "중":
+        grade_idx = 1
+    elif display_grade == "하":
+        grade_idx = 2
+    else:
+        grade_idx = 0
+        
+    qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/?FmID={fm_id}&grade={display_grade}&AC={latest.get('AC', '')}&FrT={latest.get('FrT', '')}"
+    
+    # 3. 고해상도 및 높은 복원력(ERROR_CORRECT_H)으로 QR 생성하여 과일 로고를 중앙에 합성
+    qr = qrcode.QRCode(version=4, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=1)
+    qr.add_data(qr_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white").convert("RGBA")
+    
+    if category_key and category_key in fruit_images_mapping:
+        filename = fruit_images_mapping[category_key][grade_idx]
+        overlay_path = os.path.join(os.path.dirname(__file__), "static", filename)
+        if os.path.exists(overlay_path):
+            logo_size = int(img.size[0] * 0.25)
+            logo = Image.open(overlay_path).resize((logo_size, logo_size), Image.LANCZOS).convert("RGBA")
+            pos = ((img.size[0] - logo.size[0]) // 2, (img.size[1] - logo.size[1]) // 2)
+            img.paste(logo, pos, mask=logo)
+            
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    qr_bytes = buf.getvalue()
+    
+    # 우측 상단에 정렬되도록 컨테이너와 함께 배치
+    st.image(qr_bytes, use_container_width=True)
+
+st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
 
 # 탭 생성
 tab1, tab2, tab3 = st.tabs(["✨ 안심 요약", "🚚 생산·유통 이력", "📍 이동 경로"])
@@ -506,75 +558,7 @@ with tab1:
     </div>
     """, unsafe_allow_html=True)
 
-    # 블록체인 정품 인증 QR 코드 카드 추가 (실제 스캔한 과일 로고 오버레이 포함)
-    st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-top:25px;'>🔒 블록체인 정품 인증 QR</h3>", unsafe_allow_html=True)
-    
-    qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/?FmID={fm_id}&grade={display_grade}&AC={latest.get('AC', '')}&FrT={latest.get('FrT', '')}"
-    
-    # 1. 과일 카테고리 매핑 (Step3_Sorting_QR_Creator와 일치)
-    fruit_images_mapping = {
-        "Apples": ["apple4.png", "apple3.png", "apple2.png"],
-        "Pears": ["pear4.png", "pear3.png", "pear2.png"],
-        "Peaches": ["peach4.png", "peach3.png", "peach2.png"],
-        "Tangerines": ["tangerine4.png", "tangerine3.png", "tangerine2.png"],
-        "Melons": ["koreanmelon4.png", "koreanmelon3.png", "koreanmelon2.png"]
-    }
-    
-    category_key = None
-    for k in fruit_images_mapping.keys():
-        if k.lower() in fruit_type.lower():
-            category_key = k
-            break
-            
-    # 2. 등급 인덱스 매핑 (A/상=0, B/중=1, C/하=2)
-    grade_idx = 0
-    if display_grade == "상":
-        grade_idx = 0
-    elif display_grade == "중":
-        grade_idx = 1
-    elif display_grade == "하":
-        grade_idx = 2
-    else:
-        grade_idx = 0
-        
-    # 3. 고해상도 및 높은 복원력(ERROR_CORRECT_H)으로 QR 생성하여 과일 로고를 중앙에 합성
-    qr = qrcode.QRCode(version=4, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=10, border=1)
-    qr.add_data(qr_url)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white").convert("RGBA")
-    
-    if category_key and category_key in fruit_images_mapping:
-        filename = fruit_images_mapping[category_key][grade_idx]
-        overlay_path = os.path.join(os.path.dirname(__file__), "static", filename)
-        if os.path.exists(overlay_path):
-            logo_size = int(img.size[0] * 0.25)
-            logo = Image.open(overlay_path).resize((logo_size, logo_size), Image.LANCZOS).convert("RGBA")
-            pos = ((img.size[0] - logo.size[0]) // 2, (img.size[1] - logo.size[1]) // 2)
-            img.paste(logo, pos, mask=logo)
-            
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    qr_bytes = buf.getvalue()
-    
-    col_qr_text, col_qr_img = st.columns([1.8, 1])
-    with col_qr_text:
-        st.markdown(f"""
-        <div style="padding-top: 10px;">
-            <p style="font-size: 0.95rem; color: #515154; line-height: 1.6; margin-bottom: 12px;">
-                이 QR 코드는 블록체인 분산 원장에 기록된 정품 인증 서명을 담고 있습니다. 
-                스마트폰 카메라로 언제든지 다시 스캔하여 신선도 이력과 콜드체인 검증 상태를 즉시 재확인하실 수 있습니다.
-            </p>
-            <div style="background-color: #f1fcf4; border: 1px solid #d4edda; border-radius: 8px; padding: 10px 15px; display: inline-flex; align-items: center; gap: 8px;">
-                <span style="color: #2ecc71; font-size: 1.1rem;">✔️</span>
-                <span style="color: #155724; font-size: 0.85rem; font-weight: 700;">분산형 원장(Ledger) 서명 검증 완료</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    with col_qr_img:
-        st.image(qr_bytes, width=140, caption="안심 정품 인증 QR")
-        
-    st.markdown('<div style="height: 15px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
     
     st.success("✨ 이 과일은 투명하고 안전한 블록체인 관리 시스템을 통해 검증되었습니다. 안심하고 즐거운 시간 되세요!")
 
