@@ -758,7 +758,9 @@ with tab2:
             
     timeline_html.append('</div>')
     
-    st.markdown("\n".join(timeline_html), unsafe_allow_html=True)
+    # 모든 HTML 라인의 공백을 완전히 제거하여 마크다운 코드 블록(Indented Code Block) 오동작 차단
+    clean_html = "\n".join([line.strip() for line in timeline_html if line.strip()])
+    st.markdown(clean_html, unsafe_allow_html=True)
 
 with tab3:
     st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-bottom:10px;'>📍 실시간 이동 경로</h3>", unsafe_allow_html=True)
