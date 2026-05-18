@@ -163,52 +163,73 @@ st.markdown("""
         margin-bottom: 30px;
     }
 
-    /* 타임라인 스타일 */
+    /* 타임라인 스타일 리디자인 */
     .timeline-container {
-        padding-left: 10px;
-        margin-top: 15px;
-    }
-
-    .timeline-item {
-        border-left: 3px solid #2ecc71;
-        padding-left: 20px;
-        margin-bottom: 25px;
+        padding-left: 25px;
+        margin-top: 20px;
         position: relative;
-        color: #1d1d1f;
+        border-left: 2px solid #e2e8f0; /* 타임라인 세로 연결 라인 */
     }
 
-    .timeline-item::before {
-        content: '';
+    .timeline-card {
+        background: #ffffff;
+        border-radius: 14px;
+        padding: 18px 20px;
+        border: 1px solid #eef0f2;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+        margin-bottom: 22px;
+        position: relative;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        border-left: 4px solid #2ecc71; /* 완료단계: 초록색 왼쪽 바 */
+    }
+
+    .timeline-card:hover {
+        transform: translateX(6px);
+        box-shadow: 0 8px 25px rgba(46, 204, 113, 0.06);
+        border-color: #2ecc71;
+    }
+
+    /* 타임라인 노드 포인트 (동그라미) */
+    .timeline-node {
         position: absolute;
         width: 14px;
         height: 14px;
         background-color: #2ecc71;
         border: 3px solid #ffffff;
-        box-shadow: 0 0 0 2px #2ecc71;
+        box-shadow: 0 0 0 2px #2ecc71, 0 4px 10px rgba(46, 204, 113, 0.25);
         border-radius: 50%;
-        left: -9px;
-        top: 5px;
+        left: -33px; /* 타임라인 세로 연결 라인 위에 정확히 매칭 */
+        top: 20px;
     }
-    
-    /* 대기 중인 타임라인 스타일 */
-    .timeline-item.pending-stage {
-        border-left: 3px dashed #d1d1d6 !important;
-        opacity: 0.55;
+
+    /* 대기 중인 타임라인 카드 스타일 */
+    .timeline-card.pending-stage {
+        border-left: 4px solid #d1d1d6;
+        opacity: 0.65;
+        background: #fafafa;
+        border: 1px dashed #e2e8f0;
     }
-    
-    .timeline-item.pending-stage::before {
-        background-color: #d1d1d6 !important;
-        box-shadow: 0 0 0 2px #d1d1d6 !important;
+
+    .timeline-card.pending-stage:hover {
+        transform: none;
+        box-shadow: none;
+        border-color: #e2e8f0;
+    }
+
+    .timeline-card.pending-stage .timeline-node {
+        background-color: #d1d1d6;
+        box-shadow: 0 0 0 2px #d1d1d6;
     }
 
     .elapsed-tag {
         background-color: #e8f5e9;
         color: #2e7d32 !important;
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-size: 0.8rem;
-        font-weight: 600;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 700;
         margin-left: 10px;
+        display: inline-block;
     }
 
     /* 알림창 텍스트 색상 보정 */
