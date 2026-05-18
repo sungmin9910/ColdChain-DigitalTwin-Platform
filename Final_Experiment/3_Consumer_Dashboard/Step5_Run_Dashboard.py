@@ -187,6 +187,7 @@ st.markdown("""
         padding: 10px 20px !important;
     }
 </style>
+""", unsafe_allow_html=True)
 
 # --- DB 설정 ---
 DB_HOST = "15.165.68.30"
