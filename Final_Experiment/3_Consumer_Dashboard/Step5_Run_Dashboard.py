@@ -399,6 +399,47 @@ with tab1:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # 수확 및 생산 정보 추가
+    st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-top:20px;'>🌾 수확 및 생산 정보</h3>", unsafe_allow_html=True)
+    harvest_date = latest.get("HD", "미등록")
+    if isinstance(harvest_date, str) and len(harvest_date) > 10:
+        harvest_date = harvest_date[:10]
+    elif hasattr(harvest_date, 'strftime'):
+        harvest_date = harvest_date.strftime('%Y-%m-%d')
+    else:
+        harvest_date = str(harvest_date)
+        
+    harvest_num = latest.get("HN", "미등록")
+    harvest_qty = latest.get("Qt", "미등록")
+    if harvest_qty != "미등록":
+        harvest_qty = f"{harvest_qty} 박스"
+        
+    st.markdown(f"""
+    <div class="farmer-card" style="border-left: 5px solid #e67e22; background-color: #fffdf6;">
+        <div class="farmer-info-item">
+            <div style="font-size: 1.8rem;">📅</div>
+            <div>
+                <div class="farmer-label" style="color: #a0522d;">수확 일자</div>
+                <div class="farmer-value">{harvest_date}</div>
+            </div>
+        </div>
+        <div class="farmer-info-item">
+            <div style="font-size: 1.8rem;">🔢</div>
+            <div>
+                <div class="farmer-label" style="color: #a0522d;">수확 번호 (Batch)</div>
+                <div class="farmer-value">{harvest_num}</div>
+            </div>
+        </div>
+        <div class="farmer-info-item">
+            <div style="font-size: 1.8rem;">📦</div>
+            <div>
+                <div class="farmer-label" style="color: #a0522d;">생산 수량</div>
+                <div class="farmer-value">{harvest_qty}</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.success("✨ 이 과일은 투명하고 안전한 블록체인 관리 시스템을 통해 검증되었습니다. 안심하고 즐거운 시간 되세요!")
 
@@ -437,6 +478,44 @@ with tab2:
             </div>
             """, unsafe_allow_html=True)
             
+            # A00 단계일 때 추가 수확 정보 표시
+            if code == "A00":
+                harvest_date_val = row.get("HD")
+                if isinstance(harvest_date_val, str) and len(harvest_date_val) > 10:
+                    harvest_date_val = harvest_date_val[:10]
+                elif hasattr(harvest_date_val, 'strftime'):
+                    harvest_date_val = harvest_date_val.strftime('%Y-%m-%d')
+                else:
+                    harvest_date_val = str(harvest_date_val)
+                    
+                hn_val = row.get("HN", "미등록")
+                qt_val = row.get("Qt", "미등록")
+                if qt_val != "미등록":
+                    qt_val = f"{qt_val} 박스"
+                    
+                st.markdown(f"""
+                <div style="background-color: #fffdf6; border-radius: 8px; padding: 12px 18px; border: 1px solid #fceec7; margin: -15px 0 20px 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.3rem;">🌾</span>
+                        <span style="font-weight: 700; color: #b25d00; font-size: 0.95rem;">수확 생산 상세</span>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <div style="background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #fbe3a1; min-width: 90px; text-align: center;">
+                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">수확 일자</small>
+                            <b style="color: #b25d00; font-size: 0.95rem;">{harvest_date_val}</b>
+                        </div>
+                        <div style="background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #fbe3a1; min-width: 90px; text-align: center;">
+                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">수확 번호</small>
+                            <b style="color: #b25d00; font-size: 0.95rem;">{hn_val}</b>
+                        </div>
+                        <div style="background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #fbe3a1; min-width: 90px; text-align: center;">
+                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">수량</small>
+                            <b style="color: #b25d00; font-size: 0.95rem;">{qt_val}</b>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
             # A14 단계일 때 추가 센서 정보 표시
             if code == "A14" and row.get("Tp") is not None:
                 try:
