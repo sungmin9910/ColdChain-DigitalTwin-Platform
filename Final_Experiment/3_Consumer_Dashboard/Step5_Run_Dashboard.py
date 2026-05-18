@@ -163,74 +163,168 @@ st.markdown("""
         margin-bottom: 30px;
     }
 
-    /* 타임라인 스타일 리디자인 */
+    /* 프리미엄 미니멀 타임라인 스타일 */
     .timeline-container {
-        padding-left: 25px;
-        margin-top: 20px;
         position: relative;
-        border-left: 2px solid #e2e8f0; /* 타임라인 세로 연결 라인 */
+        padding-left: 20px;
+        margin: 20px 10px;
     }
 
-    .timeline-card {
-        background: #ffffff;
-        border-radius: 14px;
-        padding: 18px 20px;
-        border: 1px solid #eef0f2;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-        margin-bottom: 22px;
-        position: relative;
-        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        border-left: 4px solid #2ecc71; /* 완료단계: 초록색 왼쪽 바 */
-    }
-
-    .timeline-card:hover {
-        transform: translateX(6px);
-        box-shadow: 0 8px 25px rgba(46, 204, 113, 0.06);
-        border-color: #2ecc71;
-    }
-
-    /* 타임라인 노드 포인트 (동그라미) */
-    .timeline-node {
+    /* 타임라인 메인 수직 라인 */
+    .timeline-container::before {
+        content: '';
         position: absolute;
-        width: 14px;
-        height: 14px;
-        background-color: #2ecc71;
-        border: 3px solid #ffffff;
-        box-shadow: 0 0 0 2px #2ecc71, 0 4px 10px rgba(46, 204, 113, 0.25);
+        left: 5px;
+        top: 10px;
+        bottom: 10px;
+        width: 2px;
+        background: #e2e8f0;
+        z-index: 1;
+    }
+
+    .timeline-step {
+        position: relative;
+        margin-bottom: 25px;
+        padding-left: 15px;
+    }
+
+    .timeline-step:last-child {
+        margin-bottom: 0;
+    }
+
+    /* 타임라인 원형 마커 */
+    .timeline-marker {
+        position: absolute;
+        left: -20px;
+        top: 6px;
+        width: 12px;
+        height: 12px;
         border-radius: 50%;
-        left: -33px; /* 타임라인 세로 연결 라인 위에 정확히 매칭 */
-        top: 20px;
+        background: #fff;
+        border: 2px solid #cbd5e1;
+        z-index: 2;
+        transition: all 0.3s ease;
     }
 
-    /* 대기 중인 타임라인 카드 스타일 */
-    .timeline-card.pending-stage {
-        border-left: 4px solid #d1d1d6;
-        opacity: 0.65;
-        background: #fafafa;
-        border: 1px dashed #e2e8f0;
+    /* 완료된 단계 스타일 */
+    .timeline-step.completed .timeline-marker {
+        border-color: #2ecc71;
+        background: #2ecc71;
+        box-shadow: 0 0 0 4px rgba(46, 204, 113, 0.15);
     }
 
-    .timeline-card.pending-stage:hover {
-        transform: none;
-        box-shadow: none;
-        border-color: #e2e8f0;
+    .timeline-step.completed .timeline-title {
+        color: #1d1d1f;
+        font-weight: 700;
     }
 
-    .timeline-card.pending-stage .timeline-node {
-        background-color: #d1d1d6;
-        box-shadow: 0 0 0 2px #d1d1d6;
+    /* 대기 단계 스타일 */
+    .timeline-step.pending {
+        opacity: 0.6;
     }
 
-    .elapsed-tag {
+    .timeline-step.pending .timeline-marker {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+    }
+
+    .timeline-step.pending .timeline-title {
+        color: #86868b;
+        font-weight: 600;
+    }
+
+    /* 타이틀 및 헤더 */
+    .timeline-content {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .timeline-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .timeline-title {
+        font-size: 1.05rem;
+    }
+
+    .timeline-time-badge {
         background-color: #e8f5e9;
         color: #2e7d32 !important;
-        padding: 3px 10px;
-        border-radius: 20px;
+        padding: 2px 8px;
+        border-radius: 12px;
         font-size: 0.75rem;
         font-weight: 700;
-        margin-left: 10px;
-        display: inline-block;
     }
+
+    .timeline-pending-badge {
+        background-color: #f1f5f9;
+        color: #64748b !important;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    /* 세부 내용 */
+    .timeline-desc {
+        color: #515154 !important;
+        font-size: 0.9rem !important;
+        margin: 2px 0 0 0 !important;
+        line-height: 1.4 !important;
+    }
+
+    .timeline-meta {
+        color: #86868b !important;
+        font-size: 0.75rem !important;
+        margin: 2px 0 0 0 !important;
+    }
+
+    /* 저장고 온습도 배지 스타일 */
+    .sensor-badge-container {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background-color: #f1fcf4;
+        border: 1px solid #d4edda;
+        border-radius: 6px;
+        padding: 4px 10px;
+        margin-top: 6px;
+        width: fit-content;
+    }
+
+    .sensor-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #155724;
+    }
+
+    .sensor-value-temp {
+        background: #fff;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #c3e6cb;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #27ae60;
+    }
+
+    .sensor-value-humi {
+        background: #fff;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #c3e6cb;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #2980b9;
+    }
+
+    .sensor-status-dot {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #2ecc71;
 
     /* 알림창 텍스트 색상 보정 */
     .stAlert p {
@@ -601,7 +695,9 @@ with tab2:
     completed_stages = {r.get("Lo"): r for r in records}
     timeline_order = ["A00", "A10", "A11", "A12", "A13", "A14", "A15"]
     
-    st.markdown('<div class="timeline-container">', unsafe_allow_html=True)
+    timeline_html = []
+    timeline_html.append('<div class="timeline-container">')
+    
     for code in timeline_order:
         title, default_desc, time_col = stage_names[code]
         if code in completed_stages:
@@ -609,19 +705,8 @@ with tab2:
             stage_time = row.get(time_col)
             elapsed = format_elapsed_time(stage_time)
             
-            st.markdown(f"""
-            <div class="timeline-item active-stage">
-                <span style="font-weight:700; font-size:1.1rem; color:#1d1d1f;">{title}</span>
-                <span class="elapsed-tag">{elapsed}</span>
-                <p style="color:#515154; margin-top:5px; font-size:0.9rem; font-weight:400; margin-bottom:5px;">{default_desc}</p>
-                <small style="color:#86868b; font-size:0.8rem;">⏰ 처리 시간: {stage_time if stage_time else ""}</small>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # A00 단계 추가 정보 표시 생략 (수확일자가 타임라인 메인 시간에 표기되므로)
-            pass
-
-            # A14 단계일 때 추가 센서 정보 표시
+            # A14 센서 정보 표시 HTML
+            sensor_html = ""
             if code == "A14" and row.get("Tp") is not None:
                 try:
                     tp_val = f"{float(row.get('Tp')):.1f}"
@@ -632,34 +717,48 @@ with tab2:
                     hm_val = f"{float(row.get('Hm')):.1f}"
                 except (ValueError, TypeError):
                     hm_val = str(row.get('Hm'))
-                st.markdown(f"""
-                <div style="background-color: #f1fcf4; border-radius: 8px; padding: 12px 18px; border: 1px solid #d4edda; margin: -15px 0 20px 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 1.3rem;">❄️</span>
-                        <span style="font-weight: 700; color: #155724; font-size: 0.95rem;">저장고 실시간 온습도</span>
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <div style="background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #c3e6cb; min-width: 80px; text-align: center;">
-                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">온도</small>
-                            <b style="color: #27ae60; font-size: 1rem;">{tp_val}°C</b>
-                        </div>
-                        <div style="background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #c3e6cb; min-width: 80px; text-align: center;">
-                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">습도</small>
-                            <b style="color: #2980b9; font-size: 1rem;">{hm_val}%</b>
-                        </div>
-                    </div>
-                    <span style="color: #2ecc71; font-size: 0.85rem; font-weight: 600; margin-left: auto;">🟢 최적 상태 유지 중</span>
+                    
+                sensor_html = f"""
+                <div class="sensor-badge-container">
+                    <span style="font-size: 0.95rem;">❄️</span>
+                    <span class="sensor-title">실시간 온습도:</span>
+                    <span class="sensor-value-temp">{tp_val}°C</span>
+                    <span class="sensor-value-humi">{hm_val}%</span>
+                    <span class="sensor-status-dot">🟢 최적</span>
                 </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div class="timeline-item pending-stage">
-                <span style="font-weight:700; font-size:1.1rem; color:#8e8e93;">{title}</span>
-                <span style="background-color: #f2f2f7; color: #8e8e93 !important; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; margin-left: 10px;">준비 중</span>
-                <p style="color:#a1a1a6; margin-top:5px; font-size:0.9rem; font-weight:400; margin-bottom:5px;">아직 해당 단계에 도달하지 않았습니다.</p>
+                """
+                
+            timeline_html.append(f"""
+            <div class="timeline-step completed">
+                <div class="timeline-marker"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <span class="timeline-title">{title}</span>
+                        <span class="timeline-time-badge">{elapsed}</span>
+                    </div>
+                    <p class="timeline-desc">{default_desc}</p>
+                    <div class="timeline-meta">⏰ 처리 시간: {stage_time if stage_time else ""}</div>
+                    {sensor_html}
+                </div>
             </div>
-            """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+            """)
+        else:
+            timeline_html.append(f"""
+            <div class="timeline-step pending">
+                <div class="timeline-marker"></div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <span class="timeline-title">{title}</span>
+                        <span class="timeline-pending-badge">준비 중</span>
+                    </div>
+                    <p class="timeline-desc">아직 해당 단계에 도달하지 않았습니다.</p>
+                </div>
+            </div>
+            """)
+            
+    timeline_html.append('</div>')
+    
+    st.markdown("\n".join(timeline_html), unsafe_allow_html=True)
 
 with tab3:
     st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-bottom:10px;'>📍 실시간 이동 경로</h3>", unsafe_allow_html=True)
