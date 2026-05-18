@@ -439,8 +439,15 @@ with tab2:
             
             # A14 단계일 때 추가 센서 정보 표시
             if code == "A14" and row.get("Tp") is not None:
-                tp_val = row.get("Tp")
-                hm_val = row.get("Hm")
+                try:
+                    tp_val = f"{float(row.get('Tp')):.1f}"
+                except (ValueError, TypeError):
+                    tp_val = str(row.get('Tp'))
+                
+                try:
+                    hm_val = f"{float(row.get('Hm')):.1f}"
+                except (ValueError, TypeError):
+                    hm_val = str(row.get('Hm'))
                 st.markdown(f"""
                 <div style="background-color: #f1fcf4; border-radius: 8px; padding: 12px 18px; border: 1px solid #d4edda; margin: -15px 0 20px 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 8px;">
