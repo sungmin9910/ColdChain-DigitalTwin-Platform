@@ -2,6 +2,8 @@ import streamlit as st
 import pymysql
 import pandas as pd
 import os
+import qrcode
+import io
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
 
@@ -502,6 +504,40 @@ with tab1:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    # 블록체인 정품 인증 QR 코드 카드 추가
+    st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-top:25px;'>🔒 블록체인 정품 인증 QR</h3>", unsafe_allow_html=True)
+    
+    qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/?FmID={fm_id}&grade={display_grade}&AC={latest.get('AC', '')}&FrT={latest.get('FrT', '')}"
+    
+    qr = qrcode.QRCode(version=1, box_size=10, border=1)
+    qr.add_data(qr_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#2ecc71", back_color="white") # 아름다운 신선 그린 초록색 QR 코드!
+    
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    qr_bytes = buf.getvalue()
+    
+    col_qr_text, col_qr_img = st.columns([1.8, 1])
+    with col_qr_text:
+        st.markdown(f"""
+        <div style="padding-top: 10px;">
+            <p style="font-size: 0.95rem; color: #515154; line-height: 1.6; margin-bottom: 12px;">
+                이 QR 코드는 블록체인 분산 원장에 기록된 정품 인증 서명을 담고 있습니다. 
+                스마트폰 카메라로 언제든지 다시 스캔하여 신선도 이력과 콜드체인 검증 상태를 즉시 재확인하실 수 있습니다.
+            </p>
+            <div style="background-color: #f1fcf4; border: 1px solid #d4edda; border-radius: 8px; padding: 10px 15px; display: inline-flex; align-items: center; gap: 8px;">
+                <span style="color: #2ecc71; font-size: 1.1rem;">✔️</span>
+                <span style="color: #155724; font-size: 0.85rem; font-weight: 700;">분산형 원장(Ledger) 서명 검증 완료</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    with col_qr_img:
+        st.image(qr_bytes, width=140, caption="안심 정품 인증 QR")
+        
+    st.markdown('<div style="height: 15px;"></div>', unsafe_allow_html=True)
     
     st.success("✨ 이 과일은 투명하고 안전한 블록체인 관리 시스템을 통해 검증되었습니다. 안심하고 즐거운 시간 되세요!")
 
