@@ -354,8 +354,8 @@ while True:
                 width_min_pixels=5,
             )
 
-            # 2. 충격 지점 (강한 충격 > 2.0G) - 빨간색 (반지름 45)
-            shock_df = df_gps[df_gps['g_force'] > 2.0].copy()
+            # 2. 충격 지점 (강한 충격 > 1.8G) - 빨간색 (반지름 45)
+            shock_df = df_gps[df_gps['g_force'] > 1.8].copy()
             shock_df['event_type'] = "🚨 강한 충격"
             shock_df['icon'] = "🚨"
             shock_layer = pdk.Layer(
@@ -414,8 +414,23 @@ while True:
                 pickable=True,
             )
 
-            # 모든 이벤트 데이터를 합쳐서 텍스트 아이콘 레이어 생성
-            all_events = pd.concat([shock_df, light_df, temp_df, humi_df]).drop_duplicates(subset=['timestamp', 'icon']) if not (shock_df.empty and light_df.empty and temp_df.empty and humi_df.empty) else pd.DataFrame()
+            # 6. 현재 위치 레이어 (마지막 수신 위치) - 파란색 원형 마커 (반지름 30)
+            current_df = df_gps.iloc[[-1]].copy()
+            current_df['event_type'] = "🚚 현재 위치"
+            current_df['icon'] = "🚚"
+            current_layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=current_df,
+                get_position="[lng, lat]",
+                get_fill_color=[0, 120, 255, 200],
+                get_line_color=[255, 255, 255, 255],
+                stroked=True,
+                get_radius=30,
+                pickable=True,
+            )
+
+            # 모든 이벤트 데이터를 합쳐서 텍스트 아이콘 레이어 생성 (현재 위치 아이콘 포함)
+            all_events = pd.concat([shock_df, light_df, temp_df, humi_df, current_df]).drop_duplicates(subset=['timestamp', 'icon']) if not (shock_df.empty and light_df.empty and temp_df.empty and humi_df.empty and current_df.empty) else pd.DataFrame()
 
             icon_layer = pdk.Layer(
                 "TextLayer",
@@ -427,9 +442,9 @@ while True:
             )
 
             map_container.pydeck_chart(pdk.Deck(
-                layers=[path_layer, shock_layer, light_layer, temp_layer, humi_layer, icon_layer],
+                layers=[path_layer, shock_layer, light_layer, temp_layer, humi_layer, current_layer, icon_layer],
                 initial_view_state=view_state,
-                map_style="light",
+                map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
                 tooltip={"text": "{event_type}\n시간: {timestamp}\n온도: {temperature}°C\n습도: {humidity}%\n충격: {g_force}G\n조도: {lux}lx"}
             ))
         else:
