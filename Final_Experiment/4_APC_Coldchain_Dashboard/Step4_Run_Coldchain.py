@@ -345,13 +345,13 @@ while True:
             df_gps['humi_diff'] = df_gps['humidity'].diff().abs().fillna(0)
             df_gps['lux_diff'] = df_gps['lux'].diff().abs().fillna(0)
 
-            # 1. 이동 경로 레이어 (무채색으로 변경하여 이벤트를 돋보이게 함)
+            # 1. 이동 경로 레이어 (밝은 배경에서 가독성을 높이기 위해 선명한 진한 회색으로 변경 및 두께 조정)
             path_layer = pdk.Layer(
                 "PathLayer",
                 data=[{"path": df_gps[['lng', 'lat']].values.tolist()}],
                 get_path="path",
-                get_color=[150, 150, 150, 150], 
-                width_min_pixels=3,
+                get_color=[70, 70, 70, 220], 
+                width_min_pixels=5,
             )
 
             # 2. 충격 지점 (강한 충격 > 2.0G) - 빨간색 (반지름 45)
@@ -369,7 +369,7 @@ while True:
                 pickable=True,
             )
 
-            # 3. 조도 급변 지점 (Delta > 300 lx) - 노란색 (반지름 35)
+            # 3. 조도 급변 지점 (Delta > 300 lx) - 밝은 배경에서도 잘 보이도록 진한 골드/오렌지톤으로 변경 (반지름 35)
             light_df = df_gps[df_gps['lux_diff'] > 300].copy()
             light_df['event_type'] = "💡 조도 급변"
             light_df['icon'] = "💡"
@@ -377,8 +377,8 @@ while True:
                 "ScatterplotLayer",
                 data=light_df,
                 get_position="[lng, lat]",
-                get_fill_color=[255, 255, 0, 80],
-                get_line_color=[255, 255, 0, 255],
+                get_fill_color=[240, 160, 0, 100],
+                get_line_color=[200, 100, 0, 255],
                 stroked=True,
                 get_radius=35,
                 pickable=True,
@@ -429,6 +429,7 @@ while True:
             map_container.pydeck_chart(pdk.Deck(
                 layers=[path_layer, shock_layer, light_layer, temp_layer, humi_layer, icon_layer],
                 initial_view_state=view_state,
+                map_style="light",
                 tooltip={"text": "{event_type}\n시간: {timestamp}\n온도: {temperature}°C\n습도: {humidity}%\n충격: {g_force}G\n조도: {lux}lx"}
             ))
         else:
