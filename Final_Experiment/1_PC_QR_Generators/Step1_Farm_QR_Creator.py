@@ -296,20 +296,20 @@ def on_fruit_type_change(event):
 root = tk.Tk()
 root.title("A00 Farm Data Collection (with Integrity Layer)")
 root.geometry("1120x880")
-root.configure(bg="#1a1a1a")
+root.configure(bg="#f3f4f6")
 root.resizable(True, True)
 
-# --- Modern Style Configuration (Muted Professional Theme) ---
+# --- Modern Style Configuration (Premium Light Theme) ---
 style = ttk.Style()
 style.theme_use("clam")
 
 # Color Palette Definitions
-BG_COLOR = "#1a1a1a"
-CARD_BG = "#262626"
-TEXT_COLOR = "#e0e0e0"
-ACCENT_BLUE = "#78909c" # Muted Steel Blue
-ACCENT_GREEN = "#81c784" # Soft Sage Green
-ACCENT_GOLD = "#d4af37" # Muted Gold for title
+BG_COLOR = "#f3f4f6"     # Soft modern cool grey background
+CARD_BG = "#ffffff"      # Elegant pure white card background
+TEXT_COLOR = "#1f2937"   # Premium deep grey/charcoal for highly readable body text
+ACCENT_BLUE = "#1a73e8"  # Google/Material Blue
+ACCENT_GREEN = "#10b981" # Soft emerald green for primary actions
+ACCENT_DARK = "#111827"  # Deep charcoal for headings/titles
 
 # Background and Frame Styles
 style.configure("TFrame", background=BG_COLOR)
@@ -317,30 +317,30 @@ style.configure("Card.TFrame", background=CARD_BG, relief="flat", borderwidth=0)
 style.configure("TLabel", background=BG_COLOR, foreground=TEXT_COLOR, font=("Segoe UI", 11))
 style.configure("Header.TLabel", background=CARD_BG, foreground=ACCENT_BLUE, font=("Segoe UI", 13, "bold"))
 style.configure("Card.TLabel", background=CARD_BG, foreground=TEXT_COLOR, font=("Segoe UI", 11))
-style.configure("Title.TLabel", background=BG_COLOR, foreground=ACCENT_GREEN, font=("Segoe UI", 22, "bold"))
+style.configure("Title.TLabel", background=BG_COLOR, foreground=ACCENT_DARK, font=("Segoe UI", 22, "bold"))
 
 # Button Styles
-style.configure("TButton", font=("Segoe UI", 11, "bold"), background=ACCENT_BLUE, foreground="#1a1a1a", borderwidth=0, focuscolor="none")
-style.map("TButton", background=[("active", "#90a4ae")])
+style.configure("TButton", font=("Segoe UI", 11, "bold"), background=ACCENT_BLUE, foreground="white", borderwidth=0, focuscolor="none")
+style.map("TButton", background=[("active", "#1557b0")])
 
-style.configure("Action.TButton", font=("Segoe UI", 12, "bold"), background=ACCENT_GREEN, foreground="#1a1a1a")
-style.map("Action.TButton", background=[("active", "#a5d6a7")])
+style.configure("Action.TButton", font=("Segoe UI", 12, "bold"), background=ACCENT_GREEN, foreground="white")
+style.map("Action.TButton", background=[("active", "#059669")])
 
 # Notebook / Tabs
 style.configure("TNotebook", background=BG_COLOR, borderwidth=0)
-style.configure("TNotebook.Tab", background="#333333", foreground=TEXT_COLOR, padding=[15, 5], font=("Segoe UI", 10))
+style.configure("TNotebook.Tab", background="#e5e7eb", foreground=TEXT_COLOR, padding=[15, 5], font=("Segoe UI", 10))
 style.map("TNotebook.Tab", background=[("selected", BG_COLOR)], foreground=[("selected", ACCENT_BLUE)])
 
 # Combobox and Entry
-style.configure("TCombobox", fieldbackground="#333333", background="#333333", foreground=TEXT_COLOR, arrowcolor=ACCENT_BLUE)
+style.configure("TCombobox", fieldbackground="#ffffff", background="#ffffff", foreground=TEXT_COLOR, arrowcolor=ACCENT_BLUE, bordercolor="#e5e7eb", lightcolor="#e5e7eb", darkcolor="#e5e7eb")
 style.map("TCombobox", 
-    fieldbackground=[("readonly", "#333333")], 
+    fieldbackground=[("readonly", "#ffffff")], 
     foreground=[("readonly", TEXT_COLOR)],
-    selectbackground=[("readonly", "#333333")],
+    selectbackground=[("readonly", "#ffffff")],
     selectforeground=[("readonly", TEXT_COLOR)]
 )
 
-style.configure("TEntry", fieldbackground="#333333", foreground=TEXT_COLOR, insertcolor=TEXT_COLOR)
+style.configure("TEntry", fieldbackground="#ffffff", foreground=TEXT_COLOR, insertcolor=TEXT_COLOR, bordercolor="#e5e7eb", lightcolor="#e5e7eb", darkcolor="#e5e7eb")
 
 validate_numeric_cmd = root.register(validate_numeric_input)
 
@@ -390,7 +390,10 @@ contact_info_entry.bind("<KeyRelease>", lambda event: format_phone_number(contac
 
 # Frame 2
 ttk.Label(frame2, text="Harvest Date", style="Card.TLabel").place(x=10, y=45, width=130, height=30)
-harvest_date_picker = DateEntry(frame2, font=("Segoe UI", 11), width=20, justify='center')
+harvest_date_picker = DateEntry(frame2, font=("Segoe UI", 11), width=20, justify='center',
+                                background=ACCENT_BLUE, foreground="white", bordercolor="#e5e7eb",
+                                headersbackground="#f3f4f6", headersforeground=TEXT_COLOR,
+                                selectbackground=ACCENT_BLUE, selectforeground="white")
 harvest_date_picker.place(x=150, y=45, width=350, height=30)
 
 ttk.Label(frame2, text="Harvesting No.", style="Card.TLabel").place(x=10, y=85, width=130, height=30)
@@ -398,11 +401,17 @@ harvesting_number_entry = ttk.Entry(frame2, font=("Segoe UI", 11), justify='cent
 harvesting_number_entry.place(x=150, y=85, width=350, height=30)
 
 ttk.Label(frame2, text="Storage Date", style="Card.TLabel").place(x=10, y=125, width=130, height=30)
-storage_date_picker = DateEntry(frame2, font=("Segoe UI", 11), width=20, justify='center')
+storage_date_picker = DateEntry(frame2, font=("Segoe UI", 11), width=20, justify='center',
+                                background=ACCENT_BLUE, foreground="white", bordercolor="#e5e7eb",
+                                headersbackground="#f3f4f6", headersforeground=TEXT_COLOR,
+                                selectbackground=ACCENT_BLUE, selectforeground="white")
 storage_date_picker.place(x=150, y=125, width=350, height=30)
 
 ttk.Label(frame2, text="Delivery Date", style="Card.TLabel").place(x=10, y=165, width=130, height=30)
-deliver_date_picker = DateEntry(frame2, font=("Segoe UI", 11), width=20, justify='center')
+deliver_date_picker = DateEntry(frame2, font=("Segoe UI", 11), width=20, justify='center',
+                                background=ACCENT_BLUE, foreground="white", bordercolor="#e5e7eb",
+                                headersbackground="#f3f4f6", headersforeground=TEXT_COLOR,
+                                selectbackground=ACCENT_BLUE, selectforeground="white")
 deliver_date_picker.place(x=150, y=165, width=350, height=30)
 
 ttk.Label(frame2, text="Quantity(box)", style="Card.TLabel").place(x=10, y=205, width=130, height=30)
@@ -428,7 +437,7 @@ ag_practice_entry = ttk.Entry(frame3, font=("Segoe UI", 11), justify='center')
 ag_practice_entry.place(x=150, y=165, width=350, height=30)
 
 # --- [수정] Frame 4 (Result & Verification) ---
-qr_label = ttk.Label(frame4, background="#2b2b3b")
+qr_label = ttk.Label(frame4, background=CARD_BG)
 qr_label.place(relx=0.5, y=40, width=150, height=150, anchor="n")
 
 # [수정] Save 버튼 중앙 정렬
@@ -451,7 +460,7 @@ status_label_main_section.place(relx=0.5, y=300, width=450, height=30, anchor="n
 
 # XML Path Label (기존 유지)
 def display_xml_path(file_path):
-    xml_path_label = ttk.Label(frame4, text=f"Saved XML: {file_path}", font=("Helvetica", 10), foreground="blue", cursor="hand2")
+    xml_path_label = ttk.Label(frame4, text=f"Saved XML: {file_path}", font=("Segoe UI", 10, "underline"), foreground=ACCENT_BLUE, background=CARD_BG, cursor="hand2")
     xml_path_label.place(x=100, y=190, width=350, height=30)
     xml_path_label.bind("<Button-1>", lambda e: os.startfile(os.path.abspath(file_path)))
 
