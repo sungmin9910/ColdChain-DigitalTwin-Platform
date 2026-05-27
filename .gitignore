@@ -10,3 +10,12 @@ secrets.h
 
 # Generated QR codes
 *_QR.png
+
+# Python Caches
+__pycache__/
+*.pyc
+
+# Local runtime database files
+*blockchain_ledger.json
+
+
