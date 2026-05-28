@@ -9,6 +9,8 @@
  *   - 상단 덮개 안쪽에 OLED 액정(SSD1306) 고정용 4점식 기둥 추가
  *   - 손잡이 전면(트리거 가드 안쪽)에 12mm 스위치/버튼용 홀 규격 반영
  *   - 18650 배터리(핸들 내 수납) 및 배선 통로 확보
+ *   - 인체공학적 그립(Ergonomic Grip) 강화: 실질적인 3단 손가락 홈(Finger Grooves) 가공 추가
+ *   - 구조적 강성 보강: 헤드 측벽 붕괴 방지용 가로형 격벽 보강 리브(Rib) 2개소 설계
  */
 
 // [글로벌 파라미터]
@@ -57,11 +59,25 @@ module housing_body() {
                         translate([head_w/2, head_l-5, head_h/2]) rotate([90, 0, 0]) rounded_rect(head_w*0.85, head_h*0.85, 5, 8);
                     }
                     
-                    // 인체공학적 핸들
+                    // 인체공학적 핸들 (3단 손가락 홈 및 테이퍼드 설계 적용)
                     translate([head_w/2, head_l*0.6, 0])
                     rotate([handle_angle, 0, 0])
-                    translate([0, 0, -handle_h])
-                    cylinder(h=handle_h, d1=handle_base_d, d2=handle_top_d);
+                    difference() {
+                        // 기본 테이퍼드 실린더 핸들
+                        translate([0, 0, -handle_h])
+                        cylinder(h=handle_h, d1=handle_base_d, d2=handle_top_d);
+                        
+                        // 손가락 홈 (Finger Grooves) 파기 (검지는 트리거 스위치에 위치하므로 중지/약지/소지 자리만 가공)
+                        for (z_pos = [-38, -58, -78]) {
+                            let (t = (z_pos + handle_h) / handle_h) { // t는 0 (하단) ~ 1 (상단)
+                                let (d_pos = handle_base_d * (1-t) + handle_top_d * t) {
+                                    translate([0, -d_pos/2 + 1.2, z_pos])
+                                    rotate([0, 90, 0])
+                                    cylinder(h=handle_base_d + 10, d=9.0, center=true);
+                                }
+                            }
+                        }
+                    }
 
                     // 트리거 가드
                     translate([head_w/2, 28, 5])
@@ -83,7 +99,7 @@ module housing_body() {
                 cylinder(h=handle_h+5, d=battery_diam);
             }
             
-            // [B] 내부 고정용 스탠드오프(Standoff) 추가 (Hollowing 후에 배치하여 속이 비지 않음)
+            // [B] 내부 구조물 추가 (Hollowing 공간 위에 결합)
             
             // ESP32용 고정 스탠드오프 (4개 기둥, 높이 10mm)
             translate([head_w/2, head_l - 35, wall]) {
@@ -94,6 +110,9 @@ module housing_body() {
             translate([head_w/2, 29.25, wall]) {
                 gm77_standoffs(h=10.5, d_outer=5.0);
             }
+            
+            // 강성 보강용 가로 격벽 리브(Rib) 추가 (조립 간섭이 없는 중간 구역 Y=55, Y=113에 설계)
+            reinforcement_ribs();
         }
 
         // [C] 나사 탭 및 포트 구멍 차집합 처리 (Difference)
@@ -233,6 +252,20 @@ module oled_screw_holes(h, d_inner) {
     translate([w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_inner);
     translate([-w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_inner);
     translate([w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+}
+
+module reinforcement_ribs() {
+    // 내부 강성 강화를 위한 U자형 가로 보강 리브 (배선/부품 간섭 우회)
+    rib_y_positions = [55, 113];
+    for (y_pos = rib_y_positions) {
+        translate([head_w/2, y_pos, head_h/2 + wall])
+        difference() {
+            // 리브 외각 (내벽과 완벽 밀착 및 보강)
+            scale([0.9, 1.0, 0.88]) rotate([90, 0, 0]) rounded_rect(head_w, head_h, 1.5, 8);
+            // 리브 내부 (부품 관통 및 중앙 배선 통로 확보)
+            scale([0.72, 2.0, 0.68]) rotate([90, 0, 0]) rounded_rect(head_w, head_h, 5, 8);
+        }
+    }
 }
 
 // --- 유틸리티 모듈 ---
