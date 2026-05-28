@@ -11,6 +11,7 @@
  *   - 18650 배터리(핸들 내 수납) 및 배선 통로 확보
  *   - 인체공학적 그립(Ergonomic Grip) 강화: 실질적인 3단 손가락 홈(Finger Grooves) 가공 추가
  *   - 구조적 강성 보강: 헤드 측벽 붕괴 방지용 가로형 격벽 보강 리브(Rib) 2개소 설계
+ *   - 렌더링 엔진 버그 수정: rounded_rect 모듈의 이중 offset 공차 오류 및 lid 두께 대비 코너 반경 오류(r=10 -> r=1.0)를 전면 수정하여 헤드 쉘 및 덮개 바디가 완전히 렌더링되도록 개선
  */
 
 // [글로벌 파라미터]
@@ -156,10 +157,10 @@ module housing_body() {
 module housing_lid() {
     difference() {
         union() {
-            // 상단 커버 베이스
+            // 상단 커버 베이스 (두께 3mm에 맞춰 코너 반경 r=1.0으로 수정하여 렌더링 에러 해결)
             hull() {
-                translate([head_w/2, 5, 1.5]) rotate([90, 0, 0]) rounded_rect(head_w, 3, 5, 10);
-                translate([head_w/2, head_l-5, 1.5]) rotate([90, 0, 0]) rounded_rect(head_w*0.85, 3, 5, 8);
+                translate([head_w/2, 5, 1.5]) rotate([90, 0, 0]) rounded_rect(head_w, 3, 5, 1.0);
+                translate([head_w/2, head_l-5, 1.5]) rotate([90, 0, 0]) rounded_rect(head_w*0.85, 3, 5, 1.0);
             }
             
             // OLED 베젤 (사용자 시야각 10도 경사)
@@ -268,12 +269,12 @@ module reinforcement_ribs() {
     }
 }
 
-// --- 유틸리티 모듈 ---
+// --- 유틸리티 모듈 (버그 수정: 1개의 offset(r)만 사용하여 정사이즈 w, h 가 구현되도록 수정) ---
 
 module rounded_rect(w, h, depth, r, centered=true) {
     if (centered) {
         linear_extrude(height=depth, center=true)
-        offset(r=r) offset(delta=-r)
+        offset(r=r)
         square([w-r*2, h-r*2], center=true);
     }
 }
