@@ -233,8 +233,9 @@ void processScan(String rawData) {
 
     // [센서 데이터 통합 가져오기 (GPS, 온습도)]
     String latStr = "NULL", lonStr = "NULL", tpStr = "NULL", hmStr = "NULL";
-    // sensor_data 테이블의 실제 컬럼명(lat, lng) 및 정렬 조건(id DESC) 반영하여 쿼리 수정
-    String sensor_query = "SELECT lat, lng, temperature, humidity FROM sensor_data ORDER BY id DESC LIMIT 1";
+    // 데이터베이스 스키마 명시(lab225.sensor_data) 및 실제 컬럼명(lat, lng), 정렬 조건(id DESC) 반영
+    String sensor_query = "SELECT lat, lng, temperature, humidity FROM lab225.sensor_data ORDER BY id DESC LIMIT 1";
+    Serial.println("🔍 GPS/센서 데이터 조회 중...");
     if (query_executor.execute(sensor_query.c_str())) {
       column_names *cols = query_executor.get_columns();
       row_values *row = query_executor.get_next_row();
@@ -243,9 +244,17 @@ void processScan(String rawData) {
         if (row->values[1] != NULL) lonStr = row->values[1];
         if (row->values[2] != NULL) tpStr = row->values[2];
         if (row->values[3] != NULL) hmStr = row->values[3];
+        Serial.print("✅ GPS 데이터 수신 성공 -> Lat: ");
+        Serial.print(latStr);
+        Serial.print(", Lng: ");
+        Serial.println(lonStr);
+      } else {
+        Serial.println("⚠️ sensor_data 테이블에 데이터가 존재하지 않습니다.");
       }
       // 버퍼 비우기
       while (row != NULL) { row = query_executor.get_next_row(); }
+    } else {
+      Serial.println("❌ sensor_data 테이블 조회 실패 (SQL 쿼리 오류)");
     }
 
     // [INSERT 쿼리 생성 (INSERT ... SELECT 사용)]
