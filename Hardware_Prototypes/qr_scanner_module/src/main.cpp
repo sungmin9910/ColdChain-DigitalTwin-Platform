@@ -298,16 +298,23 @@ void processScan(String rawData) {
 unsigned long lastButtonPress = 0;
 
 void loop() {
-  // 스캐너 데이터 처리 (디버깅 모드: 들어오는 날것의 데이터를 그대로 출력)
+  // 스캐너 데이터 처리
   if (ScannerSerial.available()) {
-    Serial.print("[RX DATA]: ");
-    while (ScannerSerial.available()) {
-      char c = ScannerSerial.read();
-      if (c == '\r') Serial.print("\\r");
-      else if (c == '\n') Serial.print("\\n");
-      else Serial.print(c);
+    String scannedData = ScannerSerial.readStringUntil('\r');
+    scannedData.trim();
+    if (scannedData.length() > 0) {
+      unsigned long currentTime = millis();
+      // 5초 이내 동일 바코드 중복 스캔 필터링
+      if (scannedData == lastScannedData && (currentTime - lastScanTime < SCAN_DEBOUNCE_INTERVAL)) {
+        Serial.println("⚠️ 중복 스캔 감지: " + scannedData + " (무시됨)");
+        updateOLED("Duplicate Scan!");
+      } else {
+        lastScannedData = scannedData;
+        lastScanTime = currentTime;
+        Serial.println("\n📷 스캔된 데이터: " + scannedData);
+        processScan(scannedData);
+      }
     }
-    Serial.println();
   }
 
   // 버튼을 통한 수동 모드 전환 (디바운스 500ms 적용)
