@@ -233,7 +233,8 @@ void processScan(String rawData) {
 
     // [센서 데이터 통합 가져오기 (GPS, 온습도)]
     String latStr = "NULL", lonStr = "NULL", tpStr = "NULL", hmStr = "NULL";
-    String sensor_query = "SELECT latitude, longitude, temperature, humidity FROM sensor_data ORDER BY recorded_at DESC LIMIT 1";
+    // sensor_data 테이블의 실제 컬럼명(lat, lng) 및 정렬 조건(id DESC) 반영하여 쿼리 수정
+    String sensor_query = "SELECT lat, lng, temperature, humidity FROM sensor_data ORDER BY id DESC LIMIT 1";
     if (query_executor.execute(sensor_query.c_str())) {
       column_names *cols = query_executor.get_columns();
       row_values *row = query_executor.get_next_row();
