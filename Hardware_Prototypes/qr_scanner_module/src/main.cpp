@@ -37,6 +37,11 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 // 현재 스캔 단계 (A10 = scan1.py, A11 = scan2.py ...)
 String currentMode = "A10";
 
+// --- 중복 스캔 방지용 변수 ---
+String lastScannedData = "";
+unsigned long lastScanTime = 0;
+const unsigned long SCAN_DEBOUNCE_INTERVAL = 5000; // 동일 바코드 중복 스캔 방지 시간 (5초)
+
 // --- OLED 업데이트 함수 ---
 void updateOLED(String msg = "") {
   display.clearDisplay();
@@ -119,8 +124,8 @@ void setup() {
   display.println("Booting System...");
   display.display();
 
-  // 시리얼 초기화
-  ScannerSerial.begin(115200, SERIAL_8N1, SCANNER_RX_PIN, SCANNER_TX_PIN);
+  // 시리얼 초기화 (GM77 모듈 기본 통신 속도 9600bps로 변경)
+  ScannerSerial.begin(9600, SERIAL_8N1, SCANNER_RX_PIN, SCANNER_TX_PIN);
   
   // 버튼을 입력용으로 설정 (내부 풀업)
   pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -298,8 +303,17 @@ void loop() {
     String scannedData = ScannerSerial.readStringUntil('\r');
     scannedData.trim();
     if (scannedData.length() > 0) {
-      Serial.println("\n📷 스캔된 데이터: " + scannedData);
-      processScan(scannedData);
+      unsigned long currentTime = millis();
+      // 5초 이내 동일 바코드 중복 스캔 필터링
+      if (scannedData == lastScannedData && (currentTime - lastScanTime < SCAN_DEBOUNCE_INTERVAL)) {
+        Serial.println("⚠️ 중복 스캔 감지: " + scannedData + " (무시됨)");
+        updateOLED("Duplicate Scan!");
+      } else {
+        lastScannedData = scannedData;
+        lastScanTime = currentTime;
+        Serial.println("\n📷 스캔된 데이터: " + scannedData);
+        processScan(scannedData);
+      }
     }
   }
 
