@@ -3,11 +3,12 @@
  * 
  * 제작자: Antigravity AI (Google DeepMind)
  * 업데이트 내용:
- *   - 인체공학적 그립(Ergonomic Grip) 강화: 손가락 홈 및 테이퍼드 디자인
- *   - 내부 마운팅 강화: ESP32 및 GM77(SEN0512) 전용 가이드/스탠드 오프 추가
- *   - 방열 구멍(Ventilation) 및 USB C/Micro 포트 타공 정밀화
- *   - 상단 OLED 베젤 디자인 개선 (10도 경사 배치로 가독성 향상)
- *   - 구조적 강성 보강: 내벽 리브(Rib) 및 보강재 추가
+ *   - 3D 프린터 출력 최적화: 브릿지 및 오버행 최소화 설계
+ *   - 부품 사양 맞춤형 헤드 길이 연장 (120mm)로 내부 공간 여유 확보
+ *   - ESP32 및 GM77(SEN0512) 기판 전용 고정용 스탠드오프(Standoff) 추가
+ *   - 상단 덮개 안쪽에 OLED 액정(SSD1306) 고정용 4점식 기둥 추가
+ *   - 손잡이 전면(트리거 가드 안쪽)에 12mm 스위치/버튼용 홀 규격 반영
+ *   - 18650 배터리(핸들 내 수납) 및 배선 통로 확보
  */
 
 // [글로벌 파라미터]
@@ -17,7 +18,7 @@ clearance = 0.6;    // 조립 공차
 
 // [헤드 파트 치수]
 head_w = 54.0;      // 폭 (OLED 베젤 및 배선 여유)
-head_l = 98.0;      // 길이 (전면 스캐너 + 중앙 ESP32 + 후면 커넥터)
+head_l = 120.0;     // 길이 (GM77 스캐너 + 중앙 배선 + 후면 ESP32) - 부품 직렬 배치를 위해 120mm로 연장
 head_h = 40.0;      // 높이 (내부 적층 높이 고려)
 
 // [핸들 파트 치수]
@@ -47,51 +48,87 @@ if (render_part == "lid") housing_lid();
 module housing_body() {
     difference() {
         union() {
-            // [A] 메인 헤드 (유선형 베이스)
-            hull() {
-                translate([head_w/2, 5, head_h/2]) rotate([90, 0, 0]) rounded_rect(head_w, head_h, 5, 10);
-                translate([head_w/2, head_l-5, head_h/2]) rotate([90, 0, 0]) rounded_rect(head_w*0.85, head_h*0.85, 5, 8);
+            // [A] 메인 하우징 외형과 비우기 결합
+            difference() {
+                union() {
+                    // 메인 헤드 (유선형 베이스)
+                    hull() {
+                        translate([head_w/2, 5, head_h/2]) rotate([90, 0, 0]) rounded_rect(head_w, head_h, 5, 10);
+                        translate([head_w/2, head_l-5, head_h/2]) rotate([90, 0, 0]) rounded_rect(head_w*0.85, head_h*0.85, 5, 8);
+                    }
+                    
+                    // 인체공학적 핸들
+                    translate([head_w/2, head_l*0.6, 0])
+                    rotate([handle_angle, 0, 0])
+                    translate([0, 0, -handle_h])
+                    cylinder(h=handle_h, d1=handle_base_d, d2=handle_top_d);
+
+                    // 트리거 가드
+                    translate([head_w/2, 28, 5])
+                    trigger_guard();
+                }
+
+                // 헤드 내부 비우기
+                translate([head_w/2, head_l/2, head_h/2 + wall])
+                scale([0.9, 0.94, 0.88])
+                hull() {
+                    translate([0, -head_l/2 + wall, 0]) rotate([90, 0, 0]) rounded_rect(head_w, head_h, 5, 8);
+                    translate([0, head_l/2 - wall, 0]) rotate([90, 0, 0]) rounded_rect(head_w*0.85, head_h*0.85, 5, 6);
+                }
+
+                // 배터리 수납 공간 (핸들 내부)
+                translate([head_w/2, head_l*0.6, 0])
+                rotate([handle_angle, 0, 0])
+                translate([0, 0, -handle_h-1])
+                cylinder(h=handle_h+5, d=battery_diam);
             }
             
-            // [B] 인체공학적 핸들
-            translate([head_w/2, head_l*0.6, 0])
-            rotate([handle_angle, 0, 0])
-            translate([0, 0, -handle_h])
-            cylinder(h=handle_h, d1=handle_base_d, d2=handle_top_d);
-
-            // [C] 트리거 가드
-            translate([head_w/2, 28, 5])
-            trigger_guard();
+            // [B] 내부 고정용 스탠드오프(Standoff) 추가 (Hollowing 후에 배치하여 속이 비지 않음)
+            
+            // ESP32용 고정 스탠드오프 (4개 기둥, 높이 10mm)
+            translate([head_w/2, head_l - 35, wall]) {
+                esp32_standoffs(h=10, d_outer=5.0);
+            }
+            
+            // GM77용 고정 스탠드오프 (4개 기둥, 카메라 정렬 고려 높이 10.5mm)
+            translate([head_w/2, 29.25, wall]) {
+                gm77_standoffs(h=10.5, d_outer=5.0);
+            }
         }
 
-        // [D] 헤드 내부 비우기
-        translate([head_w/2, head_l/2, head_h/2 + wall])
-        scale([0.9, 0.94, 0.88])
-        hull() {
-            translate([0, -head_l/2 + wall, 0]) rotate([90, 0, 0]) rounded_rect(head_w, head_h, 5, 8);
-            translate([0, head_l/2 - wall, 0]) rotate([90, 0, 0]) rounded_rect(head_w*0.85, head_h*0.85, 5, 6);
+        // [C] 나사 탭 및 포트 구멍 차집합 처리 (Difference)
+        
+        // ESP32용 스탠드오프 나사 구멍 (M3 나사용, 직경 2.5mm)
+        translate([head_w/2, head_l - 35, wall - 1]) {
+            esp32_screw_holes(h=15, d_inner=2.5);
+        }
+        
+        // GM77용 스탠드오프 나사 구멍 (M2 나사용, 직경 1.8mm)
+        translate([head_w/2, 29.25, wall - 1]) {
+            gm77_screw_holes(h=15, d_inner=1.8);
         }
 
-        // [E] 배터리 수납 공간 (핸들 내부)
-        translate([head_w/2, head_l*0.6, 0])
-        rotate([handle_angle, 0, 0])
-        translate([0, 0, -handle_h-1])
-        cylinder(h=handle_h+5, d=battery_diam);
-
-        // [F] 스캐너 창 (Front Window)
+        // 스캐너 창 (Front Window)
         translate([head_w/2 - 18, -2, head_h/2 - 10])
         cube([36, 10, 20]);
         
-        // [G] USB 포트 (Rear)
+        // USB 포트 (Rear)
         translate([head_w/2 - 6, head_l - 10, wall + 2])
         cube([12, 15, 10]);
 
-        // [H] 방열 슬롯
-        for(i=[0:4]) {
+        // 방열 슬롯
+        for(i=[0:6]) {
             translate([-1, 35 + i*8, 18]) rotate([0, 90, 0]) cylinder(h=head_w+2, d=2.5);
         }
         
-        // [I] 결합 나사 구멍 (M3 Thread)
+        // 트리거 버튼 타공 (핸들 전면에 수직하게 12.2mm 스위치 홀 생성)
+        translate([head_w/2, head_l*0.6, 0])
+        rotate([handle_angle, 0, 0])
+        translate([0, -handle_top_d/2, -20]) // Z = -20 위치 (트리거 가드 내부 공간)
+        rotate([90, 0, 0])
+        cylinder(h=wall*4, d=12.2, center=true);
+        
+        // 결합 나사 구멍 (M3 Thread)
         mount_points(3.0);
     }
 }
@@ -113,12 +150,24 @@ module housing_lid() {
                 rounded_rect(oled_size[0]+10, oled_size[1]+10, 6, 4, true);
                 translate([0, 0, 2]) rounded_rect(oled_size[0]+2, oled_size[1]+2, 10, 2, true);
             }
+            
+            // OLED 고정용 스탠드오프 (Lid 안쪽 방향으로 4mm 돌출)
+            translate([head_w/2, 55, 0])
+            rotate([-10, 0, 0])
+            translate([0, 0, -4])
+            oled_standoffs(h=4, d_outer=4.5);
         }
 
         // [J] OLED 표시창 타공
         translate([head_w/2, 55, -5])
         rotate([-10, 0, 0])
         rounded_rect(oled_size[0]-2, oled_size[1]-2, 20, 2, true);
+        
+        // OLED 스탠드오프 나사 구멍 (M2 나사용, 직경 1.8mm blind hole)
+        translate([head_w/2, 55, 0])
+        rotate([-10, 0, 0])
+        translate([0, 0, -5])
+        oled_screw_holes(h=4.5, d_inner=1.8);
 
         // [K] 결합 나사 구멍 (M3 Bolt pass)
         mount_points(3.5);
@@ -128,6 +177,62 @@ module housing_lid() {
         linear_extrude(2)
         text("QR SCANNER GEN2", size=3.5, font="Arial:style=Bold", halign="center");
     }
+}
+
+// --- 부품 고정 모듈 (Standoffs & Holes) ---
+
+module esp32_standoffs(h, d_outer) {
+    w_pitch = 25.5; // ESP32 DevKit 고정 나사 홀 가로 간격
+    l_pitch = 51.5; // ESP32 DevKit 고정 나사 홀 세로 간격
+    translate([-w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+    translate([w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+    translate([-w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+    translate([w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+}
+
+module esp32_screw_holes(h, d_inner) {
+    w_pitch = 25.5;
+    l_pitch = 51.5;
+    translate([-w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+    translate([w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+    translate([-w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+    translate([w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+}
+
+module gm77_standoffs(h, d_outer) {
+    w_pitch = 22.5; // GM77 고정 홀 가로 간격
+    l_pitch = 40.5; // GM77 고정 홀 세로 간격
+    translate([-w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+    translate([w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+    translate([-w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+    translate([w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+}
+
+module gm77_screw_holes(h, d_inner) {
+    w_pitch = 22.5;
+    l_pitch = 40.5;
+    translate([-w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+    translate([w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+    translate([-w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+    translate([w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+}
+
+module oled_standoffs(h, d_outer) {
+    w_pitch = 23.5; // 0.96 OLED 고정 나사 홀 가로 간격
+    l_pitch = 23.5; // 0.96 OLED 고정 나사 홀 세로 간격
+    translate([-w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+    translate([w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+    translate([-w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+    translate([w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_outer);
+}
+
+module oled_screw_holes(h, d_inner) {
+    w_pitch = 23.5;
+    l_pitch = 23.5;
+    translate([-w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+    translate([w_pitch/2, -l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+    translate([-w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_inner);
+    translate([w_pitch/2, l_pitch/2, 0]) cylinder(h=h, d=d_inner);
 }
 
 // --- 유틸리티 모듈 ---
