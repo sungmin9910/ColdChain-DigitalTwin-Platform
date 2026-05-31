@@ -25,7 +25,8 @@ Write-Host "Rendering 06_housing_print_all.stl..."
 
 # Restore to print_all state at the end
 (Get-Content $scadFile) -replace 'render_part = "[a-zA-Z_]+";', 'render_part = "print_all";' | Set-Content $scadFile
-# Synchronize the Korean filename SCAD too
-Copy-Item -Path "06_housing_3d_design.scad" -Destination "06_하우징_3D_설계_오픈스카드.scad" -Force
+
+# Safe copy of the file via cmd shell to handle Korean encoding issues
+cmd /c "copy /y 06_housing_3d_design.scad 06_하우징_3D_설계_오픈스카드.scad"
 
 Write-Host "All STL exports completed successfully! Check the workspace folder."
