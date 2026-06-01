@@ -10,6 +10,10 @@
 #include "secrets.h"
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <time.h>
+#include <sys/time.h>
+#include <FS.h>
+#include <LittleFS.h>
 
 // -----------------------------------------
 // 1. 와이파이 및 MQTT 설정
@@ -36,6 +40,12 @@ PubSubClient client(espClient);
 
 unsigned long lastMsg = 0;
 
+// 오프라인 저장 설정 및 상태 추적 변수
+const char* offline_file = "/offline.jsonl";
+unsigned long lastReconnectAttempt = 0;
+bool wasConnected = false;
+bool checkOfflineData = false;
+
 void setup_wifi() {
   delay(10);
   Serial.print("Connecting to WiFi...");
@@ -53,19 +63,88 @@ void setup_wifi() {
   Serial.println(WiFi.SSID());
 }
 
-void reconnect() {
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    String clientId = "ESP32-GY521-";
-    clientId += String(random(0xffff), HEX);
-    if (client.connect(clientId.c_str())) {
-      Serial.println("connected!");
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      delay(5000);
+bool reconnectNonBlocking() {
+  if (!client.connected()) {
+    unsigned long now = millis();
+    if (now - lastReconnectAttempt > 5000) {
+      lastReconnectAttempt = now;
+      Serial.print("Attempting MQTT connection (non-blocking)...");
+      String clientId = "ESP32-GY521-";
+      clientId += String(random(0xffff), HEX);
+      if (client.connect(clientId.c_str())) {
+        Serial.println("connected!");
+        return true;
+      } else {
+        Serial.print("failed, rc=");
+        Serial.print(client.state());
+        Serial.println(" try again in 5 seconds");
+      }
     }
+    return false;
+  }
+  return true;
+}
+
+void sendOfflineData() {
+  if (!LittleFS.exists(offline_file)) return;
+
+  File file = LittleFS.open(offline_file, FILE_READ);
+  if (!file) {
+    Serial.println("Failed to open offline file for reading");
+    return;
+  }
+
+  Serial.println("📡 Found offline data. Publishing to MQTT...");
+
+  File tempFile;
+  bool useTemp = false;
+  int sentCount = 0;
+  int failCount = 0;
+
+  while (file.available()) {
+    String line = file.readStringUntil('\n');
+    line.trim();
+    if (line.length() == 0) continue;
+
+    bool published = false;
+    if (client.connected() && failCount == 0) {
+      if (client.publish(mqtt_topic, line.c_str())) {
+        published = true;
+        sentCount++;
+        delay(50); // prevent network congestion
+      } else {
+        Serial.println("❌ Failed to publish offline record, buffering remaining...");
+        failCount++;
+      }
+    }
+
+    if (!published) {
+      if (!useTemp) {
+        tempFile = LittleFS.open("/temp.jsonl", FILE_WRITE);
+        useTemp = true;
+      }
+      if (tempFile) {
+        tempFile.println(line);
+      }
+    }
+  }
+
+  file.close();
+  if (useTemp) {
+    tempFile.close();
+  }
+
+  LittleFS.remove(offline_file);
+  if (useTemp) {
+    if (LittleFS.rename("/temp.jsonl", offline_file)) {
+      Serial.println("Updated offline buffer with unsent records.");
+    } else {
+      Serial.println("Error updating offline buffer!");
+    }
+  }
+
+  if (sentCount > 0) {
+    Serial.printf("✅ Sent %d offline records.\n", sentCount);
   }
 }
 
@@ -97,6 +176,13 @@ void setup() {
     Serial.println("Error initialising BH1750");
   }
 
+  // 4. LittleFS 초기화
+  if (!LittleFS.begin(true)) {
+    Serial.println("An Error has occurred while mounting LittleFS");
+  } else {
+    Serial.println("LittleFS mounted successfully!");
+  }
+
   setup_wifi();
   
   // 한국 시간(KST, GMT+9) 설정
@@ -107,10 +193,30 @@ void setup() {
 }
 
 void loop() {
-  if (!client.connected()) {
-    reconnect();
+  bool currentConnected = client.connected();
+
+  // WiFi가 연결된 상태에서만 MQTT 재연결 시도 (비블로킹)
+  if (wifiMulti.run() == WL_CONNECTED) {
+    if (!currentConnected) {
+      currentConnected = reconnectNonBlocking();
+    }
   }
-  client.loop();
+
+  if (currentConnected) {
+    client.loop();
+  }
+
+  // 연결 상태가 오프라인에서 온라인으로 전환되었을 때 플러시 플래그 활성화
+  if (currentConnected && !wasConnected) {
+    checkOfflineData = true;
+  }
+  wasConnected = currentConnected;
+
+  // 플래그가 활성화되면 저장된 오프라인 데이터 전송
+  if (currentConnected && checkOfflineData) {
+    checkOfflineData = false;
+    sendOfflineData();
+  }
 
   // GPS 데이터 파싱
   while (GPS_SERIAL.available() > 0) {
@@ -121,6 +227,30 @@ void loop() {
   unsigned long now = millis();
   if (now - lastMsg > 1000) {
     lastMsg = now;
+
+    // GPS 데이터가 유효하고 시스템 시간이 아직 동기화되지 않은 경우, GPS 시간으로 시스템 시간 설정
+    if (gps.date.isValid() && gps.time.isValid() && gps.date.year() > 2020) {
+      time_t now_time = time(NULL);
+      struct tm *now_tm = localtime(&now_time);
+      if (now_tm->tm_year < 120) { // 시스템 시간이 2020년 이전인 경우 (미동기화 상태)
+        struct tm gpsTimeinfo = {0};
+        gpsTimeinfo.tm_year = gps.date.year() - 1900;
+        gpsTimeinfo.tm_mon = gps.date.month() - 1;
+        gpsTimeinfo.tm_mday = gps.date.day();
+        gpsTimeinfo.tm_hour = gps.time.hour();
+        gpsTimeinfo.tm_min = gps.time.minute();
+        gpsTimeinfo.tm_sec = gps.time.second();
+        gpsTimeinfo.tm_isdst = 0;
+
+        time_t t_of_day = mktime(&gpsTimeinfo);
+        if (t_of_day != -1) {
+          t_of_day += 9 * 3600; // GMT+9 시간대 보정 (mktime의 현지 시간 기준 해석을 고려)
+          struct timeval tv = { .tv_sec = t_of_day, .tv_usec = 0 };
+          settimeofday(&tv, NULL);
+          Serial.println("⏰ System time synced with GPS!");
+        }
+      }
+    }
 
     // 가속도 및 충격량 계산
     sensors_event_t a, g, temp_mpu;
@@ -143,7 +273,8 @@ void loop() {
     // 시간 정보 가져오기
     struct tm timeinfo;
     char timeStr[20] = "00:00:00";
-    if (getLocalTime(&timeinfo)) {
+    // getLocalTime의 기본 대기시간이 5초이므로, 루프 지연을 방지하기 위해 10ms 타임아웃 지정
+    if (getLocalTime(&timeinfo, 10)) {
       strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
     }
 
@@ -170,6 +301,23 @@ void loop() {
     char jsonBuffer[512];
     serializeJson(doc, jsonBuffer);
     Serial.println(jsonBuffer);
-    client.publish(mqtt_topic, jsonBuffer);
+
+    // 온라인이면 전송, 오프라인이면 LittleFS에 저장
+    if (currentConnected) {
+      client.publish(mqtt_topic, jsonBuffer);
+    } else {
+      File file = LittleFS.open(offline_file, FILE_APPEND);
+      if (file) {
+        if (file.size() < 1000000) { // 1MB 제한
+          file.println(jsonBuffer);
+          Serial.println("💾 Saved data to LittleFS (Offline mode)");
+        } else {
+          Serial.println("⚠️ LittleFS buffer full (>= 1MB)!");
+        }
+        file.close();
+      } else {
+        Serial.println("❌ Failed to open offline file for appending!");
+      }
+    }
   }
 }
