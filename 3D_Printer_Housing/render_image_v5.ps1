@@ -1,7 +1,7 @@
 $scadFile = "09_qr_scanner_housing_snapfit.scad"
 $openscad = "C:\Program Files\OpenSCAD\openscad.com"
 
-Write-Host "Rendering V5.0 Snap-Fit 3D preview images..."
+Write-Host "Rendering V5.0 Split-Half 3D preview images..."
 
 # 1. Render Assembly View (Completed assembly)
 Write-Host "Rendering assembly view image..."

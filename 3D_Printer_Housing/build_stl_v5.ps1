@@ -1,29 +1,19 @@
 $scadFile = "09_qr_scanner_housing_snapfit.scad"
 $openscad = "C:\Program Files\OpenSCAD\openscad.com"
 
-Write-Host "Starting V5.0 Snap-Fit 3D printing STL generation..."
+Write-Host "Starting V5.0 Split-Half 3D printing STL generation..."
 
-# 1. Body
-Write-Host "Rendering 09_housing_body.stl..."
-(Get-Content $scadFile) -replace 'render_part = "[a-zA-Z_]+";', 'render_part = "body";' | Set-Content $scadFile
-& $openscad -o "09_housing_body.stl" $scadFile
+# 1. Left Half
+Write-Host "Rendering 09_housing_left.stl..."
+(Get-Content $scadFile) -replace 'render_part = "[a-zA-Z_]+";', 'render_part = "left_half";' | Set-Content $scadFile
+& $openscad -o "09_housing_left.stl" $scadFile
 
-# 2. Handle
-Write-Host "Rendering 09_housing_handle.stl..."
-(Get-Content $scadFile) -replace 'render_part = "[a-zA-Z_]+";', 'render_part = "handle";' | Set-Content $scadFile
-& $openscad -o "09_housing_handle.stl" $scadFile
+# 2. Right Half
+Write-Host "Rendering 09_housing_right.stl..."
+(Get-Content $scadFile) -replace 'render_part = "[a-zA-Z_]+";', 'render_part = "right_half";' | Set-Content $scadFile
+& $openscad -o "09_housing_right.stl" $scadFile
 
-# 3. Lid
-Write-Host "Rendering 09_housing_lid.stl..."
-(Get-Content $scadFile) -replace 'render_part = "[a-zA-Z_]+";', 'render_part = "lid";' | Set-Content $scadFile
-& $openscad -o "09_housing_lid.stl" $scadFile
-
-# 4. Battery Cap
-Write-Host "Rendering 09_housing_battery_cap.stl..."
-(Get-Content $scadFile) -replace 'render_part = "[a-zA-Z_]+";', 'render_part = "battery_cap";' | Set-Content $scadFile
-& $openscad -o "09_housing_battery_cap.stl" $scadFile
-
-# 5. Print All Layout
+# 3. Print All Layout
 Write-Host "Rendering 09_housing_print_all.stl..."
 (Get-Content $scadFile) -replace 'render_part = "[a-zA-Z_]+";', 'render_part = "print_all";' | Set-Content $scadFile
 & $openscad -o "09_housing_print_all.stl" $scadFile
