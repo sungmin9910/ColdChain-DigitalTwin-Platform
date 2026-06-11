@@ -42,7 +42,7 @@ oled_size = [26.0, 27.0, 1.2];   // SSD1306 OLED PCB size
 battery_diam = 19.2;             // HY18650-2200 bare cell with clearance (18.4mm nominal)
 
 // --- Main Control ---
-render_part = "exploded"; // assembly, exploded, print_all, left_half, right_half, cross_section
+render_part = "exploded"; // assembly, exploded, print_all, left_half, right_half, cross_section, trigger
 
 // 3D Printing alignment helpers
 module print_left() {
@@ -51,6 +51,10 @@ module print_left() {
 
 module print_right() {
     translate([0, 0, -24]) rotate([0, -90, 0]) housing_right_half();
+}
+
+module print_trigger() {
+    translate([0, 0, 1]) rotate([-90, 0, 0]) trigger_button();
 }
 
 if (render_part == "assembly") {
@@ -98,10 +102,12 @@ if (render_part == "exploded") {
 if (render_part == "print_all") {
     translate([0, 0, 0]) print_left();
     translate([head_w + 20, 0, 0]) print_right();
+    translate([head_w * 2 + 35, 20, 0]) print_trigger();
 }
 
 if (render_part == "left_half") print_left();
 if (render_part == "right_half") print_right();
+if (render_part == "trigger") print_trigger();
 
 if (render_part == "cross_section") {
     difference() {
