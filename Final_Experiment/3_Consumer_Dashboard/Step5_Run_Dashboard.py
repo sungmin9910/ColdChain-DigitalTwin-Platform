@@ -10,13 +10,177 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- 페이지 설정 ---
+# --- 다국어 설정 (Localization) ---
+LANG_DICT = {
+    'KO': {
+        'page_title': "프리미엄 과일 안심 이력조회",
+        'landing_title': "과일의 진실된 이야기를 스캔하세요",
+        'landing_subtitle': "고객님이 구매하신 과일이 생산지에서 식탁까지 온 정직한 과정을 투명하게 보여드립니다.",
+        'landing_guide': "💡 **방법**: 제품에 부착된 안심 QR 코드를 스마트폰 카메라로 비춰주세요.",
+        'db_error': "⚠️ 데이터 시스템 연결에 문제가 발생했습니다.",
+        'no_record': "❌ '{}' 번호와 일치하는 과일 이력을 찾을 수 없습니다.",
+        'title_suffix': "안심 이력",
+        'subtitle': "블록체인 기반의 먹거리 안심 정보 서비스",
+        'refresh_btn': "🔄 실시간 정보 갱신",
+        'tab_summary': "✨ 안심 요약",
+        'tab_timeline': "🚚 생산·유통 이력",
+        'tab_route': "📍 이동 경로",
+        'premium_fruit': "🍎 Premium {}",
+        'fruit_desc': "원산지에서 식탁까지 온 정직한 과정을 투명하게 검증받은 최상의 {}입니다.",
+        'origin': "원산지",
+        'variety': "품종",
+        'grade': "선별 등급",
+        'method': "재배 방식",
+        'quantity': "수량",
+        'boxes': "{} 박스",
+        'no_qty': "수량 미등록",
+        'no_grade': "선별 전",
+        'farmer_title': "🚜 농가 및 수확 정보",
+        'farmer_id': "생산 농가 ID",
+        'contact': "연락처 (안심번호)",
+        'harvest_date': "수확 일자",
+        'no_info': "정보 없음",
+        'blockchain_verified': "✨ 이 과일은 투명하고 안전한 블록체인 관리 시스템을 통해 검증되었습니다. 안심하고 즐거운 시간 되세요!",
+        'timeline_title': "🚚 콜드체인 타임라인",
+        'route_title': "📍 실시간 이동 경로",
+        'route_subtitle': "스마트 QR 스캔 및 GPS 트래커를 통해 수집된 과일의 실시간 지리정보 경로입니다.",
+        'route_list': "📋 지리 좌표 경로 목록",
+        'col_stage': "유통 단계",
+        'col_time': "처리 일시",
+        'col_lat': "위도 (Latitude)",
+        'col_lon': "경도 (Longitude)",
+        'no_gps': "⚠️ 이동 경로 정보(GPS)가 존재하지 않습니다.",
+        'elapsed_just_now': "방금 전",
+        'elapsed_min': "{}분 전",
+        'elapsed_hour': "{}시간 전",
+        'elapsed_day': "{}일 전",
+        'stage_preparing': "준비 중",
+        'stage_not_reached': "아직 해당 단계에 도달하지 않았습니다.",
+        'proc_time': "⏰ 처리 시간",
+        'sensor_title': "저장고 실시간 온습도",
+        'temp': "온도",
+        'humi': "습도",
+        'optimal_state': "🟢 최적 상태 유지 중",
+        'select_lang': "🌐 언어 선택 / Language",
+        'origin_55630': "전북 장수군 (장수읍)",
+        'origin_55631': "전북 장수군 (산서면)",
+        'origin_55632': "전북 장수군 (번암면)",
+        'origin_55633': "전북 장수군 (장계면)",
+        'origin_55634': "전북 장수군 (천천면)",
+        'origin_55635': "전북 장수군 (계남면)",
+        'origin_default': "대한민국",
+        'stage_A00_title': "🌱 농장 수확",
+        'stage_A00_desc': "정성껏 재배한 과일을 정직하게 수확했습니다.",
+        'stage_A10_title': "🏢 입고",
+        'stage_A10_desc': "생산지에서 신선한 상태로 센터에 도착했습니다.",
+        'stage_A11_title': "💦 세척",
+        'stage_A11_desc': "깨끗하고 안전한 물로 세척 과정을 마쳤습니다.",
+        'stage_A12_title': "🔍 선별",
+        'stage_A12_desc': "크기와 당도, 품질을 엄격하게 선별했습니다.",
+        'stage_A13_title': "📦 포장",
+        'stage_A13_desc': "신선함을 유지할 수 있는 전용 패키지로 포장되었습니다.",
+        'stage_A14_title': "❄️ 저장",
+        'stage_A14_desc': "최적의 온도와 습도로 신선도를 보관 중입니다.",
+        'stage_A15_title': "🚛 출하",
+        'stage_A15_desc': "고객님을 만나기 위해 건강하게 출발했습니다!",
+    },
+    'EN': {
+        'page_title': "Premium Fruit Safe History Inquiry",
+        'landing_title': "Scan the True Story of the Fruit",
+        'landing_subtitle': "We transparently show you the honest journey of your fruit from origin to table.",
+        'landing_guide': "💡 **How to scan**: Focus your smartphone camera on the safe QR code attached to the product.",
+        'db_error': "⚠️ Connection issues with the database system.",
+        'no_record': "❌ No fruit history found matching the number '{}'.",
+        'title_suffix': "Safe History",
+        'subtitle': "Blockchain-based Safe Food Information Service",
+        'refresh_btn': "🔄 Refresh Real-time Info",
+        'tab_summary': "✨ Safe Summary",
+        'tab_timeline': "🚚 Log & Timeline",
+        'tab_route': "📍 Route Map",
+        'premium_fruit': "🍎 Premium {}",
+        'fruit_desc': "This is the premium {}, transparently verified for its honest journey from origin to table.",
+        'origin': "Origin",
+        'variety': "Variety",
+        'grade': "Grade",
+        'method': "Cultivation",
+        'quantity': "Quantity",
+        'boxes': "{} Box(es)",
+        'no_qty': "Unregistered",
+        'no_grade': "Before Sorting",
+        'farmer_title': "🚜 Farm & Harvest Info",
+        'farmer_id': "Farm ID",
+        'contact': "Contact (Safe #)",
+        'harvest_date': "Harvest Date",
+        'no_info': "No Info",
+        'blockchain_verified': "✨ This fruit has been verified through a transparent and secure blockchain management system. Enjoy your healthy choice!",
+        'timeline_title': "🚚 Cold Chain Timeline",
+        'route_title': "📍 Real-time Route Map",
+        'route_subtitle': "This is the real-time geographical route of the fruit collected via smart QR scans and GPS trackers.",
+        'route_list': "📋 Geographical Coordinate Route List",
+        'col_stage': "Logistics Stage",
+        'col_time': "Processed Time",
+        'col_lat': "Latitude",
+        'col_lon': "Longitude",
+        'no_gps': "⚠️ No route coordinates (GPS) available.",
+        'elapsed_just_now': "Just now",
+        'elapsed_min': "{}m ago",
+        'elapsed_hour': "{}h ago",
+        'elapsed_day': "{}d ago",
+        'stage_preparing': "Preparing",
+        'stage_not_reached': "This stage has not been reached yet.",
+        'proc_time': "⏰ Processed at",
+        'sensor_title': "Real-time Storage Temp & Humidity",
+        'temp': "Temperature",
+        'humi': "Humidity",
+        'optimal_state': "🟢 Maintaining Optimal State",
+        'select_lang': "Select Language",
+        'origin_55630': "Jangsu-eup, Jangsu-gun, Jeonbuk",
+        'origin_55631': "Sanseo-myeon, Jangsu-gun, Jeonbuk",
+        'origin_55632': "Beonam-myeon, Jangsu-gun, Jeonbuk",
+        'origin_55633': "Janggye-myeon, Jangsu-gun, Jeonbuk",
+        'origin_55634': "Cheoncheon-myeon, Jangsu-gun, Jeonbuk",
+        'origin_55635': "Gyenam-myeon, Jangsu-gun, Jeonbuk",
+        'origin_default': "Republic of Korea",
+        'stage_A00_title': "🌱 Harvest",
+        'stage_A00_desc': "Carefully cultivated fruit has been honestly harvested.",
+        'stage_A10_title': "🏢 Receiving",
+        'stage_A10_desc': "Arrived at the APC center in a fresh state from the farm.",
+        'stage_A11_title': "💦 Washing",
+        'stage_A11_desc': "Completed the washing process with clean and safe water.",
+        'stage_A12_title': "🔍 Sorting",
+        'stage_A12_desc': "Strictly sorted by size, sweetness, and quality.",
+        'stage_A13_title': "📦 Packaging",
+        'stage_A13_desc': "Packed in a specialized package to maintain freshness.",
+        'stage_A14_title': "❄️ Storage",
+        'stage_A14_desc': "Storing at optimal temperature and humidity to preserve freshness.",
+        'stage_A15_title': "🚛 Shipping",
+        'stage_A15_desc': "Healthy shipment has departed to meet the customer!",
+    }
+}
+
+# 1. 언어 설정 초기화 (쿼리 매개변수 우선, 없으면 세션 상태)
+if 'lang' not in st.session_state:
+    qp_lang = st.query_params.get("lang", "KO").upper()
+    st.session_state.lang = qp_lang if qp_lang in ['KO', 'EN'] else 'KO'
+
+# 2. 페이지 설정 호출 (가장 먼저 실행)
 st.set_page_config(
-    page_title="프리미엄 과일 안심 이력조회", 
+    page_title=LANG_DICT[st.session_state.lang]['page_title'], 
     page_icon="🍏", 
     layout="centered",
     initial_sidebar_state="collapsed"
 )
+
+# 3. 사이드바 언어 선택기
+selected_lang_label = st.sidebar.selectbox(
+    "🌐 Language", 
+    ["한국어 (KO)", "English (EN)"], 
+    index=0 if st.session_state.lang == 'KO' else 1
+)
+lang_key = 'KO' if "한국어" in selected_lang_label else 'EN'
+if lang_key != st.session_state.lang:
+    st.session_state.lang = lang_key
+    st.rerun()
 
 # --- 커스텀 CSS (프리미엄 디자인) ---
 st.markdown("""
@@ -276,62 +440,123 @@ def get_db_connection():
     )
 
 # --- 유틸리티 함수 ---
-def format_elapsed_time(timestamp):
+def format_elapsed_time(timestamp, lang='KO'):
     if not timestamp: return ""
-    
-    # 한국 시간대(KST, UTC+9) 설정
     kst = timezone(timedelta(hours=9))
-    
-    # 타입 처리 (문자열인 경우 파싱)
     if isinstance(timestamp, str):
         try:
             timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
         except:
             return ""
-    
-    # date 객체인 경우 datetime으로 변환
     if type(timestamp).__name__ == 'date':
         timestamp = datetime.combine(timestamp, datetime.min.time())
-    
-    # timestamp가 naive인 경우 KST로 간주 (DB 데이터 특성상)
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=kst)
-    
-    # 현재 시간을 KST로 가져옴
     now = datetime.now(kst)
-    
     diff = now - timestamp
     total_seconds = int(diff.total_seconds())
     
     if total_seconds < 60:
-        return "방금 전"
-    
+        return LANG_DICT[lang]['elapsed_just_now']
     if total_seconds < 3600:
-        return f"{total_seconds // 60}분 전"
-    
+        return LANG_DICT[lang]['elapsed_min'].format(total_seconds // 60)
     if total_seconds < 86400:
-        return f"{total_seconds // 3600}시간 전"
-    
-    return f"{diff.days}일 전"
+        return LANG_DICT[lang]['elapsed_hour'].format(total_seconds // 3600)
+    return LANG_DICT[lang]['elapsed_day'].format(diff.days)
 
-def get_origin_name(ac):
-    origin_map = {
-        "55630": "전북 장수군 (장수읍)",
-        "55631": "전북 장수군 (산서면)",
-        "55632": "전북 장수군 (번암면)",
-        "55633": "전북 장수군 (장계면)",
-        "55634": "전북 장수군 (천천면)",
-        "55635": "전북 장수군 (계남면)"
-    }
-    return origin_map.get(str(ac), "대한민국")
+def get_origin_name(ac, lang='KO'):
+    ac_str = str(ac) if ac is not None else ""
+    key = f"origin_{ac_str}"
+    if key in LANG_DICT[lang]:
+        return LANG_DICT[lang][key]
+    return LANG_DICT[lang]['origin_default']
 
-def mask_contact(contact):
-    if not contact: return "정보 없음"
+def mask_contact(contact, lang='KO'):
+    if not contact: 
+        return LANG_DICT[lang]['no_info']
     contact = str(contact).strip()
     if len(contact) > 4:
-        # 뒤에서 4자리를 ****로 변경
         return contact[:-4] + "****"
     return "****"
+
+# --- 다국어 데이터 번역 헬퍼 함수 ---
+def normalize_grade(grade_str):
+    if not grade_str:
+        return "선별 전"
+    grade_str = str(grade_str).strip().upper()
+    if grade_str in ["상", "H", "HIGH", "A"]:
+        return "상"
+    elif grade_str in ["중", "M", "MEDIUM", "B"]:
+        return "중"
+    elif grade_str in ["하", "L", "LOW", "C"]:
+        return "하"
+    return grade_str
+
+def translate_grade(grade_str, lang):
+    norm = normalize_grade(grade_str)
+    if norm == "상":
+        return "상" if lang == 'KO' else "H"
+    elif norm == "중":
+        return "중" if lang == 'KO' else "M"
+    elif norm == "하":
+        return "하" if lang == 'KO' else "L"
+    if lang == 'KO':
+        return norm
+    else:
+        if norm == "선별 전":
+            return "Before Sorting"
+        return norm
+
+def translate_fruit(fruit, lang):
+    if lang == 'KO':
+        return fruit
+    if not fruit:
+        return ""
+    fruit_lower = fruit.lower()
+    mapping = {
+        "사과": "Apple",
+        "참외": "Korean Melon",
+        "복숭아": "Peach",
+        "배": "Pear",
+        "귤": "Tangerine",
+        "감귤": "Tangerine"
+    }
+    for k, v in mapping.items():
+        if k in fruit_lower:
+            return v
+    return fruit
+
+def translate_variety(vt, lang):
+    if lang == 'KO':
+        return vt
+    if not vt:
+        return ""
+    mapping = {
+        "후지": "Fuji",
+        "홍로": "Hongro",
+        "신고": "Shingo",
+        "황도": "Yellow Peach",
+        "백도": "White Peach",
+        "천도": "Nectarine",
+        "감귤": "Tangerine",
+        "조생": "Early-season"
+    }
+    for k, v in mapping.items():
+        if k in vt:
+            return v
+    return vt
+
+def translate_method(mt, lang):
+    if lang == 'KO':
+        return mt
+    if not mt:
+        return ""
+    mapping = {
+        "자연재배": "Natural",
+        "유기농": "Organic",
+        "무농약": "Pesticide-Free"
+    }
+    return mapping.get(mt, mt)
 
 # --- 로직 시작 ---
 query_params = st.query_params
@@ -341,15 +566,15 @@ url_grade = query_params.get("grade", None)
 # 1. 랜딩 페이지 (FmID가 없을 때)
 if not fm_id:
     st.markdown('<div class="landing-container">', unsafe_allow_html=True)
-    st.markdown('<h1 class="hero-title" style="background:none; -webkit-text-fill-color:initial; color:#2ecc71;">과일의 진실된 이야기를 스캔하세요</h1>', unsafe_allow_html=True)
-    st.markdown('<p class="hero-subtitle">고객님이 구매하신 과일이 생산지에서 식탁까지 온 정직한 과정을 투명하게 보여드립니다.</p>', unsafe_allow_html=True)
+    st.markdown(f'<h1 class="hero-title" style="background:none; -webkit-text-fill-color:initial; color:#2ecc71;">{LANG_DICT[st.session_state.lang]["landing_title"]}</h1>', unsafe_allow_html=True)
+    st.markdown(f'<p class="hero-subtitle">{LANG_DICT[st.session_state.lang]["landing_subtitle"]}</p>', unsafe_allow_html=True)
     
     # 가이드 이미지 표시 (상대 경로로 수정)
     guide_img_path = os.path.join(os.path.dirname(__file__), "consumer_guide.png")
     if os.path.exists(guide_img_path):
         st.image(guide_img_path, use_container_width=True)
     
-    st.info("💡 **방법**: 제품에 부착된 안심 QR 코드를 스마트폰 카메라로 비춰주세요.")
+    st.info(LANG_DICT[st.session_state.lang]["landing_guide"])
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
@@ -362,21 +587,22 @@ try:
     records = cursor.fetchall()
     conn.close()
 except Exception as e:
-    st.error(f"⚠️ 데이터 시스템 연결에 문제가 발생했습니다. ({e})")
+    st.error(f"{LANG_DICT[st.session_state.lang]['db_error']} ({e})")
     st.stop()
 
 if not records:
-    st.error(f"❌ '{fm_id}' 번호와 일치하는 과일 이력을 찾을 수 없습니다.")
+    st.error(LANG_DICT[st.session_state.lang]['no_record'].format(fm_id))
     st.stop()
 
 # 3. 정보 구성
 latest = records[-1]
 fruit_type = latest.get('FrT', '과일')
 variety = latest.get('Vt', '')
-origin = get_origin_name(latest.get('AC'))
+origin = get_origin_name(latest.get('AC'), st.session_state.lang)
 # DB에 등급 정보가 있을 수도 있고(A12 레코드), URL에 있을 수도 있음
 db_grade = next((r.get('grade') for r in records if r.get('grade')), None)
-display_grade = url_grade or db_grade or "선별 전"
+raw_grade = url_grade or db_grade or "선별 전"
+display_grade = translate_grade(raw_grade, st.session_state.lang)
 
 def get_fruit_image_path(fruit_type):
     fruit_type_lower = fruit_type.lower()
@@ -414,11 +640,12 @@ def get_fruit_image_path(fruit_type):
 col_header_left, col_header_right = st.columns([3.2, 1.2])
 
 with col_header_left:
-    st.markdown(f'<h1 class="hero-title" style="text-align:left; margin-bottom:5px;">🍏 {fruit_type} 안심 이력</h1>', unsafe_allow_html=True)
-    st.markdown(f'<p style="text-align:left; color:#515154; margin-top:-5px; font-weight: 500; font-size: 0.95rem; margin-bottom: 15px;">블록체인 기반의 먹거리 안심 정보 서비스</p>', unsafe_allow_html=True)
+    fruit_type_translated = translate_fruit(fruit_type, st.session_state.lang)
+    st.markdown(f'<h1 class="hero-title" style="text-align:left; margin-bottom:5px;">🍏 {fruit_type_translated} {LANG_DICT[st.session_state.lang]["title_suffix"]}</h1>', unsafe_allow_html=True)
+    st.markdown(f'<p style="text-align:left; color:#515154; margin-top:-5px; font-weight: 500; font-size: 0.95rem; margin-bottom: 15px;">{LANG_DICT[st.session_state.lang]["subtitle"]}</p>', unsafe_allow_html=True)
     
     # 새로고침 버튼을 타이틀 아래에 콤팩트하게 배치
-    if st.button("🔄 실시간 정보 갱신", key="top_refresh_btn"):
+    if st.button(LANG_DICT[st.session_state.lang]["refresh_btn"], key="top_refresh_btn"):
         st.rerun()
 
 with col_header_right:
@@ -433,17 +660,18 @@ with col_header_right:
     
     category_key = None
     for k in fruit_images_mapping.keys():
-        if k.lower() in fruit_type.lower():
+        if k.lower() in fruit_type.lower() or (k == "Apples" and "사과" in fruit_type) or (k == "Pears" and "배" in fruit_type) or (k == "Peaches" and "복숭아" in fruit_type) or (k == "Tangerines" and ("귤" in fruit_type or "감귤" in fruit_type)) or (k == "Melons" and "참외" in fruit_type):
             category_key = k
             break
             
     # 2. 등급 인덱스 매핑 (A/상=0, B/중=1, C/하=2)
     grade_idx = 0
-    if display_grade == "상":
+    norm_grade = normalize_grade(raw_grade)
+    if norm_grade == "상":
         grade_idx = 0
-    elif display_grade == "중":
+    elif norm_grade == "중":
         grade_idx = 1
-    elif display_grade == "하":
+    elif norm_grade == "하":
         grade_idx = 2
     else:
         grade_idx = 0
@@ -475,48 +703,56 @@ with col_header_right:
 st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
 
 # 탭 생성
-tab1, tab2, tab3 = st.tabs(["✨ 안심 요약", "🚚 생산·유통 이력", "📍 이동 경로"])
+tab1, tab2, tab3 = st.tabs([
+    LANG_DICT[st.session_state.lang]['tab_summary'], 
+    LANG_DICT[st.session_state.lang]['tab_timeline'], 
+    LANG_DICT[st.session_state.lang]['tab_route']
+])
 
 with tab1:
-    st.markdown(f'<h2 style="text-align:center; font-weight:800; color:#1d1d1f; margin-bottom:5px; margin-top:10px;">🍎 Premium {fruit_type}</h2>', unsafe_allow_html=True)
-    st.markdown(f'<p style="text-align:center; font-size:1rem; color:#666; margin-bottom:25px;">원산지에서 식탁까지 온 정직한 과정을 투명하게 검증받은 최상의 {fruit_type}입니다.</p>', unsafe_allow_html=True)
+    st.markdown(f'<h2 style="text-align:center; font-weight:800; color:#1d1d1f; margin-bottom:5px; margin-top:10px;">{LANG_DICT[st.session_state.lang]["premium_fruit"].format(fruit_type_translated)}</h2>', unsafe_allow_html=True)
+    st.markdown(f'<p style="text-align:center; font-size:1rem; color:#666; margin-bottom:25px;">{LANG_DICT[st.session_state.lang]["fruit_desc"].format(fruit_type_translated)}</p>', unsafe_allow_html=True)
 
     # 해당 등급의 구체적인 수량 추출 (A12 선별 단계의 AGrade, BGrade, CGrade 컬럼 참조)
     a12_record = next((r for r in records if r.get("Lo") == "A12"), None)
     grade_qty = None
     if a12_record:
-        if display_grade == "상":
+        norm_grade = normalize_grade(raw_grade)
+        if norm_grade == "상":
             grade_qty = a12_record.get("AGrade")
-        elif display_grade == "중":
+        elif norm_grade == "중":
             grade_qty = a12_record.get("BGrade")
-        elif display_grade == "하":
+        elif norm_grade == "하":
             grade_qty = a12_record.get("CGrade")
 
     if grade_qty is None or grade_qty == "":
         # 만약 A12에 구체적인 등급 수량이 없으면 전체 수량(Qt)을 백업으로 사용
         grade_qty = latest.get("Qt", "미등록")
 
-    if grade_qty != "미등록" and grade_qty is not None:
-        grade_qty_display = f"{grade_qty} 박스"
+    if grade_qty != "미등록" and grade_qty != "Unregistered" and grade_qty is not None:
+        grade_qty_display = LANG_DICT[st.session_state.lang]['boxes'].format(grade_qty)
     else:
-        grade_qty_display = "수량 미등록"
+        grade_qty_display = LANG_DICT[st.session_state.lang]['no_qty']
+
+    variety_display = translate_variety(variety, st.session_state.lang)
+    method_display = translate_method(latest.get("Mt", "자연재배"), st.session_state.lang)
 
     # 핵심 정보 카드 (4열)
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.markdown(f'<div class="info-card" style="min-height: 85px;"><small style="color:#666; font-size:0.8rem;">원산지</small><br><b style="font-size:1.05rem; display:block; margin-top:2px;">{origin}</b></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="info-card" style="min-height: 85px;"><small style="color:#666; font-size:0.8rem;">{LANG_DICT[st.session_state.lang]["origin"]}</small><br><b style="font-size:1.05rem; display:block; margin-top:2px;">{origin}</b></div>', unsafe_allow_html=True)
     with col2:
-        st.markdown(f'<div class="info-card" style="min-height: 85px;"><small style="color:#666; font-size:0.8rem;">품종</small><br><b style="font-size:1.05rem; display:block; margin-top:2px;">{variety}</b></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="info-card" style="min-height: 85px;"><small style="color:#666; font-size:0.8rem;">{LANG_DICT[st.session_state.lang]["variety"]}</small><br><b style="font-size:1.05rem; display:block; margin-top:2px;">{variety_display}</b></div>', unsafe_allow_html=True)
     with col3:
         st.markdown(f"""
         <div class="info-card" style="min-height: 85px;">
-            <small style="color:#666; font-size:0.8rem;">선별 등급</small><br>
+            <small style="color:#666; font-size:0.8rem;">{LANG_DICT[st.session_state.lang]["grade"]}</small><br>
             <b style="color:#2ecc71; font-size:1.25rem; display:block; margin: 1px 0;">{display_grade}</b>
-            <span style="color:#8e8e93; font-size:0.75rem; font-weight:500;">수량: {grade_qty_display}</span>
+            <span style="color:#8e8e93; font-size:0.75rem; font-weight:500;">{LANG_DICT[st.session_state.lang]["quantity"]}: {grade_qty_display}</span>
         </div>
         """, unsafe_allow_html=True)
     with col4:
-        st.markdown(f'<div class="info-card" style="min-height: 85px;"><small style="color:#666; font-size:0.8rem;">재배 방식</small><br><b style="font-size:1.05rem; display:block; margin-top:2px;">{latest.get("Mt", "자연재배")}</b></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="info-card" style="min-height: 85px;"><small style="color:#666; font-size:0.8rem;">{LANG_DICT[st.session_state.lang]["method"]}</small><br><b style="font-size:1.05rem; display:block; margin-top:2px;">{method_display}</b></div>', unsafe_allow_html=True)
 
     # 수확 일자 포맷팅
     harvest_date = latest.get("HD", "미등록")
@@ -528,30 +764,32 @@ with tab1:
         harvest_date = str(harvest_date)
 
     # 농가 정보 (Farmer Info) 리디자인
-    st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-top:20px;'>🚜 농가 및 수확 정보</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='font-size:1.3rem; font-weight:700; margin-top:20px;'>{LANG_DICT[st.session_state.lang]['farmer_title']}</h3>", unsafe_allow_html=True)
     farmer_id_display = latest.get("FmID", "미등록")
-    farmer_contact = mask_contact(latest.get("Ct", ""))
+    if farmer_id_display == "미등록" or farmer_id_display == "Unregistered" or not farmer_id_display:
+        farmer_id_display = LANG_DICT[st.session_state.lang]['no_qty']
+    farmer_contact = mask_contact(latest.get("Ct", ""), st.session_state.lang)
     
     st.markdown(f"""
     <div class="farmer-card">
         <div class="farmer-info-item">
             <div style="font-size: 1.8rem;">🆔</div>
             <div>
-                <div class="farmer-label">생산 농가 ID</div>
+                <div class="farmer-label">{LANG_DICT[st.session_state.lang]['farmer_id']}</div>
                 <div class="farmer-value">{farmer_id_display}</div>
             </div>
         </div>
         <div class="farmer-info-item">
             <div style="font-size: 1.8rem;">📞</div>
             <div>
-                <div class="farmer-label">연락처 (안심번호)</div>
+                <div class="farmer-label">{LANG_DICT[st.session_state.lang]['contact']}</div>
                 <div class="farmer-value">{farmer_contact}</div>
             </div>
         </div>
         <div class="farmer-info-item">
             <div style="font-size: 1.8rem;">📅</div>
             <div>
-                <div class="farmer-label">수확 일자</div>
+                <div class="farmer-label">{LANG_DICT[st.session_state.lang]['harvest_date']}</div>
                 <div class="farmer-value">{harvest_date}</div>
             </div>
         </div>
@@ -560,40 +798,39 @@ with tab1:
 
     st.markdown('<div style="height: 10px;"></div>', unsafe_allow_html=True)
     
-    st.success("✨ 이 과일은 투명하고 안전한 블록체인 관리 시스템을 통해 검증되었습니다. 안심하고 즐거운 시간 되세요!")
+    st.success(LANG_DICT[st.session_state.lang]['blockchain_verified'])
 
 with tab2:
-    st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-bottom:15px;'>🚚 콜드체인 타임라인</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='font-size:1.3rem; font-weight:700; margin-bottom:15px;'>{LANG_DICT[st.session_state.lang]['timeline_title']}</h3>", unsafe_allow_html=True)
     
     # 단계 설정 (A00 농장 단계 추가)
     stage_names = {
-        "A00": ("🌱 농장 수확", "정성껏 재배한 과일을 정직하게 수확했습니다.", "HD"),
-        "A10": ("🏢 입고", "생산지에서 신선한 상태로 센터에 도착했습니다.", "APC_AD"),
-        "A11": ("💦 세척", "깨끗하고 안전한 물로 세척 과정을 마쳤습니다.", "APC_WD"),
-        "A12": ("🔍 선별", "크기와 당도, 품질을 엄격하게 선별했습니다.", "APC_RT"),
-        "A13": ("📦 포장", "신선함을 유지할 수 있는 전용 패키지로 포장되었습니다.", "APC_PT"),
-        "A14": ("❄️ 저장", "최적의 온도와 습도로 신선도를 보관 중입니다.", "APC_StD"),
-        "A15": ("🚛 출하", "고객님을 만나기 위해 건강하게 출발했습니다!", "APC_OP")
+        "A00": (LANG_DICT[st.session_state.lang]["stage_A00_title"], LANG_DICT[st.session_state.lang]["stage_A00_desc"], "HD"),
+        "A10": (LANG_DICT[st.session_state.lang]["stage_A10_title"], LANG_DICT[st.session_state.lang]["stage_A10_desc"], "APC_AD"),
+        "A11": (LANG_DICT[st.session_state.lang]["stage_A11_title"], LANG_DICT[st.session_state.lang]["stage_A11_desc"], "APC_WD"),
+        "A12": (LANG_DICT[st.session_state.lang]["stage_A12_title"], LANG_DICT[st.session_state.lang]["stage_A12_desc"], "APC_RT"),
+        "A13": (LANG_DICT[st.session_state.lang]["stage_A13_title"], LANG_DICT[st.session_state.lang]["stage_A13_desc"], "APC_PT"),
+        "A14": (LANG_DICT[st.session_state.lang]["stage_A14_title"], LANG_DICT[st.session_state.lang]["stage_A14_desc"], "APC_StD"),
+        "A15": (LANG_DICT[st.session_state.lang]["stage_A15_title"], LANG_DICT[st.session_state.lang]["stage_A15_desc"], "APC_OP")
     }
 
     # 완료된 단계와 미완료된 단계를 구분하여 렌더링
     completed_stages = {r.get("Lo"): r for r in records}
     timeline_order = ["A00", "A10", "A11", "A12", "A13", "A14", "A15"]
-    
     st.markdown('<div class="timeline-container">', unsafe_allow_html=True)
     for code in timeline_order:
         title, default_desc, time_col = stage_names[code]
         if code in completed_stages:
             row = completed_stages[code]
             stage_time = row.get(time_col)
-            elapsed = format_elapsed_time(stage_time)
+            elapsed = format_elapsed_time(stage_time, st.session_state.lang)
             
             st.markdown(f"""
             <div class="timeline-item active-stage">
                 <span style="font-weight:700; font-size:1.1rem; color:#1d1d1f;">{title}</span>
                 <span class="elapsed-tag">{elapsed}</span>
                 <p style="color:#515154; margin-top:5px; font-size:0.9rem; font-weight:400; margin-bottom:5px;">{default_desc}</p>
-                <small style="color:#86868b; font-size:0.8rem;">⏰ 처리 시간: {stage_time if stage_time else ""}</small>
+                <small style="color:#86868b; font-size:0.8rem;">⏰ {LANG_DICT[st.session_state.lang]['proc_time']}: {stage_time if stage_time else ""}</small>
             </div>
             """, unsafe_allow_html=True)
             
@@ -615,34 +852,34 @@ with tab2:
                 <div style="background-color: #f1fcf4; border-radius: 8px; padding: 12px 18px; border: 1px solid #d4edda; margin: -15px 0 20px 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="font-size: 1.3rem;">❄️</span>
-                        <span style="font-weight: 700; color: #155724; font-size: 0.95rem;">저장고 실시간 온습도</span>
+                        <span style="font-weight: 700; color: #155724; font-size: 0.95rem;">{LANG_DICT[st.session_state.lang]['sensor_title']}</span>
                     </div>
                     <div style="display: flex; gap: 10px;">
                         <div style="background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #c3e6cb; min-width: 80px; text-align: center;">
-                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">온도</small>
+                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">{LANG_DICT[st.session_state.lang]['temp']}</small>
                             <b style="color: #27ae60; font-size: 1rem;">{tp_val}°C</b>
                         </div>
                         <div style="background: white; padding: 4px 10px; border-radius: 6px; border: 1px solid #c3e6cb; min-width: 80px; text-align: center;">
-                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">습도</small>
+                            <small style="color: #666; font-size: 0.7rem; display: block; margin-bottom: 2px;">{LANG_DICT[st.session_state.lang]['humi']}</small>
                             <b style="color: #2980b9; font-size: 1rem;">{hm_val}%</b>
                         </div>
                     </div>
-                    <span style="color: #2ecc71; font-size: 0.85rem; font-weight: 600; margin-left: auto;">🟢 최적 상태 유지 중</span>
+                    <span style="color: #2ecc71; font-size: 0.85rem; font-weight: 600; margin-left: auto;">{LANG_DICT[st.session_state.lang]['optimal_state']}</span>
                 </div>
                 """, unsafe_allow_html=True)
         else:
             st.markdown(f"""
             <div class="timeline-item pending-stage">
                 <span style="font-weight:700; font-size:1.1rem; color:#8e8e93;">{title}</span>
-                <span style="background-color: #f2f2f7; color: #8e8e93 !important; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; margin-left: 10px;">준비 중</span>
-                <p style="color:#a1a1a6; margin-top:5px; font-size:0.9rem; font-weight:400; margin-bottom:5px;">아직 해당 단계에 도달하지 않았습니다.</p>
+                <span style="background-color: #f2f2f7; color: #8e8e93 !important; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; margin-left: 10px;">{LANG_DICT[st.session_state.lang]['stage_preparing']}</span>
+                <p style="color:#a1a1a6; margin-top:5px; font-size:0.9rem; font-weight:400; margin-bottom:5px;">{LANG_DICT[st.session_state.lang]['stage_not_reached']}</p>
             </div>
             """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab3:
-    st.markdown("<h3 style='font-size:1.3rem; font-weight:700; margin-bottom:10px;'>📍 실시간 이동 경로</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='color:#515154; font-size:0.9rem; margin-bottom:20px;'>스마트 QR 스캔 및 GPS 트래커를 통해 수집된 과일의 실시간 지리정보 경로입니다.</p>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='font-size:1.3rem; font-weight:700; margin-bottom:10px;'>{LANG_DICT[st.session_state.lang]['route_title']}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:#515154; font-size:0.9rem; margin-bottom:20px;'>{LANG_DICT[st.session_state.lang]['route_subtitle']}</p>", unsafe_allow_html=True)
     
     # 4. GPS 이동 경로 수집
     map_data = []
@@ -664,7 +901,7 @@ with tab3:
     # A00 단계는 원산지 좌표로 채움
     if origin_lat and origin_lon:
         map_data.append({
-            "단계": "🌱 농장 수확",
+            "단계": LANG_DICT[st.session_state.lang]['stage_A00_title'],
             "latitude": origin_lat,
             "longitude": origin_lon,
             "시간": latest.get("HD", "")
@@ -698,9 +935,14 @@ with tab3:
         df_map = pd.DataFrame(map_data)
         st.map(df_map)
         
-        st.markdown("<h4 style='font-size:1.15rem; font-weight:700; margin-top:25px; margin-bottom:10px;'>📋 지리 좌표 경로 목록</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='font-size:1.15rem; font-weight:700; margin-top:25px; margin-bottom:10px;'>{LANG_DICT[st.session_state.lang]['route_list']}</h4>", unsafe_allow_html=True)
         display_df = df_map[["단계", "시간", "latitude", "longitude"]].copy()
-        display_df.columns = ["유통 단계", "처리 일시", "위도 (Latitude)", "경도 (Longitude)"]
+        display_df.columns = [
+            LANG_DICT[st.session_state.lang]['col_stage'],
+            LANG_DICT[st.session_state.lang]['col_time'],
+            LANG_DICT[st.session_state.lang]['col_lat'],
+            LANG_DICT[st.session_state.lang]['col_lon']
+        ]
         st.dataframe(display_df, use_container_width=True, hide_index=True)
     else:
-        st.warning("⚠️ 이동 경로 정보(GPS)가 존재하지 않습니다.")
+        st.warning(LANG_DICT[st.session_state.lang]['no_gps'])

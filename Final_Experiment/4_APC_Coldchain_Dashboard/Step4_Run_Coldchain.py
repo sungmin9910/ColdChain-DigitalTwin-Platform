@@ -15,8 +15,69 @@ MQTT_BROKER = "broker.emqx.io"
 MQTT_PORT = 1883
 MQTT_TOPIC = "coldchain/truck01/sensor"
 
+# --- 다국어 설정 (Localization) ---
+LANG_DICT = {
+    'KO': {
+        'page_title': "프리미엄 콜드체인 통합 관제",
+        'topic_running': "**실시간 수신 중...** (Topic: `{}`)",
+        'sidebar_title': "⚙️ 컨트롤 패널",
+        'sidebar_desc': "새로운 주행/테스트를 시작할 때 데이터를 초기화하세요.",
+        'sidebar_reset_btn': "🔄 새 테스트 시작 (모든 데이터 초기화)",
+        'reset_success': "데이터가 완전히 초기화되었습니다! 🚀",
+        'reset_failed': "DB 초기화 실패: {}",
+        'metric_temp': "온도",
+        'metric_humi': "습도",
+        'metric_lux': "조도",
+        'metric_gforce': "충격량",
+        'metric_speed': "현재 속도",
+        'map_title': "📍 차량 위치 및 이동 경로",
+        'chart_g_speed': "📉 충격량(G) 및 속도(km/h) 추이",
+        'chart_lux': "💡 실시간 조도 변화 (Lux)",
+        'chart_env': "🌡️ 온도/습도 변화",
+        'log_title': "📋 실시간 로그",
+        'gps_wait': "GPS 수신 대기 중 (이동 경로를 표시하려면 위경도 데이터가 필요합니다)...",
+        'evt_shock': "🚨 강한 충격",
+        'evt_light': "💡 조도 급변",
+        'evt_temp': "🌡️ 온도 급변",
+        'evt_humi': "💧 습도 급변",
+        'evt_current': "🚚 현재 위치",
+        'tooltip_format': "{event_type}\n시간: {timestamp}\n온도: {temperature:.1f}°C\n습도: {humidity:.1f}%\n충격: {g_force:.2f}G\n조도: {lux:.0f}lx",
+        'select_lang': "🌐 언어 선택 / Language",
+    },
+    'EN': {
+        'page_title': "Premium Cold Chain Integrated Monitoring",
+        'topic_running': "**Receiving in Real-time...** (Topic: `{}`)",
+        'sidebar_title': "⚙️ Control Panel",
+        'sidebar_desc': "Reset data when starting a new driving test.",
+        'sidebar_reset_btn': "🔄 Start New Test (Reset All Data)",
+        'reset_success': "Data has been completely reset! 🚀",
+        'reset_failed': "Failed to reset DB: {}",
+        'metric_temp': "Temperature",
+        'metric_humi': "Humidity",
+        'metric_lux': "Illuminance",
+        'metric_gforce': "Impact (G)",
+        'metric_speed': "Current Speed",
+        'map_title': "📍 Vehicle Location & Route",
+        'chart_g_speed': "📉 Impact (G) & Speed (km/h) Trend",
+        'chart_lux': "💡 Real-time Illuminance (Lux)",
+        'chart_env': "🌡️ Temperature & Humidity Changes",
+        'log_title': "📋 Real-time Logs",
+        'gps_wait': "Waiting for GPS signals (coordinates are required to display the route)...",
+        'evt_shock': "🚨 Hard Impact",
+        'evt_light': "💡 Sudden Light Change",
+        'evt_temp': "🌡️ Sudden Temp Change",
+        'evt_humi': "💧 Sudden Humidity Change",
+        'evt_current': "🚚 Current Location",
+        'tooltip_format': "{event_type}\nTime: {timestamp}\nTemp: {temperature:.1f}°C\nHumidity: {humidity:.1f}%\nImpact: {g_force:.2f}G\nLight: {lux:.0f}lx",
+        'select_lang': "Language Selection",
+    }
+}
+
+if 'lang' not in st.session_state:
+    st.session_state.lang = 'KO'
+
 st.set_page_config(
-    page_title="Cold Chain Premium Monitor",
+    page_title=LANG_DICT[st.session_state.lang]['page_title'],
     page_icon="🚚",
     layout="wide",
 )
@@ -240,9 +301,21 @@ mqtt_client = start_mqtt_client()
 # ----------------------------------------------------------------
 
 with st.sidebar:
-    st.header("⚙️ 컨트롤 패널")
-    st.markdown("새로운 주행/테스트를 시작할 때 데이터를 초기화하세요.")
-    if st.button("🔄 새 테스트 시작 (모든 데이터 초기화)", type="primary", use_container_width=True):
+    st.header(LANG_DICT[st.session_state.lang]['sidebar_title'])
+    
+    # 언어 선택기 추가
+    selected_lang_label = st.selectbox(
+        "🌐 Language", 
+        ["한국어 (KO)", "English (EN)"], 
+        index=0 if st.session_state.lang == 'KO' else 1
+    )
+    lang_key = 'KO' if "한국어" in selected_lang_label else 'EN'
+    if lang_key != st.session_state.lang:
+        st.session_state.lang = lang_key
+        st.rerun()
+        
+    st.markdown(LANG_DICT[st.session_state.lang]['sidebar_desc'])
+    if st.button(LANG_DICT[st.session_state.lang]['sidebar_reset_btn'], type="primary", use_container_width=True):
         # 1. DB 비우기
         conn = get_mysql_connection()
         if conn:
@@ -251,7 +324,7 @@ with st.sidebar:
                     cursor.execute("TRUNCATE TABLE sensor_data")
                 conn.commit()
             except Exception as e:
-                st.error(f"DB 초기화 실패: {e}")
+                st.error(LANG_DICT[st.session_state.lang]['reset_failed'].format(e))
             finally:
                 conn.close()
         
@@ -260,12 +333,12 @@ with st.sidebar:
         with msg_queue.mutex:
             msg_queue.queue.clear()
             
-        st.success("데이터가 완전히 초기화되었습니다! 🚀")
+        st.success(LANG_DICT[st.session_state.lang]['reset_success'])
         time.sleep(1)
         st.rerun()
 
-st.title("🚚 프리미엄 콜드체인 통합 관제")
-st.markdown(f"**실시간 수신 중...** (Topic: `{MQTT_TOPIC}`)")
+st.title(LANG_DICT[st.session_state.lang]['page_title'])
+st.markdown(LANG_DICT[st.session_state.lang]['topic_running'].format(MQTT_TOPIC))
 
 # 상단 5대 지표 레이아웃
 m1, m2, m3, m4, m5 = st.columns(5)
@@ -280,20 +353,20 @@ st.markdown("---")
 col_left, col_right = st.columns([1.2, 1])
 
 with col_left:
-    st.subheader("📍 차량 위치 및 이동 경로")
+    st.subheader(LANG_DICT[st.session_state.lang]['map_title'])
     map_container = st.empty()
     
-    st.subheader("📉 충격량(G) 및 속도(km/h) 추이")
+    st.subheader(LANG_DICT[st.session_state.lang]['chart_g_speed'])
     gforce_chart = st.empty()
 
 with col_right:
-    st.subheader("💡 실시간 조도 변화 (Lux)")
+    st.subheader(LANG_DICT[st.session_state.lang]['chart_lux'])
     lux_chart = st.empty()
 
-    st.subheader("🌡️ 온도/습도 변화")
+    st.subheader(LANG_DICT[st.session_state.lang]['chart_env'])
     env_chart = st.empty()
     
-    st.subheader("📋 실시간 로그")
+    st.subheader(LANG_DICT[st.session_state.lang]['log_title'])
     log_container = st.empty()
 
 # ----------------------------------------------------------------
@@ -318,11 +391,11 @@ while True:
         latest = data_history[-1]
         
         # 메트릭 업데이트 (값이 없을 경우를 대비해 0.0 처리)
-        temp_metric.metric("온도", f"{latest.get('temperature', 0):.1f} °C")
-        humi_metric.metric("습도", f"{latest.get('humidity', 0):.1f} %")
-        lux_metric.metric("조도", f"{latest.get('lux', 0):.0f} lx")
-        gforce_metric.metric("충격량", f"{latest.get('g_force', 0):.2f} G")
-        speed_metric.metric("현재 속도", f"{latest.get('speed', 0):.1f} km/h")
+        temp_metric.metric(LANG_DICT[st.session_state.lang]['metric_temp'], f"{latest.get('temperature', 0):.1f} °C")
+        humi_metric.metric(LANG_DICT[st.session_state.lang]['metric_humi'], f"{latest.get('humidity', 0):.1f} %")
+        lux_metric.metric(LANG_DICT[st.session_state.lang]['metric_lux'], f"{latest.get('lux', 0):.0f} lx")
+        gforce_metric.metric(LANG_DICT[st.session_state.lang]['metric_gforce'], f"{latest.get('g_force', 0):.2f} G")
+        speed_metric.metric(LANG_DICT[st.session_state.lang]['metric_speed'], f"{latest.get('speed', 0):.1f} km/h")
         
         # ----------------------------------------------------------------
         # 5. 고도화된 지도 시각화 (Pydeck)
@@ -356,7 +429,7 @@ while True:
 
             # 2. 충격 지점 (강한 충격 > 1.8G) - 빨간색 (반지름 45)
             shock_df = df_gps[df_gps['g_force'] > 1.8].copy()
-            shock_df['event_type'] = "🚨 강한 충격"
+            shock_df['event_type'] = LANG_DICT[st.session_state.lang]['evt_shock']
             shock_df['icon'] = "🚨"
             shock_layer = pdk.Layer(
                 "ScatterplotLayer",
@@ -371,7 +444,7 @@ while True:
 
             # 3. 조도 급변 지점 (Delta > 300 lx) - 밝은 배경에서도 잘 보이도록 진한 골드/오렌지톤으로 변경 (반지름 35)
             light_df = df_gps[df_gps['lux_diff'] > 300].copy()
-            light_df['event_type'] = "💡 조도 급변"
+            light_df['event_type'] = LANG_DICT[st.session_state.lang]['evt_light']
             light_df['icon'] = "💡"
             light_layer = pdk.Layer(
                 "ScatterplotLayer",
@@ -386,7 +459,7 @@ while True:
 
             # 4. 온도 급변 지점 (Delta > 1.5°C) - 주황색 (반지름 25)
             temp_df = df_gps[df_gps['temp_diff'] > 1.5].copy()
-            temp_df['event_type'] = "🌡️ 온도 급변"
+            temp_df['event_type'] = LANG_DICT[st.session_state.lang]['evt_temp']
             temp_df['icon'] = "🌡️"
             temp_layer = pdk.Layer(
                 "ScatterplotLayer",
@@ -401,7 +474,7 @@ while True:
 
             # 5. 습도 급변 지점 (Delta > 5%) - 파란색 (반지름 15)
             humi_df = df_gps[df_gps['humi_diff'] > 5.0].copy()
-            humi_df['event_type'] = "💧 습도 급변"
+            humi_df['event_type'] = LANG_DICT[st.session_state.lang]['evt_humi']
             humi_df['icon'] = "💧"
             humi_layer = pdk.Layer(
                 "ScatterplotLayer",
@@ -416,7 +489,7 @@ while True:
 
             # 6. 현재 위치 레이어 (마지막 수신 위치) - 파란색 원형 마커 (반지름 30)
             current_df = df_gps.iloc[[-1]].copy()
-            current_df['event_type'] = "🚚 현재 위치"
+            current_df['event_type'] = LANG_DICT[st.session_state.lang]['evt_current']
             current_df['icon'] = "🚚"
             current_layer = pdk.Layer(
                 "ScatterplotLayer",
@@ -441,14 +514,20 @@ while True:
                 get_alignment_baseline="'center'",
             )
 
+            tooltip_text = (
+                "{event_type}\n시간: {timestamp}\n온도: {temperature}°C\n습도: {humidity}%\n충격: {g_force}G\n조도: {lux}lx" 
+                if st.session_state.lang == 'KO' else 
+                "{event_type}\nTime: {timestamp}\nTemp: {temperature}°C\nHumidity: {humidity}%\nImpact: {g_force}G\nLight: {lux}lx"
+            )
+
             map_container.pydeck_chart(pdk.Deck(
                 layers=[path_layer, shock_layer, light_layer, temp_layer, humi_layer, current_layer, icon_layer],
                 initial_view_state=view_state,
                 map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-                tooltip={"text": "{event_type}\n시간: {timestamp}\n온도: {temperature}°C\n습도: {humidity}%\n충격: {g_force}G\n조도: {lux}lx"}
+                tooltip={"text": tooltip_text}
             ))
         else:
-            map_container.info("GPS 수신 대기 중 (이동 경로를 표시하려면 위경도 데이터가 필요합니다)...")
+            map_container.info(LANG_DICT[st.session_state.lang]['gps_wait'])
 
         # 데이터프레임 변환
         df = pd.DataFrame(data_history).set_index('timestamp')
