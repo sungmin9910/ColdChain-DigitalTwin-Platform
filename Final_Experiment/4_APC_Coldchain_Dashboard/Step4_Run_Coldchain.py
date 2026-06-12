@@ -353,17 +353,17 @@ st.markdown("---")
 col_left, col_right = st.columns([1.2, 1])
 
 with col_left:
-    st.subheader(LANG_DICT[st.session_state.lang]['map_title'])
+    st.markdown(f"<h3 style='text-align: center; font-weight: bold;'>{LANG_DICT[st.session_state.lang]['map_title']}</h3>", unsafe_allow_html=True)
     map_container = st.empty()
     
-    st.subheader(LANG_DICT[st.session_state.lang]['chart_g_speed'])
+    st.markdown(f"<h3 style='text-align: center; font-weight: bold;'>{LANG_DICT[st.session_state.lang]['chart_g_speed']}</h3>", unsafe_allow_html=True)
     gforce_chart = st.empty()
 
 with col_right:
-    st.subheader(LANG_DICT[st.session_state.lang]['chart_lux'])
+    st.markdown(f"<h3 style='text-align: center; font-weight: bold;'>{LANG_DICT[st.session_state.lang]['chart_lux']}</h3>", unsafe_allow_html=True)
     lux_chart = st.empty()
 
-    st.subheader(LANG_DICT[st.session_state.lang]['chart_env'])
+    st.markdown(f"<h3 style='text-align: center; font-weight: bold;'>{LANG_DICT[st.session_state.lang]['chart_env']}</h3>", unsafe_allow_html=True)
     env_chart = st.empty()
     
     st.subheader(LANG_DICT[st.session_state.lang]['log_title'])
