@@ -338,8 +338,8 @@ with st.sidebar:
         time.sleep(1)
         st.rerun()
 
-st.title(LANG_DICT[st.session_state.lang]['page_title'])
-st.markdown(LANG_DICT[st.session_state.lang]['topic_running'].format(MQTT_TOPIC))
+st.markdown(f"<h1 style='text-align: center; font-size: 40px; font-weight: 800; margin-bottom: 5px;'>{LANG_DICT[st.session_state.lang]['page_title']}</h1>", unsafe_allow_html=True)
+st.markdown(f"<p style='text-align: center; font-size: 16px; margin-bottom: 20px; color: #515154;'>{LANG_DICT[st.session_state.lang]['topic_running'].format(MQTT_TOPIC)}</p>", unsafe_allow_html=True)
 
 # 상단 5대 지표 레이아웃
 m1, m2, m3, m4, m5 = st.columns(5)
@@ -353,26 +353,26 @@ speed_metric = m5.empty()
 col1_row1, col2_row1 = st.columns(2)
 
 with col1_row1:
-    st.markdown(f"<h3 style='text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['map_title']}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['map_title']}</h3>", unsafe_allow_html=True)
     map_container = st.empty()
 
 with col2_row1:
-    st.markdown(f"<h3 style='text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['chart_lux']}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['chart_lux']}</h3>", unsafe_allow_html=True)
     lux_chart = st.empty()
 
 # Row 2: 충격량/속도 차트 및 온습도 차트
 col1_row2, col2_row2 = st.columns(2)
 
 with col1_row2:
-    st.markdown(f"<h3 style='text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 10px; margin-top: 20px;'>{LANG_DICT[st.session_state.lang]['chart_g_speed']}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 10px; margin-top: 20px;'>{LANG_DICT[st.session_state.lang]['chart_g_speed']}</h3>", unsafe_allow_html=True)
     gforce_chart = st.empty()
 
 with col2_row2:
-    st.markdown(f"<h3 style='text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 10px; margin-top: 20px;'>{LANG_DICT[st.session_state.lang]['chart_env']}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 10px; margin-top: 20px;'>{LANG_DICT[st.session_state.lang]['chart_env']}</h3>", unsafe_allow_html=True)
     env_chart = st.empty()
 
 st.markdown("---")
-st.markdown(f"<h3 style='text-align: left; font-size: 24px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['log_title']}</h3>", unsafe_allow_html=True)
+st.markdown(f"<h3 style='text-align: left; font-size: 28px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['log_title']}</h3>", unsafe_allow_html=True)
 log_container = st.empty()
 
 # ----------------------------------------------------------------
