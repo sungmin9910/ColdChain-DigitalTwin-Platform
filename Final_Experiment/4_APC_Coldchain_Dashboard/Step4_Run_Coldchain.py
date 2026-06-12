@@ -529,7 +529,8 @@ while True:
                 layers=[path_layer, shock_layer, light_layer, temp_layer, humi_layer, current_layer, icon_layer],
                 initial_view_state=view_state,
                 map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-                tooltip={"text": tooltip_text}
+                tooltip={"text": tooltip_text},
+                height=400
             ))
         else:
             map_container.info(LANG_DICT[st.session_state.lang]['gps_wait'])
@@ -537,26 +538,28 @@ while True:
         # 데이터프레임 변환
         df = pd.DataFrame(data_history).set_index('timestamp')
         
-        # 최적화: 차트는 최근 100개의 데이터(약 100초)만 그려서 브라우저 렉 방지
-        df_chart = df.tail(100)
+        # 최적화: 차트는 최근 30개의 데이터(약 60초)만 그려서 브라우저 렉 방지 및 x축 가독성 증대
+        df_chart = df.tail(30).copy()
+        if not df_chart.empty:
+            df_chart.index = df_chart.index.map(lambda x: x.split(' ')[-1] if isinstance(x, str) and ' ' in x else x)
         
-        # 그래프들
+        # 그래프들 (높이를 400으로 설정하여 지도 크기와 맞춤)
         if 'temperature' in df_chart.columns and 'humidity' in df_chart.columns:
-            env_chart.line_chart(df_chart[['temperature', 'humidity']])
+            env_chart.line_chart(df_chart[['temperature', 'humidity']], height=400)
         elif 'temperature' in df_chart.columns:
-            env_chart.line_chart(df_chart['temperature'])
+            env_chart.line_chart(df_chart['temperature'], height=400)
         elif 'humidity' in df_chart.columns:
-            env_chart.line_chart(df_chart['humidity'])
+            env_chart.line_chart(df_chart['humidity'], height=400)
         
         if 'lux' in df_chart.columns:
-            lux_chart.area_chart(df_chart['lux'], color="#FFD700") # 금색 영역 차트
+            lux_chart.area_chart(df_chart['lux'], color="#FFD700", height=400) # 금색 영역 차트
             
         if 'g_force' in df_chart.columns and 'speed' in df_chart.columns:
-            gforce_chart.line_chart(df_chart[['g_force', 'speed']])
+            gforce_chart.line_chart(df_chart[['g_force', 'speed']], height=400)
         elif 'g_force' in df_chart.columns:
-            gforce_chart.line_chart(df_chart['g_force'])
+            gforce_chart.line_chart(df_chart['g_force'], height=400)
         elif 'speed' in df_chart.columns:
-            gforce_chart.line_chart(df_chart['speed'])
+            gforce_chart.line_chart(df_chart['speed'], height=400)
 
         # 로그
         log_container.dataframe(df.iloc[::-1].head(10), width="stretch")
