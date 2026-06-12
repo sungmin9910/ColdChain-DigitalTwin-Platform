@@ -348,22 +348,26 @@ lux_metric = m3.empty()
 gforce_metric = m4.empty()
 speed_metric = m5.empty()
 
-st.markdown("---")
+# Row 1: 지도 및 조도 차트
+col1_row1, col2_row1 = st.columns(2)
 
-col_left, col_right = st.columns(2)
-
-with col_left:
+with col1_row1:
     st.markdown(f"<h3 style='text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['map_title']}</h3>", unsafe_allow_html=True)
     map_container = st.empty()
-    
-    st.markdown(f"<h3 style='text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['chart_g_speed']}</h3>", unsafe_allow_html=True)
-    gforce_chart = st.empty()
 
-with col_right:
+with col2_row1:
     st.markdown(f"<h3 style='text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['chart_lux']}</h3>", unsafe_allow_html=True)
     lux_chart = st.empty()
 
-    st.markdown(f"<h3 style='text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['chart_env']}</h3>", unsafe_allow_html=True)
+# Row 2: 충격량/속도 차트 및 온습도 차트
+col1_row2, col2_row2 = st.columns(2)
+
+with col1_row2:
+    st.markdown(f"<h3 style='text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 10px; margin-top: 20px;'>{LANG_DICT[st.session_state.lang]['chart_g_speed']}</h3>", unsafe_allow_html=True)
+    gforce_chart = st.empty()
+
+with col2_row2:
+    st.markdown(f"<h3 style='text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 10px; margin-top: 20px;'>{LANG_DICT[st.session_state.lang]['chart_env']}</h3>", unsafe_allow_html=True)
     env_chart = st.empty()
 
 st.markdown("---")
