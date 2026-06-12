@@ -7,6 +7,7 @@ from datetime import datetime
 import queue
 import pydeck as pdk
 import pymysql
+import altair as alt
 
 # ----------------------------------------------------------------
 # 1. 설정 및 공유 자원 초기화
@@ -538,28 +539,86 @@ while True:
         # 데이터프레임 변환
         df = pd.DataFrame(data_history).set_index('timestamp')
         
-        # 최적화: 차트는 최근 30개의 데이터(약 60초)만 그려서 브라우저 렉 방지 및 x축 가독성 증대
-        df_chart = df.tail(30).copy()
-        if not df_chart.empty:
-            df_chart.index = df_chart.index.map(lambda x: x.split(' ')[-1] if isinstance(x, str) and ' ' in x else x)
+        # 차트용 데이터프레임 (최근 40개 데이터)
+        df_chart = df.tail(40).copy()
         
-        # 그래프들 (높이를 400으로 설정하여 지도 크기와 맞춤)
+        # 그래프들 (Altair를 사용하여 X축 수평 가독성 개선 및 Y축 고정 확대/축소 설정)
         if 'temperature' in df_chart.columns and 'humidity' in df_chart.columns:
-            env_chart.line_chart(df_chart[['temperature', 'humidity']], height=400)
+            df_reset = df_chart.reset_index()
+            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
+            df_long = df_reset.melt(id_vars=['timestamp'], value_vars=['temperature', 'humidity'], var_name='Metric', value_name='Value')
+            chart = alt.Chart(df_long).mark_line().encode(
+                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
+                y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title=None),
+                color=alt.Color('Metric:N', legend=alt.Legend(orient='bottom', title=None))
+            ).properties(
+                height=400
+            ).interactive(bind_y=False)
+            env_chart.altair_chart(chart, use_container_width=True)
         elif 'temperature' in df_chart.columns:
-            env_chart.line_chart(df_chart['temperature'], height=400)
+            df_reset = df_chart.reset_index()
+            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
+            chart = alt.Chart(df_reset).mark_line().encode(
+                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
+                y=alt.Y('temperature:Q', scale=alt.Scale(zero=False), title=None)
+            ).properties(
+                height=400
+            ).interactive(bind_y=False)
+            env_chart.altair_chart(chart, use_container_width=True)
         elif 'humidity' in df_chart.columns:
-            env_chart.line_chart(df_chart['humidity'], height=400)
+            df_reset = df_chart.reset_index()
+            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
+            chart = alt.Chart(df_reset).mark_line().encode(
+                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
+                y=alt.Y('humidity:Q', scale=alt.Scale(zero=False), title=None)
+            ).properties(
+                height=400
+            ).interactive(bind_y=False)
+            env_chart.altair_chart(chart, use_container_width=True)
         
         if 'lux' in df_chart.columns:
-            lux_chart.area_chart(df_chart['lux'], color="#FFD700", height=400) # 금색 영역 차트
+            df_reset = df_chart.reset_index()
+            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
+            chart = alt.Chart(df_reset).mark_area(color='#FFD700', opacity=0.8).encode(
+                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
+                y=alt.Y('lux:Q', scale=alt.Scale(zero=False), title=None)
+            ).properties(
+                height=400
+            ).interactive(bind_y=False)
+            lux_chart.altair_chart(chart, use_container_width=True)
             
         if 'g_force' in df_chart.columns and 'speed' in df_chart.columns:
-            gforce_chart.line_chart(df_chart[['g_force', 'speed']], height=400)
+            df_reset = df_chart.reset_index()
+            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
+            df_long = df_reset.melt(id_vars=['timestamp'], value_vars=['g_force', 'speed'], var_name='Metric', value_name='Value')
+            chart = alt.Chart(df_long).mark_line().encode(
+                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
+                y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title=None),
+                color=alt.Color('Metric:N', legend=alt.Legend(orient='bottom', title=None))
+            ).properties(
+                height=400
+            ).interactive(bind_y=False)
+            gforce_chart.altair_chart(chart, use_container_width=True)
         elif 'g_force' in df_chart.columns:
-            gforce_chart.line_chart(df_chart['g_force'], height=400)
+            df_reset = df_chart.reset_index()
+            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
+            chart = alt.Chart(df_reset).mark_line().encode(
+                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
+                y=alt.Y('g_force:Q', scale=alt.Scale(zero=False), title=None)
+            ).properties(
+                height=400
+            ).interactive(bind_y=False)
+            gforce_chart.altair_chart(chart, use_container_width=True)
         elif 'speed' in df_chart.columns:
-            gforce_chart.line_chart(df_chart['speed'], height=400)
+            df_reset = df_chart.reset_index()
+            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
+            chart = alt.Chart(df_reset).mark_line().encode(
+                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
+                y=alt.Y('speed:Q', scale=alt.Scale(zero=False), title=None)
+            ).properties(
+                height=400
+            ).interactive(bind_y=False)
+            gforce_chart.altair_chart(chart, use_container_width=True)
 
         # 로그
         log_container.dataframe(df.iloc[::-1].head(10), width="stretch")
