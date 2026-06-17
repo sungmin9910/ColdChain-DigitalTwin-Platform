@@ -24,14 +24,14 @@ wall = 2.5;         // Wall thickness
 clearance = 0.35;   // Snap-fit tolerances/clearance
 
 // [Head Part Dimensions]
-head_w = 48.0;      // Width
-head_l = 112.0;     // Length
-head_h = 36.0;      // Height
-split_z = 21.0;     // Horizontal split plane height
+head_w = 58.0;      // Width (increased from 48.0 for lateral wire channels)
+head_l = 142.0;     // Length (increased from 132.0 for longitudinal wire clearance)
+head_h = 50.0;      // Height (increased from 36.0 to clear vertical DuPont header pins)
+split_z = 25.0;     // Horizontal split plane height (increased from 21.0)
 
 // [Handle Part Dimensions]
-handle_base_d = 34.0; // Bottom diameter
-handle_top_d = 28.0;  // Top diameter
+handle_base_d = 38.0; // Bottom diameter
+handle_top_d = 30.0;  // Top diameter
 handle_h = 92.0;      // Handle height
 handle_angle = 18;    // Tilt angle (degrees)
 
@@ -58,8 +58,8 @@ module print_trigger() {
 }
 
 if (render_part == "assembly") {
-    color("DimGray") housing_left_half();
-    color("LightGray") housing_right_half();
+    color("DimGray", 0.5) housing_left_half();
+    color("LightGray", 0.5) housing_right_half();
     
     // Trigger Button (LightGray) in the handle trigger slot
     translate([head_w/2, head_l*0.6, wall])
@@ -67,6 +67,10 @@ if (render_part == "assembly") {
     translate([0, -handle_top_d/2 - 1, -20])
     rotate([90, 0, 0])
     color("OrangeRed") trigger_button();
+    
+    // Inside parts (semi-transparent assembly view)
+    all_head_electronics_assembly(is_exploded=false);
+    internal_electronics_assembly(is_exploded=false);
 }
 
 if (render_part == "exploded") {
@@ -84,19 +88,8 @@ if (render_part == "exploded") {
     color("OrangeRed") trigger_button();
     
     // Inside parts (slid for assembly view)
-    // GM77 Module (slid upwards)
-    translate([head_w/2, 27.0, wall + 6.75 + 15])
-    color("Green") gm77_mockup();
-    
-    // ESP32 Board (slid upwards)
-    translate([head_w/2, head_l - 32.0, wall + 6.5 + 20])
-    color("DarkSlateBlue") esp32_mockup();
-    
-    // OLED screen (slid upwards from lid)
-    translate([head_w/2, 55, 15 + split_z])
-    rotate([-12, 0, 0])
-    translate([0, 0, -5])
-    color("Cyan") oled_mockup();
+    all_head_electronics_assembly(is_exploded=true);
+    internal_electronics_assembly(is_exploded=true);
 }
 
 if (render_part == "print_all") {
@@ -120,6 +113,10 @@ if (render_part == "cross_section") {
             translate([0, -handle_top_d/2 - 1, -20])
             rotate([90, 0, 0])
             color("OrangeRed") trigger_button();
+            
+            // Inside parts
+            all_head_electronics_assembly(is_exploded=false);
+            internal_electronics_assembly(is_exploded=false);
         }
         // Slice the assembly in half at Y = head_l*0.6
         translate([-50, head_l*0.6, -120])
@@ -130,38 +127,48 @@ if (render_part == "cross_section") {
 // --- 1. Full Housing Solid Shell & Pockets ---
 module full_housing_solid() {
     union() {
-        // [A] Outer Shell (unified head wall)
+        // [A] Outer Shell (unified head wall + solid handle, hollowed together to eliminate joint gaps)
         difference() {
-            housing_shape(wall_thick=0);
+            union() {
+                housing_shape(wall_thick=0);
+                
+                // [F] Modular Handle (starts higher at Z_local = 12.0 to eliminate joint gaps)
+                translate([head_w/2, head_l*0.6, wall]) {
+                    rotate([handle_angle, 0, 0]) {
+                        hull() {
+                            handle_slice(12.0, 0.0, handle_top_d/2);
+                            handle_slice(-22, 1.2, 16.5);
+                            handle_slice(-45, -1.0, 16.0);
+                            handle_slice(-68, -2.5, 17.0);
+                            handle_slice(-handle_h, -4.5, handle_base_d/2); // Flared base
+                        }
+                    }
+                }
+            }
+            // Hollowing cut: cleans up any handle protrusion inside the head floor
             housing_shape(wall_thick=wall);
         }
         
-        // [B] OLED Bezel on top (recessed style, centered on V.A.)
-        translate([head_w/2, 55, split_z + 8])
-        rotate([-12, 0, 0])
-        translate([0, 4.57, 0])
-        difference() {
-            rounded_rect(23.5 + 6, 12.5 + 6, 3.5, 3, true);
-            translate([0, 0, 1]) rounded_rect(23.5 + 1.0, 12.5 + 1.0, 4, 1.5, true);
-        }
-        
-        // [C] OLED Pocket Holder & Screw Bosses
-        translate([head_w/2, 55, split_z])
-        rotate([-12, 0, 0])
-        translate([0, 0, -4.5]) {
-            pcb_pocket(oled_size[0], oled_size[1], support_h=4, pocket_depth=2, wall_t=1.8, clearance_t=clearance);
+        // [C] OLED Side Guides & Back Clamping Tabs (Screwless, 3mm below window, pin-avoiding)
+        // Local coord Z=0 is mount origin at head_h-7.5. Window inner surface ??Z=1.5.
+        // Support tab top at Z = 1.5 - 3.0 = -1.5 (3mm below window).
+        // Display (2.5mm thick) sits on tab: front face at Z = -1.5 + 2.5 = 1.0 (flush).
+        translate([head_w/2, 55, head_h - 7.5])
+        rotate([-12, 0, 0]) {
+            // Side guide walls (left and right) to keep PCB aligned in X
+            translate([-13.0 - clearance - 1.5, -13.5 - clearance, -5.0])
+            cube([1.5, 27.0 + 2*clearance, 6.5]);
+            translate([13.0 + clearance, -13.5 - clearance, -5.0])
+            cube([1.5, 27.0 + 2*clearance, 6.5]);
             
-            translate([0, 0, -2.0])
-            pcb_screw_bosses(22.0, 23.0, h=4.0, d_outer=5.0);
+            // Back clamping tabs - ONLY at -Y half to avoid pin header at +Y edge
+            // Two pads at left and right, Y range: -12.0 to -2.0 (safe zone)
+            // Tab top at Z = -1.5, bottom at Z = -5.0 (height 3.5mm)
+            translate([-14.0, -9.0, -5.0]) cube([10.0, 10.0, 3.5]);
+            translate([4.0, -9.0, -5.0])   cube([10.0, 10.0, 3.5]);
         }
         
-        // [D] ESP32 Pocket Holder & Screw Bosses
-        translate([head_w/2, head_l - 32.0, wall + 6.5]) {
-            pcb_pocket(esp32_size[0], esp32_size[1], support_h=10, pocket_depth=3, wall_t=2, clearance_t=clearance);
-        }
-        translate([head_w/2, head_l - 32.0, wall]) {
-            pcb_screw_bosses(23.5, 47.0, h=10.0, d_outer=6.0);
-        }
+        // [D] ESP32 Pocket Holder & Screw Bosses (REMOVED: Now using screwless esp32_clamping_pillars for wiring clearance)
         
         // [E] GM77 Pocket Holder & Screw Bosses
         translate([head_w/2, 27.0, wall + 6.75]) {
@@ -169,20 +176,6 @@ module full_housing_solid() {
         }
         translate([head_w/2, 27.6, wall]) {
             pcb_screw_bosses(24.6, 26.4, h=10.5, d_outer=5.0);
-        }
-
-        // [F] Modular Handle (S-Curve, merged directly)
-        translate([head_w/2, head_l*0.6, wall]) {
-            rotate([handle_angle, 0, 0]) {
-                // Curved hull body
-                hull() {
-                    handle_slice(0, 0.0, handle_top_d/2);
-                    handle_slice(-22, 1.2, 15.5);
-                    handle_slice(-45, -1.0, 15.0);
-                    handle_slice(-68, -2.5, 16.0);
-                    handle_slice(-handle_h, -4.5, 18.5); // Flared base
-                }
-            }
         }
     }
 }
@@ -202,22 +195,15 @@ module full_housing_cuts() {
         translate([-1, 40 + i*8, 16]) rotate([0, 90, 0]) cylinder(h=head_w+10, d=2.2, center=true);
     }
 
-    // [D] OLED Window cutout (aligned to 22.74x11.86 V.A.)
-    translate([head_w/2, 55, split_z + 2])
+    // [D] OLED Window cutout (aligned to 25.0x15.0 active area)
+    translate([head_w/2, 55, head_h - 6.0])
     rotate([-12, 0, 0])
     translate([0, 4.57, 0])
-    rounded_rect(23.5, 12.5, 50, 2, true);
+    rounded_rect(25.0, 15.0, 50, 2, true);
     
-    // [E] OLED Screw holes (2.0mm self-tapping)
-    translate([head_w/2, 55, split_z])
-    rotate([-12, 0, 0])
-    translate([0, 0, -8])
-    oled_screw_holes(h=10, d_inner=2.0);
+    // [E] OLED Screw holes (REMOVED: Now using screwless back-clamp design)
 
-    // [F] ESP32 Screw holes (3.0mm self-tapping)
-    translate([head_w/2, head_l - 32.0, wall - 1]) {
-        esp32_screw_holes(h=20, d_inner=3.0);
-    }
+    // [F] ESP32 Screw holes (REMOVED: Now using screwless slide-in clamping pillars)
     
     // [G] GM77 Screw holes (2.0mm self-tapping)
     translate([head_w/2, 27.6, wall - 1]) {
@@ -236,11 +222,14 @@ module full_housing_cuts() {
         }
     }
 
-    // [I] Battery Room (Closed at bottom, opens into head)
+    // [I] Hollow Handle Interior (leaves 3mm bottom wall)
     translate([head_w/2, head_l*0.6, wall])
     rotate([handle_angle, 0, 0])
-    translate([0, 0, -handle_h + 3.0]) // leaves 3mm bottom wall
-    cylinder(h=handle_h + 10, d=battery_diam);
+    handle_interior();
+
+    // [I.2] Clean vertical wire entry through head floor into handle (removes sloped lip)
+    translate([head_w/2, head_l*0.6 - 2.0, 0.0])
+    cylinder(h=25.0, d=22.0, center=true);
 
     // [J] USB Type-C cutout at the bottom wall of the handle
     translate([head_w/2, head_l*0.6, wall])
@@ -261,17 +250,17 @@ module full_housing_cuts() {
     // [L] Slide Switch Cutout on the left side (-X) near the bottom
     translate([head_w/2, head_l*0.6, wall])
     rotate([handle_angle, 0, 0]) {
-        translate([-18.0 + 2.5, 0, -handle_h + 16.0])
+        translate([-20.0 + 2.5, 0, -handle_h + 16.0])
         cube([5.0, 10.0, 20.0], center=true);
         
-        translate([-18.0, 0, -handle_h + 16.0])
+        translate([-20.0, 0, -handle_h + 16.0])
         cube([15.0, 4.0, 9.0], center=true);
         
-        translate([-25.0, 0, -handle_h + 16.0 - 7.5])
+        translate([-27.0, 0, -handle_h + 16.0 - 7.5])
         rotate([0, 90, 0])
         cylinder(h=15.0, d=2.0);
         
-        translate([-25.0, 0, -handle_h + 16.0 + 7.5])
+        translate([-27.0, 0, -handle_h + 16.0 + 7.5])
         rotate([0, 90, 0])
         cylinder(h=15.0, d=2.0);
     }
@@ -286,49 +275,49 @@ module full_housing_cuts() {
 // --- 3. Split Half Modules ---
 
 head_screw_boss_points = [
-    [12, 31],
-    [12, 5],
-    [90, 27],
-    [95, 5]
+    [12, 31] // Keep only one screw hole at the front-upper corner
 ];
 
 module join_screw_boss(y, z, is_left) {
     boss_r = 4.5; // boss radius (9.0mm diameter)
     boss_w = 7.0; // extends 7mm into each side
+    split_x = head_w/2;
     
     if (is_left) {
-        translate([24 - boss_w, y, z])
+        translate([split_x - split_x, y, z]) // starts at X = 0
         rotate([0, 90, 0])
-        cylinder(h=boss_w, r=boss_r);
+        cylinder(h=split_x, r=boss_r);
     } else {
-        translate([24, y, z])
+        translate([split_x, y, z])
         rotate([0, 90, 0])
-        cylinder(h=boss_w, r=boss_r);
+        cylinder(h=split_x, r=boss_r); // spans from split_x to head_w
     }
 }
 
 module left_half_holes() {
+    split_x = head_w/2;
     for (pt = head_screw_boss_points) {
         y = pt[0];
         z = pt[1];
         // Clearance hole (3.2mm)
-        translate([-10, y, z])
+        translate([split_x - 34.0, y, z])
         rotate([0, 90, 0])
         cylinder(h=34.2, d=3.2);
         
-        // Counterbore (6.0mm diameter) ending at X = 18
-        translate([-10, y, z])
+        // Counterbore (6.0mm diameter) ending at X = split_x - 6.0
+        translate([split_x - 34.0, y, z])
         rotate([0, 90, 0])
         cylinder(h=28.0, d=6.0);
     }
 }
 
 module right_half_holes() {
+    split_x = head_w/2;
     for (pt = head_screw_boss_points) {
         y = pt[0];
         z = pt[1];
         // Pilot hole (2.5mm)
-        translate([23.9, y, z])
+        translate([split_x - 0.1, y, z])
         rotate([0, 90, 0])
         cylinder(h=8.2, d=2.5);
     }
@@ -336,24 +325,24 @@ module right_half_holes() {
 
 module handle_bosses(is_left) {
     boss_r = 4.0;
-    boss_w = 6.0;
     local_points = [
-        [14, -30],
-        [15, -75]
+        [14, -30, 16.2],
+        [15, -75, 17.5]
     ];
     
     for (pt = local_points) {
         y = pt[0];
-        z = pt[1];
+        z_val = pt[1];
+        r_val = pt[2];
         rotate([handle_angle, 0, 0]) {
             if (is_left) {
-                translate([-boss_w, y, z])
+                translate([-r_val, y, z_val])
                 rotate([0, 90, 0])
-                cylinder(h=boss_w, r=boss_r);
+                cylinder(h=r_val, r=boss_r);
             } else {
-                translate([0, y, z])
+                translate([0, y, z_val])
                 rotate([0, 90, 0])
-                cylinder(h=boss_w, r=boss_r);
+                cylinder(h=r_val, r=boss_r);
             }
         }
     }
@@ -361,50 +350,108 @@ module handle_bosses(is_left) {
 
 module handle_boss_holes(is_left) {
     local_points = [
-        [14, -30],
-        [15, -75]
+        [14, -30, 16.2],
+        [15, -75, 17.5]
     ];
     rotate([handle_angle, 0, 0]) {
         for (pt = local_points) {
             y = pt[0];
-            z = pt[1];
+            z_val = pt[1];
+            r_val = pt[2];
             if (is_left) {
                 // Clearance hole
-                translate([-30, y, z])
+                translate([-r_val - 1.0, y, z_val])
                 rotate([0, 90, 0])
-                cylinder(h=30.1, d=3.2);
+                cylinder(h=r_val + 1.1, d=3.2);
                 
                 // Counterbore
-                translate([-30, y, z])
+                translate([-r_val - 1.0, y, z_val])
                 rotate([0, 90, 0])
-                cylinder(h=25, d=6.0);
+                cylinder(h=r_val - 4.0, d=6.0); // leaves a 5.0mm thick wall
             } else {
                 // Pilot hole
-                translate([-0.1, y, z])
+                translate([-0.1, y, z_val])
                 rotate([0, 90, 0])
-                cylinder(h=7.0, d=2.5);
+                cylinder(h=8.0, d=2.5);
             }
         }
     }
 }
 
 module alignment_pins(is_left) {
+    split_x = head_w/2;
     pin_points = [
         [15, 20],
-        [50, 4],
-        [100, 20]
+        [55, 4],
+        [130, 20]
     ];
     for (pt = pin_points) {
         y = pt[0];
         z = pt[1];
         if (is_left) {
-            translate([24, y, z])
+            translate([split_x, y, z])
             rotate([0, 90, 0])
             cylinder(h=2.0, d=1.8);
         } else {
-            translate([23.9, y, z])
+            translate([split_x - 0.1, y, z])
             rotate([0, 90, 0])
             cylinder(h=2.2, d=2.2);
+        }
+    }
+}
+
+module handle_interior() {
+    hull() {
+        handle_slice(0.1, 0.0, handle_top_d/2 - 2.5);
+        handle_slice(-22, 1.2, 16.5 - 2.5);
+        handle_slice(-45, -1.0, 16.0 - 2.5);
+        handle_slice(-68, -2.5, 17.0 - 2.5);
+        handle_slice(-handle_h + 3.0, -4.5, handle_base_d/2 - 2.5);
+    }
+}
+
+module battery_ribs(is_left) {
+    for (z_pos = [-25, -60]) {
+        translate([0, 0, z_pos]) {
+            difference() {
+                cylinder(h=4.0, d=28.0, center=true);
+                cylinder(h=5.0, d=battery_diam + 0.4, center=true);
+                if (is_left) {
+                    translate([50, 0, 0]) cube([100, 100, 10], center=true);
+                } else {
+                    translate([-50, 0, 0]) cube([100, 100, 10], center=true);
+                }
+                translate([0, -25, 0]) cube([50, 50, 10], center=true);
+            }
+        }
+    }
+}
+
+module esp32_clamping_pillars(is_left) {
+    y_center = head_l - 32.0;
+    x_pcb_half = 15.0;  // ESP32 width 30.0
+    y_pcb_half = 25.25; // ESP32 length 56.5
+    pillar_l = 8.0;
+    pillar_h = 12.0;   // Lowered to 12.0 for wire clearance, slots sit at Z = 4.5 to 6.5
+    
+    y_corners = [y_center - y_pcb_half, y_center + y_pcb_half];
+    for (y_pos = y_corners) {
+        if (is_left) {
+            translate([head_w/2 - x_pcb_half - 2.0, y_pos - pillar_l/2, wall]) {
+                difference() {
+                    cube([6.0, pillar_l, pillar_h]);
+                    // Slot for PCB
+                    translate([4.0, -0.1, 4.5]) cube([2.1, pillar_l + 0.2, 2.0]);
+                }
+            }
+        } else {
+            translate([head_w/2 + x_pcb_half - 4.0, y_pos - pillar_l/2, wall]) {
+                difference() {
+                    cube([6.0, pillar_l, pillar_h]);
+                    // Slot for PCB
+                    translate([-0.1, -0.1, 4.5]) cube([2.1, pillar_l + 0.2, 2.0]);
+                }
+            }
         }
     }
 }
@@ -414,7 +461,7 @@ module housing_left_half() {
         union() {
             intersection() {
                 full_housing_solid();
-                translate([-100, -50, -150]) cube([124, 300, 300]);
+                translate([-100, -50, -150]) cube([100 + head_w/2, 300, 300]);
             }
             
             for (pt = head_screw_boss_points) {
@@ -425,6 +472,13 @@ module housing_left_half() {
             handle_bosses(true);
             
             alignment_pins(true);
+            
+            translate([head_w/2, head_l*0.6, wall])
+            rotate([handle_angle, 0, 0])
+            battery_ribs(true);
+            
+            // Add screwless clamping slots for ESP32 on the left side
+            esp32_clamping_pillars(true);
         }
         
         full_housing_cuts();
@@ -434,13 +488,13 @@ module housing_left_half() {
         handle_boss_holes(true);
     }
 }
-
+ 
 module housing_right_half() {
     difference() {
         union() {
             intersection() {
                 full_housing_solid();
-                translate([24, -50, -150]) cube([124, 300, 300]);
+                translate([head_w/2, -50, -150]) cube([100, 300, 300]);
             }
             
             for (pt = head_screw_boss_points) {
@@ -449,6 +503,13 @@ module housing_right_half() {
             
             translate([head_w/2, head_l*0.6, wall])
             handle_bosses(false);
+            
+            translate([head_w/2, head_l*0.6, wall])
+            rotate([handle_angle, 0, 0])
+            battery_ribs(false);
+            
+            // Add screwless clamping slots for ESP32 on the right side
+            esp32_clamping_pillars(false);
         }
         
         full_housing_cuts();
@@ -480,8 +541,8 @@ module housing_shape(wall_thick=0) {
     hull() {
         slice(y_front, head_w, head_h, 10, wall_thick);
         slice(head_l * 0.35, head_w + 2, head_h + 2, 12, wall_thick);
-        slice(head_l * 0.70, head_w * 0.9, head_h * 0.9, 10, wall_thick);
-        slice(y_rear, head_w * 0.78, head_h * 0.78, 8, wall_thick);
+        slice(head_l * 0.70, head_w * 1.0, head_h * 1.0, 10, wall_thick); // Relaxed rear casing taper (0.9 -> 1.0)
+        slice(y_rear, head_w * 0.95, head_h * 0.95, 8, wall_thick);      // Relaxed rear casing taper (0.78 -> 0.95)
     }
 }
 
@@ -582,5 +643,121 @@ module rounded_rect(w, h, depth, r, centered=true) {
         linear_extrude(height=depth, center=true)
         offset(r=r)
         square([w-r*2, h-r*2], center=true);
+    }
+}
+
+// --- New Mockup Modules (Battery, TP4056, Step-up, Switch) & Assemblies ---
+
+module battery_mockup() {
+    color("LimeGreen") {
+        // Battery Body (18.4 diameter, 65 length)
+        cylinder(h=65, d=18.4, center=true);
+        // Plus Terminal Tab
+        translate([0, 0, 32.5])
+        cylinder(h=1.5, d=9.0, center=true);
+    }
+}
+
+module tp4056_mockup() {
+    // PCB (19.0 x 25.0 x 1.6)
+    color("Green")
+    cube([19.0, 1.6, 25.0], center=true);
+    
+    // Type-C USB Port (Silver, 9.0 x 3.2 x 5.0)
+    color("Silver")
+    translate([0, 0, -12.5])
+    cube([9.0, 3.2, 5.0], center=true);
+}
+
+module stepup_mockup() {
+    // PCB (12.0 x 18.0 x 1.6)
+    color("DarkCyan")
+    cube([12.0, 1.6, 18.0], center=true);
+    
+    // Blue Potentiometer (4.0 x 4.0 x 4.0)
+    color("Blue")
+    translate([-3.0, 0.8 + 2.0, 5.0])
+    cube([4.0, 4.0, 4.0], center=true);
+    
+    // Potentiometer brass screw
+    color("Gold")
+    translate([-3.0, 0.8 + 4.0, 5.0])
+    rotate([90, 0, 0])
+    cylinder(h=1.0, d=1.5, center=true);
+    
+    // Black Inductor (5.0 x 5.0 x 3.0)
+    color("Black")
+    translate([2.0, 0.8 + 1.5, -2.0])
+    cube([5.0, 5.0, 3.0], center=true);
+}
+
+module switch_mockup() {
+    // Main Body
+    color("Gray")
+    cube([6.0, 10.0, 14.0], center=true);
+    
+    // Toggle Lever (extending along -X)
+    color("Black")
+    translate([-5.0, 0, 0])
+    cube([6.0, 2.0, 3.0], center=true);
+    
+    // Terminal Pins
+    color("Silver") {
+        translate([0, 0, -8.0]) {
+            translate([0, -3.0, 0]) cylinder(h=3.0, d=0.8, center=true);
+            translate([0, 0, 0])    cylinder(h=3.0, d=0.8, center=true);
+            translate([0, 3.0, 0])  cylinder(h=3.0, d=0.8, center=true);
+        }
+    }
+}
+
+module all_head_electronics_assembly(is_exploded=false) {
+    gm77_offset = is_exploded ? 15 : 0;
+    esp32_offset = is_exploded ? 20 : 0;
+    oled_offset = is_exploded ? 15 : 0;
+    
+    // GM77
+    translate([head_w/2, 27.0, wall + 6.75 + gm77_offset])
+    color("Green") gm77_mockup();
+    
+    // ESP32 (lowered by 3.5mm from wall + 6.5 to wall + 5.3)
+    translate([head_w/2, head_l - 32.0, wall + 5.3 + esp32_offset])
+    color("DarkSlateBlue") esp32_mockup();
+    
+    // OLED (PCB bottom rests on tab top at Z_local = -1.5, PCB center at Z_local = -0.9)
+    translate([head_w/2, 55, oled_offset + head_h - 7.5])
+    rotate([-12, 0, 0])
+    translate([0, 0, -0.9])
+    color("Cyan") oled_mockup();
+}
+
+module internal_electronics_assembly(is_exploded=false) {
+    // Coordinate system of the handle:
+    // translate([head_w/2, head_l*0.6, wall]) rotate([handle_angle, 0, 0])
+    
+    // Exploded offsets
+    bat_offset = is_exploded ? [0, 0, 25] : [0, 0, 0];
+    tp_offset = is_exploded ? [0, 0, -25] : [0, 0, 0];
+    su_offset = is_exploded ? [0, 25, 0] : [0, 0, 0];
+    sw_offset = is_exploded ? [-25, 0, 0] : [0, 0, 0];
+    
+    translate([head_w/2, head_l*0.6, wall]) {
+        rotate([handle_angle, 0, 0]) {
+            // 1. Battery
+            translate([0, 0, -34.5] + bat_offset)
+            battery_mockup();
+            
+            // 2. TP4056 USB Charger
+            translate([0, 0, -79.5] + tp_offset)
+            tp4056_mockup();
+            
+            // 3. MT3608 Step-up Module
+            translate([0, 8.0, -83.0] + su_offset)
+            stepup_mockup();
+            
+            // 4. Slide Switch
+            translate([-17.5, 0, -76.0] + sw_offset)
+            switch_mockup();
+        }
     }
 }
