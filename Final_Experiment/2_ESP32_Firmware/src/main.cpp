@@ -22,7 +22,8 @@ char db[] = "lab225";
 #define SCANNER_TX_PIN 33 // QR 스캐너의 RX 선 연결
 #define BUTTON_PIN 0      // 백업용: ESP32 기본 BOOT 버튼
 #define SCAN_TRIGGER_PIN 25 // 메인: 스캔 및 단계 변경용 단일 택트 스위치
-const byte triggerCmd[] = {0x7E, 0x00, 0x08, 0x01, 0x00, 0x02, 0x01, 0xAB, 0xCD};
+const byte triggerCmd[] = {0x04, 0xE4, 0x04, 0x00, 0xFF, 0x14}; // GM77용 START_DECODE 명령어
+const byte setHostModeCmd[] = {0x07, 0xC6, 0x04, 0x08, 0x00, 0x8A, 0x08, 0xFE, 0x95}; // GM77 호스트 모드 설정 명령어
 
 // OLED용 I2C 핀 및 크기 설정
 #define OLED_SDA_PIN 21
@@ -160,6 +161,12 @@ void setup() {
   Serial.println("Current Mode: " + currentMode);
   Serial.println("버튼(GPIO 0)을 누르거나 스마트폰 웹페이지(http://" + WiFi.localIP().toString() + ")에서 단계를 변경하세요.");
   Serial.println("==========================================");
+
+  // 스캐너를 호스트 모드로 자동 전환 시도
+  ScannerSerial.write(0x00);
+  delay(50);
+  ScannerSerial.write(setHostModeCmd, sizeof(setHostModeCmd));
+  delay(100);
 
   updateOLED("System Ready");
 }
