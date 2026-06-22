@@ -2,6 +2,9 @@
 #include <WiFi.h>
 #include <WiFiMulti.h>
 #include <WebServer.h> // 스마트폰 리모컨용 웹서버
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #define USE_ESP32_WIFI true
 #include <MySQL_Generic.h>
 
@@ -20,6 +23,14 @@ char db[] = "lab225";
 #define BUTTON_PIN 0      // 백업용: ESP32 기본 BOOT 버튼
 #define SCAN_TRIGGER_PIN 25 // 메인: 스캔 및 단계 변경용 단일 택트 스위치
 const byte triggerCmd[] = {0x7E, 0x00, 0x08, 0x01, 0x00, 0x02, 0x01, 0xAB, 0xCD};
+
+// OLED용 I2C 핀 및 크기 설정
+#define OLED_SDA_PIN 21
+#define OLED_SCL_PIN 22
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // 객체 명시적 생성
 HardwareSerial ScannerSerial(2);
@@ -49,6 +60,40 @@ void handleRoot() {
   server.send(200, "text/html", html);
 }
 
+// --- OLED 업데이트 함수 ---
+void updateOLED(String msg = "") {
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  
+  // 상단: IP 주소 및 상태
+  display.setCursor(0, 0);
+  if (WiFi.status() == WL_CONNECTED) {
+    display.print("WiFi: OK ");
+    display.println(WiFi.localIP());
+  } else {
+    display.println("WiFi: Disconnected");
+  }
+
+  // 중단: 현재 모드 아주 크게 표시
+  display.setCursor(0, 16);
+  display.setTextSize(1);
+  display.println("Current Mode:");
+  
+  display.setCursor(0, 28);
+  display.setTextSize(3);
+  display.println(currentMode);
+
+  // 하단: 추가 메시지 (스캔 성공, DB 저장 등)
+  if (msg != "") {
+    display.setCursor(0, 54);
+    display.setTextSize(1);
+    display.println(msg);
+  }
+
+  display.display();
+}
+
 void handleNext() {
   if (currentMode == "A10") currentMode = "A11";
   else if (currentMode == "A11") currentMode = "A13";
@@ -57,6 +102,7 @@ void handleNext() {
   else if (currentMode == "A15") currentMode = "A10";
   
   Serial.println("\n📱 폰에서 모드 변경됨 -> " + currentMode);
+  updateOLED("Mode Changed via Web");
   
   server.sendHeader("Location", "/");
   server.send(303);
@@ -64,9 +110,21 @@ void handleNext() {
 
 void setup() {
   Serial.begin(115200);
+
+  // OLED 초기화
+  Wire.begin(OLED_SDA_PIN, OLED_SCL_PIN);
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println(F("SSD1306 allocation failed"));
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 20);
+  display.println("Booting System...");
+  display.display();
   
-  // 시리얼 초기화
-  ScannerSerial.begin(115200, SERIAL_8N1, SCANNER_RX_PIN, SCANNER_TX_PIN);
+  // 시리얼 초기화 (GM77 기본 속도인 9600bps로 변경)
+  ScannerSerial.begin(9600, SERIAL_8N1, SCANNER_RX_PIN, SCANNER_TX_PIN);
   
   // 버튼을 입력용으로 설정 (내부 풀업)
   pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -102,6 +160,8 @@ void setup() {
   Serial.println("Current Mode: " + currentMode);
   Serial.println("버튼(GPIO 0)을 누르거나 스마트폰 웹페이지(http://" + WiFi.localIP().toString() + ")에서 단계를 변경하세요.");
   Serial.println("==========================================");
+
+  updateOLED("System Ready");
 }
 
 // URL 파라미터 파싱
@@ -162,6 +222,7 @@ void processScan(String rawData) {
   String rp = getQueryParam(rawData, "Rp");
 
   // 3. DB 접속 및 처리
+  updateOLED("Connecting DB...");
   Serial.println("Connecting to AWS RDS...");
   if (conn.connect(server_addr, db_port, user, password_db)) {
     Serial.println("✅ AWS DB Connection Success!");
@@ -212,14 +273,17 @@ void processScan(String rawData) {
 
     if (query_executor.execute(query.c_str())) {
       Serial.println("✅ DB 저장 성공! (최신 센서 데이터 자동 병합 완료)");
+      updateOLED("DB Save OK!");
     } else {
       Serial.println("❌ DB 저장 실패: 쿼리 오류 또는 이전 단계 데이터 없음");
+      updateOLED("DB Save FAIL!");
     }
     conn.close();
   } else {
     Serial.println("❌ DB 연결 실패 (AWS)");
     Serial.println("힌트1: AWS RDS 보안 그룹에서 현재 IP(" + WiFi.localIP().toString() + ")의 3306 포트를 허용했는지 확인하세요.");
     Serial.println("힌트2: AWS RDS의 '퍼블릭 액세스' 설정이 '예'로 되어있는지 확인하세요.");
+    updateOLED("DB Conn FAIL!");
   }
 }
 
@@ -261,6 +325,7 @@ void loop() {
       else if (currentMode == "A15") currentMode = "A10";
       
       Serial.println("\n🔘 더블 클릭: 스캔 단계가 " + currentMode + "(으)로 변경되었습니다.");
+      updateOLED("Mode Changed");
     }
     triggerClickCount = 0; // 카운트 리셋
   }
@@ -274,6 +339,7 @@ void loop() {
     else if (currentMode == "A15") currentMode = "A10";
     
     Serial.println("\n🔘 백업 BOOT 버튼 눌림 - 스캔 단계가 " + currentMode + "(으)로 변경되었습니다.");
+    updateOLED("Mode Changed");
     lastButtonPress = millis();
   }
 
@@ -283,6 +349,7 @@ void loop() {
     scannedData.trim();
     if (scannedData.length() > 0) {
       Serial.println("\n📷 스캔된 데이터: " + scannedData);
+      updateOLED("Scanned!");
       processScan(scannedData);
     }
   }
