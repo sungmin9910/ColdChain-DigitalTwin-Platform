@@ -1,6 +1,6 @@
 $scadFile = "14_qr_scanner_housing_final.scad"
 $openscad = "C:\Program Files\OpenSCAD\openscad.com"
-$brainDir = "C:\Users\korea\.gemini\antigravity-ide\brain\aa972bd4-a6cb-4651-b0b7-8cb735838b17"
+$brainDir = "C:\Users\yuyub\.gemini\antigravity-ide\brain\af630d10-bfff-4c68-818b-41c3f32adf42"
 
 Write-Host "Rendering V14.0 Final Handheld Scanner 3D preview images..."
 

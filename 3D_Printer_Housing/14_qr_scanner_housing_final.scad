@@ -261,7 +261,7 @@ module housing_right_half() {
             translate([head_w/2, 27.0, wall + 6.75]) {
                 difference() {
                     // Right half of pocket body
-                    translate([0, 0, 0])
+                    translate([(gm77_size[0]/2 + clearance + 2.5)/2, 0, 0])
                     cube([gm77_size[0]/2 + clearance + 2.5, gm77_size[1] + 2*clearance + 5.0, 13.5], center=true);
                     
                     // Inner cavity cut
@@ -291,7 +291,7 @@ module housing_right_half() {
                     // Slide slot cutout (open on the left -X side, and back +Y side)
                     // Slot Z is relative Z: 2.9 to 4.8 above wall (Z_abs: 5.4 to 7.3)
                     // Slot Y is relative Y: 2.8 to 57.8
-                    // Slot X is relative X: -0.2 to 3.0 (글로벌 X: 39.9?�서 43.1까�?)
+                    // Slot X is relative X: -0.2 to 3.0 (湲濡쒕�?X: 39.9??�쎌�?43.1源뚳??)
                     translate([-0.2, 2.8, 2.9])
                     cube([3.2, 55.0, 1.9]); 
                 }
@@ -365,7 +365,7 @@ module full_housing_cuts() {
     // Width (X-axis) expanded to head_w + 10.0 (68.0mm) to completely pierce both outer walls.
     translate([head_w/2, 2.0, wall + 6.75])
     rotate([90, 0, 0])
-    rounded_rect(head_w + 10.0, 11.5, 20.0, 1.5, true);
+    rounded_rect(26.0, 11.5, 20.0, 1.5, true);
 
     // OLED Flat Outer Bezel Cut (Flattening the top dome surface)
     // We shave off the rounded dome above Z = 49.5mm in the OLED window zone.
@@ -380,8 +380,8 @@ module full_housing_cuts() {
 
     // Rear USB slot for programming ESP32
     // Lowered Z coordinate to match the lowered ESP32 position (Z_pcb = 5.5mm)
-    translate([head_w/2 - 6.5, head_l - 10.0, wall + 3.0])
-    cube([13.0, 15.0, 8.5]);
+    translate([head_w/2 - 6.5, head_l - 10.0, 1.0])
+    cube([13.0, 15.0, 9.5]);
 
     // Ventilation Slots on Head Sides
     for(i=[0:3]) {
@@ -934,3 +934,4 @@ module rounded_rect(w, h, depth, r, centered=true) {
         square([w-r*2, h-r*2], center=true);
     }
 }
+
