@@ -30,16 +30,16 @@ head_h = 50.0;      // Height (increased from 36.0 to clear vertical DuPont head
 split_z = 25.0;     // Horizontal split plane height (increased from 21.0)
 
 // [Handle Part Dimensions]
-handle_base_d = 38.0; // Bottom diameter
-handle_top_d = 30.0;  // Top diameter
-handle_h = 92.0;      // Handle height
+handle_base_d = 40.0; // Bottom diameter (increased from 38.0 for better grip/space)
+handle_top_d = 32.0;  // Top diameter (increased from 30.0)
+handle_h = 105.0;     // Handle height (increased from 92.0)
 handle_angle = 18;    // Tilt angle (degrees)
 
 // [Component Sizes]
 gm77_size = [27.5, 49.0, 14.0];  // GM77 QR Module
-esp32_size = [30.0, 56.5, 15.0]; // ESP32 board
+esp32_size = [28.2, 51.5, 15.0]; // ESP32 board (corrected to fit standard DevKit V1 30-pin)
 oled_size = [26.0, 27.0, 1.2];   // SSD1306 OLED PCB size
-battery_diam = 19.2;             // HY18650-2200 bare cell with clearance (18.4mm nominal)
+battery_diam = 18.5;             // 18650 nominal diameter (clearance is added in the clamp code)
 
 // --- Main Control ---
 render_part = "exploded"; // assembly, exploded, print_all, left_half, right_half, cross_section, trigger
@@ -163,9 +163,9 @@ module full_housing_solid() {
             
             // Back clamping tabs - ONLY at -Y half to avoid pin header at +Y edge
             // Two pads at left and right, Y range: -12.0 to -2.0 (safe zone)
-            // Tab top at Z = -1.5, bottom at Z = -5.0 (height 3.5mm)
-            translate([-14.0, -9.0, -5.0]) cube([10.0, 10.0, 3.5]);
-            translate([4.0, -9.0, -5.0])   cube([10.0, 10.0, 3.5]);
+            // Tab top at Z = -1.0, bottom at Z = -5.0 (height 4.0mm) to seat OLED flush against front window
+            translate([-14.0, -9.0, -5.0]) cube([10.0, 10.0, 4.0]);
+            translate([4.0, -9.0, -5.0])   cube([10.0, 10.0, 4.0]);
         }
         
         // [D] ESP32 Pocket Holder & Screw Bosses (REMOVED: Now using screwless esp32_clamping_pillars for wiring clearance)
@@ -210,15 +210,15 @@ module full_housing_cuts() {
         gm77_screw_holes(h=20, d_inner=2.0);
     }
 
-    // [H] Handle Finger Grooves
+    // [H] Handle Finger Grooves (Adjusted to prevent breakthrough holes in front handle wall)
     for (z_pos = [-35, -55, -75]) {
-        let (y_val = (z_pos == -35) ? -14.2 :
-                     (z_pos == -55) ? -15.5 : -17.5) {
+        let (y_val = (z_pos == -35) ? -16.2 :
+                     (z_pos == -55) ? -17.5 : -19.5) {
             translate([head_w/2, head_l*0.6, wall])
             rotate([handle_angle, 0, 0])
             translate([0, y_val, z_pos])
             rotate([0, 90, 0])
-            cylinder(h=handle_base_d + 10, d=8.5, center=true);
+            cylinder(h=handle_base_d + 10, d=6.5, center=true);
         }
     }
 
@@ -235,9 +235,12 @@ module full_housing_cuts() {
     translate([head_w/2, head_l*0.6, wall])
     rotate([handle_angle, 0, 0])
     translate([0, 0, -handle_h]) {
-        cube([11.0, 6.0, 10.0], center=true);
-        translate([0, 0, 0.5])
-        cube([14.5, 8.5, 2.0], center=true);
+        // Inner port hole (fitting Type-C metal shroud: ~9.0 x 3.2 mm)
+        translate([0, 0, 3.0]) // cut through the 3mm bottom floor
+            cube([9.6, 3.8, 6.0], center=true);
+        // Outer counterbore (fitting USB cable plug overmold: ~13.0 x 6.8 mm)
+        translate([0, 0, 1.0])
+            cube([13.0, 6.8, 2.5], center=true);
     }
 
     // [K] Trigger Button Hole through handle wall
@@ -411,26 +414,95 @@ module handle_interior() {
 }
 
 module battery_ribs(is_left) {
-    for (z_pos = [-25, -60]) {
-        translate([0, 0, z_pos]) {
+    D_bat = battery_diam + 0.3; // ~18.8mm inner diameter for battery clamp
+    D_outer = D_bat + 4.5;      // ~23.3mm outer diameter
+    
+    // Left clamp at Z = -35
+    if (is_left) {
+        translate([0, 0, -35]) {
             difference() {
-                cylinder(h=4.0, d=28.0, center=true);
-                cylinder(h=5.0, d=battery_diam + 0.4, center=true);
-                if (is_left) {
-                    translate([50, 0, 0]) cube([100, 100, 10], center=true);
-                } else {
-                    translate([-50, 0, 0]) cube([100, 100, 10], center=true);
-                }
-                translate([0, -25, 0]) cube([50, 50, 10], center=true);
+                // Outer ring
+                cylinder(h=6.0, d=D_outer, center=true);
+                // Inner battery slot
+                cylinder(h=7.0, d=D_bat, center=true);
+                // Entrance opening at +Y side (for slide/snap insertion)
+                translate([-15, 5.0, -4.0]) cube([30, 15, 8.0]);
+                
+                // Cut away the right half (X > 2.5) to clear right split plane
+                translate([2.5, -15, -4.0]) cube([15, 30, 8.0]);
             }
+            // Lead-in chamfers at the entry tips for smooth snap-in
+            translate([-8.0, 5.0, 0]) rotate([0, 0, 30]) cube([1.5, 3.0, 6.0], center=true);
+            translate([2.0, 5.0, 0]) rotate([0, 0, -30]) cube([1.5, 3.0, 6.0], center=true);
+        }
+    }
+    
+    // Right clamp at Z = -75
+    if (!is_left) {
+        translate([0, 0, -75]) {
+            difference() {
+                // Outer ring
+                cylinder(h=6.0, d=D_outer, center=true);
+                // Inner battery slot
+                cylinder(h=7.0, d=D_bat, center=true);
+                // Entrance opening at +Y side
+                translate([-15, 5.0, -4.0]) cube([30, 15, 8.0]);
+                
+                // Cut away the left half (X < -2.5) to clear left split plane
+                translate([-17.5, -15, -4.0]) cube([15, 30, 8.0]);
+            }
+            // Lead-in chamfers at the entry tips
+            translate([-2.0, 5.0, 0]) rotate([0, 0, 30]) cube([1.5, 3.0, 6.0], center=true);
+            translate([8.0, 5.0, 0]) rotate([0, 0, -30]) cube([1.5, 3.0, 6.0], center=true);
+        }
+    }
+}
+
+module tp4056_clamping_pillars(is_left) {
+    z_bottom = -handle_h + 3.0; // bottom floor
+    pcb_w_half = 25.0 / 2 + 0.25; // 12.75mm
+    pcb_l_half = 16.5 / 2 + 0.25; // 8.5mm
+    pcb_t = 1.6;
+    
+    rotate([handle_angle, 0, 0]) {
+        if (is_left) {
+            // Left guide wall (X < 0)
+            translate([-pcb_w_half - 1.5, -pcb_l_half, z_bottom]) {
+                difference() {
+                    cube([2.0, pcb_l_half * 2, 4.0]); // wall
+                    // slot for PCB edge
+                    translate([0.5, -0.1, 0.0])
+                        cube([1.6, pcb_l_half * 2 + 0.2, pcb_t + 0.2]); 
+                }
+            }
+            // Front/Back stops to prevent sliding
+            translate([-pcb_w_half, -pcb_l_half - 1.5, z_bottom])
+                cube([pcb_w_half, 1.5, 3.0]);
+            translate([-pcb_w_half, pcb_l_half, z_bottom])
+                cube([pcb_w_half, 1.5, 3.0]);
+        } else {
+            // Right guide wall (X > 0)
+            translate([pcb_w_half - 0.5, -pcb_l_half, z_bottom]) {
+                difference() {
+                    cube([2.0, pcb_l_half * 2, 4.0]); // wall
+                    // slot for PCB edge
+                    translate([-0.1, -0.1, 0.0])
+                        cube([1.6, pcb_l_half * 2 + 0.2, pcb_t + 0.2]);
+                }
+            }
+            // Front/Back stops to prevent sliding
+            translate([0, -pcb_l_half - 1.5, z_bottom])
+                cube([pcb_w_half, 1.5, 3.0]);
+            translate([0, pcb_l_half, z_bottom])
+                cube([pcb_w_half, 1.5, 3.0]);
         }
     }
 }
 
 module esp32_clamping_pillars(is_left) {
     y_center = head_l - 32.0;
-    x_pcb_half = 15.0;  // ESP32 width 30.0
-    y_pcb_half = 25.25; // ESP32 length 56.5
+    x_pcb_half = esp32_size[0] / 2;
+    y_pcb_half = esp32_size[1] / 2;
     pillar_l = 8.0;
     pillar_h = 12.0;   // Lowered to 12.0 for wire clearance, slots sit at Z = 4.5 to 6.5
     
@@ -477,6 +549,9 @@ module housing_left_half() {
             rotate([handle_angle, 0, 0])
             battery_ribs(true);
             
+            translate([head_w/2, head_l*0.6, wall])
+            tp4056_clamping_pillars(true);
+            
             // Add screwless clamping slots for ESP32 on the left side
             esp32_clamping_pillars(true);
         }
@@ -507,6 +582,9 @@ module housing_right_half() {
             translate([head_w/2, head_l*0.6, wall])
             rotate([handle_angle, 0, 0])
             battery_ribs(false);
+            
+            translate([head_w/2, head_l*0.6, wall])
+            tp4056_clamping_pillars(false);
             
             // Add screwless clamping slots for ESP32 on the right side
             esp32_clamping_pillars(false);
@@ -659,14 +737,14 @@ module battery_mockup() {
 }
 
 module tp4056_mockup() {
-    // PCB (19.0 x 25.0 x 1.6)
+    // PCB (25.0 x 16.5 x 1.6)
     color("Green")
-    cube([19.0, 1.6, 25.0], center=true);
+    cube([25.0, 16.5, 1.6], center=true);
     
-    // Type-C USB Port (Silver, 9.0 x 3.2 x 5.0)
+    // Type-C USB Port (Silver, 9.0 x 5.0 x 3.2) protruding downwards
     color("Silver")
-    translate([0, 0, -12.5])
-    cube([9.0, 3.2, 5.0], center=true);
+    translate([0, 0, -0.8 - 1.5])
+    cube([9.0, 5.0, 3.2], center=true);
 }
 
 module stepup_mockup() {
@@ -724,10 +802,10 @@ module all_head_electronics_assembly(is_exploded=false) {
     translate([head_w/2, head_l - 32.0, wall + 5.3 + esp32_offset])
     color("DarkSlateBlue") esp32_mockup();
     
-    // OLED (PCB bottom rests on tab top at Z_local = -1.5, PCB center at Z_local = -0.9)
+    // OLED (PCB bottom rests on tab top at Z_local = -1.0, PCB center at Z_local = -0.4)
     translate([head_w/2, 55, oled_offset + head_h - 7.5])
     rotate([-12, 0, 0])
-    translate([0, 0, -0.9])
+    translate([0, 0, -0.4])
     color("Cyan") oled_mockup();
 }
 
@@ -743,20 +821,20 @@ module internal_electronics_assembly(is_exploded=false) {
     
     translate([head_w/2, head_l*0.6, wall]) {
         rotate([handle_angle, 0, 0]) {
-            // 1. Battery
-            translate([0, 0, -34.5] + bat_offset)
+            // 1. Battery (centered at Z = -55.0 to align symmetrically with snap-fit C-clips at -35 and -75)
+            translate([0, 0, -55.0] + bat_offset)
             battery_mockup();
             
-            // 2. TP4056 USB Charger
-            translate([0, 0, -79.5] + tp_offset)
+            // 2. TP4056 USB Charger (aligned with the bottom guide slot at Z = -handle_h + 3.8)
+            translate([0, 0, -handle_h + 3.8] + tp_offset)
             tp4056_mockup();
             
             // 3. MT3608 Step-up Module
             translate([0, 8.0, -83.0] + su_offset)
             stepup_mockup();
             
-            // 4. Slide Switch
-            translate([-17.5, 0, -76.0] + sw_offset)
+            // 4. Slide Switch (aligned with cutout slot at Z = -handle_h + 16.0)
+            translate([-17.5, 0, -handle_h + 16.0] + sw_offset)
             switch_mockup();
         }
     }

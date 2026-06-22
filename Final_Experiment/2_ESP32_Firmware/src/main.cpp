@@ -17,7 +17,9 @@ char db[] = "lab225";
 // 주의: VP, VN(39), 34, 35는 입력 전용이므로 TX로 쓸 수 없습니다.
 #define SCANNER_RX_PIN 32 // QR 스캐너의 TX 선 연결
 #define SCANNER_TX_PIN 33 // QR 스캐너의 RX 선 연결
-#define BUTTON_PIN 0      // ESP32 기본 BOOT 버튼
+#define BUTTON_PIN 0      // 백업용: ESP32 기본 BOOT 버튼
+#define SCAN_TRIGGER_PIN 25 // 메인: 스캔 및 단계 변경용 단일 택트 스위치
+const byte triggerCmd[] = {0x7E, 0x00, 0x08, 0x01, 0x00, 0x02, 0x01, 0xAB, 0xCD};
 
 // 객체 명시적 생성
 HardwareSerial ScannerSerial(2);
@@ -68,6 +70,7 @@ void setup() {
   
   // 버튼을 입력용으로 설정 (내부 풀업)
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(SCAN_TRIGGER_PIN, INPUT_PULLUP); // 신규: 스캔 트리거 버튼 입력 설정
 
   // 다중 Wi-Fi 연결
   Serial.print("Connecting to WiFi...");
@@ -220,20 +223,49 @@ void processScan(String rawData) {
   }
 }
 
-unsigned long lastButtonPress = 0;
+unsigned long lastButtonPress = 0; // 백업 BOOT 버튼 디바운스용
+
+// 단일 택트 스위치용 더블클릭 감지 변수
+int lastTriggerState = HIGH;
+unsigned long triggerPressTime = 0;
+int triggerClickCount = 0;
+const unsigned long doubleClickDelay = 350; // 더블클릭 감지 제한 시간 (350ms)
 
 void loop() {
-  // 스캐너 데이터 처리
-  if (ScannerSerial.available()) {
-    String scannedData = ScannerSerial.readStringUntil('\r');
-    scannedData.trim();
-    if (scannedData.length() > 0) {
-      Serial.println("\n📷 스캔된 데이터: " + scannedData);
-      processScan(scannedData);
+  // 1. 메인 택트 스위치(GPIO 25) 처리 (싱글클릭: 스캔 / 더블클릭: 단계 변경)
+  int currentTriggerState = digitalRead(SCAN_TRIGGER_PIN);
+  
+  // 버튼이 눌렸을 때 (HIGH -> LOW)
+  if (currentTriggerState == LOW && lastTriggerState == HIGH) {
+    if (triggerClickCount == 0) {
+      triggerPressTime = millis();
     }
+    triggerClickCount++;
+    delay(50); // 간단한 디바운스 딜레이
+  }
+  lastTriggerState = currentTriggerState;
+
+  // 클릭 판정 시간(350ms)이 경과한 경우
+  if (triggerClickCount > 0 && (millis() - triggerPressTime > doubleClickDelay)) {
+    if (triggerClickCount == 1) {
+      // 싱글클릭 -> 스캔 명령어 전송
+      Serial.println("\n🔫 1회 클릭: GM77 스캔 명령어 전송");
+      ScannerSerial.write(triggerCmd, sizeof(triggerCmd));
+    } 
+    else if (triggerClickCount >= 2) {
+      // 더블클릭 -> 스캔 단계 전환
+      if (currentMode == "A10") currentMode = "A11";
+      else if (currentMode == "A11") currentMode = "A13"; 
+      else if (currentMode == "A13") currentMode = "A14";
+      else if (currentMode == "A14") currentMode = "A15";
+      else if (currentMode == "A15") currentMode = "A10";
+      
+      Serial.println("\n🔘 더블 클릭: 스캔 단계가 " + currentMode + "(으)로 변경되었습니다.");
+    }
+    triggerClickCount = 0; // 카운트 리셋
   }
 
-  // 버튼을 통한 수동 모드 전환 (디바운스 500ms 적용)
+  // 2. 백업용 BOOT 버튼(GPIO 0) 처리 (단계 변경)
   if (digitalRead(BUTTON_PIN) == LOW && millis() - lastButtonPress > 500) {
     if (currentMode == "A10") currentMode = "A11";
     else if (currentMode == "A11") currentMode = "A13"; // A12는 PC에서 발급하므로 건너뜀
@@ -241,8 +273,18 @@ void loop() {
     else if (currentMode == "A14") currentMode = "A15";
     else if (currentMode == "A15") currentMode = "A10";
     
-    Serial.println("\n🔘 버튼 눌림 - 스캔 단계가 " + currentMode + "(으)로 변경되었습니다.");
+    Serial.println("\n🔘 백업 BOOT 버튼 눌림 - 스캔 단계가 " + currentMode + "(으)로 변경되었습니다.");
     lastButtonPress = millis();
+  }
+
+  // 3. 스캐너 데이터 처리
+  if (ScannerSerial.available()) {
+    String scannedData = ScannerSerial.readStringUntil('\r');
+    scannedData.trim();
+    if (scannedData.length() > 0) {
+      Serial.println("\n📷 스캔된 데이터: " + scannedData);
+      processScan(scannedData);
+    }
   }
 
   // 웹서버 클라이언트 처리 (스마트폰 접속 대기)
