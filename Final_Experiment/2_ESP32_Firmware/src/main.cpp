@@ -314,6 +314,11 @@ void loop() {
     if (triggerClickCount == 1) {
       // 싱글클릭 -> 스캔 명령어 전송
       Serial.println("\n🔫 1회 클릭: GM77 스캔 명령어 전송");
+      
+      // 슬립 모드 해제를 위한 Wake-up 시퀀스
+      ScannerSerial.write(0x00);
+      delay(50);
+      
       ScannerSerial.write(triggerCmd, sizeof(triggerCmd));
     } 
     else if (triggerClickCount >= 2) {
