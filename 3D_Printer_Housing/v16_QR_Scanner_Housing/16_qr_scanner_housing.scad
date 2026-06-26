@@ -18,10 +18,10 @@ wall   = 2.5;
 clearance = 0.35;
 
 // --- Head ---
-head_w = 58.0;     // Width  (X)
+head_w = 57.0;     // Width  (X)
 head_l = 130.0;    // Length (Y)  front=0, back=130
-head_h = 50.0;     // Height (Z)
-split_x = head_w / 2; // 29.0
+head_h = 44.0;     // Height (Z)
+split_x = head_w / 2; // 28.5
 
 // --- Handle ---
 handle_h     = 105.0;
@@ -40,14 +40,14 @@ tact_size    = [6.0, 6.0, 11.0];
 
 // --- Component placement coordinates ---
 gm77_y  = 30.0;
-gm77_z  = head_h / 2;  // Centered vertically to Z=25.0
+gm77_z  = head_h / 2;  // Centered vertically to Z=22.0
 esp32_y = 85.0;
 esp32_z = wall + 3.5;
 
-// Ergonomic 35-degree OLED display slope configurations
-oled_bevel_angle = 35;
+// Ergonomic 55-degree OLED display slope configurations
+oled_bevel_angle = 55;
 oled_pcb_y = 114.0;         // Lowered and pulled forward to fit internal space
-oled_z     = 25.0;         // Lowered to prevent protruding through outer shell
+oled_z     = 23.0;         // Lowered to prevent protruding through outer shell
 
 // --- Assembly screw positions [y, z] in head coords ---
 // (Kept as references, but deactivated in rendering)
@@ -92,13 +92,9 @@ else if (render_part == "exploded") {
 }
 else if (render_part == "left_half") {
     housing_left_half();
-    head_electronics(false);
-    handle_electronics(false);
 }
 else if (render_part == "right_half") {
     housing_right_half();
-    head_electronics(false);
-    handle_electronics(false);
 }
 else if (render_part == "trigger") {
     trigger_button();
@@ -147,7 +143,7 @@ module housing_left_half() {
             
             // 4. Alignment pins (male)
             alignment_features(true);
-            // 5. Head internal mounts — CLIPPED to head volume
+            // 5. Head internal mounts ??CLIPPED to head volume
             intersection() {
                 head_outer();
                 union() {
@@ -156,7 +152,7 @@ module housing_left_half() {
                     oled_guide(true);
                 }
             }
-            // 6. Handle internal mounts — CLIPPED to handle volume
+            // 6. Handle internal mounts ??CLIPPED to handle volume
             intersection() {
                 handle_with_neck();
                 translate([head_w/2, neck_y, wall])
@@ -198,7 +194,7 @@ module housing_right_half() {
             // rotate([handle_angle, 0, 0])
             // for (p = handle_screw_pts) screw_boss_handle(p[0], p[1], false);
             
-            // 4. Head internal mounts — CLIPPED
+            // 4. Head internal mounts ??CLIPPED
             intersection() {
                 head_outer();
                 union() {
@@ -207,7 +203,7 @@ module housing_right_half() {
                     oled_guide(false);
                 }
             }
-            // 5. Handle internal mounts — CLIPPED
+            // 5. Handle internal mounts ??CLIPPED
             intersection() {
                 handle_with_neck();
                 translate([head_w/2, neck_y, wall])
@@ -240,17 +236,69 @@ module full_shell() {
     }
 }
 
+module rear_bevel_cut_cube(is_inner=false) {
+    r_outer = 6.0;
+    r_inner = max(1.0, r_outer - wall); // 3.5
+    r = is_inner ? r_inner : r_outer;
+    
+    w = is_inner ? head_w + 20 : head_w + 10;
+    d = 28.0;
+    h = 60.0; // Extended height to completely cut away the visor overhang
+    
+    // offset translation for inner cut
+    y_off = is_inner ? -wall : 0;
+    
+    translate([0, y_off, 15.0]) { // Shift up to prioritize cutting the upper visor area
+        difference() {
+            cube([w, d, h], center=true);
+            
+            // Apply fillet at Z_local_world = 10.0 (Z_local_in_cube = -5.0) to avoid OLED window interference
+            translate([0, -d/2 + r, -5.0])
+            difference() {
+                // Corner coverage block
+                translate([0, -r/2, r/2])
+                cube([w + 2, r, r], center=true);
+                
+                // Fillet cylinder
+                rotate([0, 90, 0])
+                cylinder(r=r, h=w + 4, center=true, $fn=50);
+            }
+        }
+    }
+}
+
+
 module shell_outer() {
-    head_outer();
-    handle_with_neck();
-    neck_fill();
+    difference() {
+        union() {
+            head_outer();
+            // Trim the upper portion of the handle protruding into the head interior space
+            difference() {
+                handle_with_neck();
+                head_inner();
+            }
+            neck_fill();
+        }
+        // Ergonomic Rear Bevel Cut for Handheld Sightline (Outer) - Rounded Fillet version
+        translate([head_w/2, head_l - 2.5, oled_z + 8])
+        rotate([-oled_bevel_angle, 0, 0])
+        rear_bevel_cut_cube(false);
+    }
 }
 
 module shell_inner() {
-    head_inner();
-    translate([head_w/2, neck_y, wall])
-    rotate([handle_angle, 0, 0])
-    handle_inner();
+    difference() {
+        union() {
+            head_inner();
+            translate([head_w/2, neck_y, wall])
+            rotate([handle_angle, 0, 0])
+            handle_inner();
+        }
+        // Ergonomic Rear Bevel Cut for Handheld Sightline (Inner, offset by wall = 2.5mm) - Rounded Fillet version
+        translate([head_w/2, head_l - 2.5, oled_z + 8])
+        rotate([-oled_bevel_angle, 0, 0])
+        rear_bevel_cut_cube(true);
+    }
     // Wire passage between head and handle
     translate([head_w/2, neck_y, 0])
     cylinder(h=30, d=24, center=true);
@@ -259,19 +307,19 @@ module shell_inner() {
 // --- Head outer: wedge (narrow front -> wide mid -> taper rear) ---
 module head_outer() {
     hull() {
-        hslice(5,          44, 38,  8, 2);   // front - narrow, raised 2mm
-        hslice(35,         54, 48, 10, 0);   // front-mid
-        hslice(70, head_w, head_h, 12, 0);   // mid - widest
-        hslice(head_l - 5, 54, 46,  8, 0);   // rear
+        hslice(5,          52, 42,  7,  0);  // front - wider and flat
+        hslice(35,         55, 44,  8,  0);  // front-mid
+        hslice(70,         57, 44,  8,  0);  // mid - flat top profile, expanded wiring space
+        hslice(head_l - 5, 54, 38,  7, -2.5); // rear - smoothed down for ergonomic bevel flow
     }
 }
 module head_inner() {
     w2 = 2*wall;
     hull() {
-        hslice(5+wall,       44-w2, 38-w2, max(1,8-wall),  2);
-        hslice(35,           54-w2, 48-w2, max(1,10-wall), 0);
-        hslice(70,     head_w-w2, head_h-w2, max(1,12-wall), 0);
-        hslice(head_l-5-wall,54-w2, 46-w2, max(1,8-wall),  0);
+        hslice(5+wall,       52-w2, 42-w2, max(1,7-wall),   0);
+        hslice(35,           55-w2, 44-w2, max(1,8-wall),   0);
+        hslice(70,           57-w2, 44-w2, max(1,8-wall),   0);
+        hslice(head_l-5-wall,54-w2, 38-w2, max(1,7-wall),  -2.5); // rear - smoothed down
     }
 }
 module hslice(y, w, h, r, zoff) {
@@ -324,10 +372,10 @@ module neck_fill() {
         translate([0, 0, 15])
         cylinder(h=0.1, r=19, center=true);
     }
-    // Front chin fill
+    // Front chin fill - reinforced to prevent thin shell/gap above the trigger button hole
     hull() {
-        translate([head_w/2, neck_y - 15, wall])
-        cube([34, 6, 0.1], center=true);
+        translate([head_w/2, neck_y - 18, wall + 2])
+        cube([36, 8, 1.0], center=true);
         
         translate([head_w/2, neck_y, wall])
         rotate([handle_angle, 0, 0])
@@ -345,10 +393,18 @@ module all_cuts() {
     rotate([90,0,0])
     rounded_rect(gm77_size[0] + 6, gm77_size[2] - 2, 20.0, 2.0, true);
 
-    // 2) Ergonomic OLED display window - rear face (Angled matching rotate([-55,0,0]))
-    translate([head_w/2, oled_pcb_y + 4.0, oled_z - 4.57])
-    rotate([-90 + oled_bevel_angle, 0, 0]) // Fixed window rotation match
-    rounded_rect(25.5, 17.5, 20.0, 1.5, true);
+    // 2) Ergonomic OLED display window - rear face (Window & Recessed Pocket Flush mount)
+    // 2-a) Window cutout (Z_local range: [-5.0, 15.0] to pierce outer wall)
+    translate([head_w/2, oled_pcb_y + 2.29, oled_z - 0.83])
+    rotate([-90 + oled_bevel_angle, 0, 0])
+    translate([0, 0, 5.0])
+    rounded_rect(22.5, 11.5, 20.0, 1.5, true);
+
+    // 2-b) Recessed Pocket (Z_local range: [-20.0, 0.0] to cut out 1.5mm deep shelf inside)
+    translate([head_w/2, oled_pcb_y + 2.29, oled_z - 0.83])
+    rotate([-90 + oled_bevel_angle, 0, 0])
+    translate([0, 0, -10.0])
+    cube([oled_size[0] + 0.5, oled_size[1] + 0.5, 20.0], center=true);
 
     // 3) ESP32 USB slot - rear wall, low Z (pin-up orientation)
     translate([head_w/2 - 6.5, head_l - 10, 1.0])
@@ -383,11 +439,6 @@ module all_cuts() {
     translate([0, -16, -22])
     rotate([90,0,0])
     cylinder(h=wall*4, d=10.0, center=true);
-
-    // 8) Ergonomic Rear Bevel Cut for Handheld Sightline
-    translate([head_w/2, head_l - 2.5, oled_z + 8])
-    rotate([-oled_bevel_angle, 0, 0])
-    cube([head_w + 10, 28.0, 30.0], center=true);
 }
 
 // =============================================
@@ -443,31 +494,25 @@ module esp32_rail(is_left) {
     }
 }
 
-// --- 7-C OLED Angled Bevel Guide (Ergonomic angle match) ---
+// --- 7-C OLED Clamping Stopper Ribs (Secure Sandwich Lock) ---
 module oled_guide(is_left) {
     pcb_hw = oled_size[0]/2;
-    gw = 3.5; gh = 28.0; gd = 5.0;
-    slot_t = 1.6;  
+    gw = 2.0; gh = 28.0; gd = 2.5; // Compact Stopper block inside housing walls
     
     translate([head_w/2, oled_pcb_y, oled_z])
-    rotate([-oled_bevel_angle, 0, 0]) {
+    rotate([oled_bevel_angle, 0, 0]) {
         if (is_left) {
+            // Clamps the left edge of the PCB from the back side
             translate([-pcb_hw - clearance - gw, -gd/2, -gh/2])
-            difference() {
-                cube([gw, gd, gh]);
-                translate([gw - slot_t - 0.3, -0.1, 1.5])
-                cube([slot_t + 0.4, gd + 0.2, gh - 3.0]);
-            }
+            cube([gw, gd, gh]);
         } else {
+            // Clamps the right edge of the PCB from the back side
             translate([pcb_hw + clearance, -gd/2, -gh/2])
-            difference() {
-                cube([gw, gd, gh]);
-                translate([-0.1, -0.1, 1.5])
-                cube([slot_t + 0.4, gd + 0.2, gh - 3.0]);
-            }
+            cube([gw, gd, gh]);
         }
     }
 }
+
 
 // --- 7-D Battery Cradle ---
 module battery_cradle(is_left) {
@@ -806,9 +851,9 @@ module head_electronics(exploded) {
         rotate([180, 0, 0])
             esp32_devkitc_mockup();
 
-    // SSD1306 OLED (Corrected rotation: rotate([-55, 0, 0]) so screen faces back window and pins face inside)
+    // SSD1306 OLED (Corrected rotation: rotate([55, 0, 180]) to align with guide rail slope)
     translate([head_w/2, oled_pcb_y, oled_z] + o_off)
-        rotate([-90 + oled_bevel_angle, 0, 0])
+        rotate([oled_bevel_angle, 0, 180])
             ssd1306_oled_mockup();
 }
 

@@ -92,8 +92,8 @@ module render_system_wiring_assembly() {
     // ESP32 DevKitC (Flipped 180 deg, pin headers face up +Z)
     translate(esp32_pos) rotate([180, 0, 0]) esp32_devkitc_mockup();
     
-    // SSD1306 OLED (Rear face display)
-    translate(oled_pos) rotate([90, 0, 0]) ssd1306_oled_mockup();
+    // SSD1306 OLED (Rear face display, pins face up)
+    translate(oled_pos) rotate([90, 0, 180]) ssd1306_oled_mockup();
     
     // GM77 Scanner (Front face window pointing -Y)
     translate(gm77_pos) gm77_scanner_mockup();
