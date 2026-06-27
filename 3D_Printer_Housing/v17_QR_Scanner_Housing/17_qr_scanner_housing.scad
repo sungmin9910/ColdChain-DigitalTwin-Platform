@@ -26,7 +26,7 @@ head_h = 48.0;        // Height (Z) - Expanded from 44.0 for more interior space
 split_x = head_w / 2; // 32.0
 
 // --- Handle ---
-handle_h     = 105.0; // Total length of grip along its axis
+handle_h     = 125.0; // Total length of grip along its axis (extended for battery/charger clearance)
 handle_angle = 25;    // Backward sweep angle of the handle (increased from 20 for ergonomics)
 neck_y       = 75.0;  // Y where handle root starts
 
@@ -43,13 +43,13 @@ tact_size    = [6.0, 6.0, 11.0];
 // --- Component placement coordinates (Global) ---
 gm77_y  = 30.0;
 gm77_z  = head_h / 2; // 24.0
-esp32_y = 112.0;      // Shifted back from 85.0 to align USB connector with rear wall
-esp32_z = wall + 3.5;
+esp32_y = 100.0;      // Shifted forward to avoid wire interference with OLED/ceiling and make room for connections
+esp32_z = wall + 4.5; // Raised by 3.5mm to prevent Shield Can from overlapping with the housing bottom floor
 
 // Ergonomic OLED display configurations
 oled_bevel_angle = 55;
-oled_pcb_y = 124.0; // Shifted back with the extended head length
-oled_z     = 25.0;  // Adjusted for expanded height
+oled_pcb_y = 118.0; // Adjusted for higher Z placement and clearance
+oled_z     = 34.0;  // Shifted up to 34.0 to maximize wire routing space below the PCB
 
 // Alignment pin positions for side interlocking
 align_pts = [
@@ -67,7 +67,7 @@ render_part = "assembly";
 if (render_part == "assembly") {
     color("DimGray",  0.55) housing_left_half();
     color("LightGray",0.55) housing_right_half();
-    trigger_at_pos(false);
+    // trigger_at_pos(false); // Disabled orange trigger mockup as requested
     
     // Internal electronics
     head_electronics(false);
@@ -76,7 +76,7 @@ if (render_part == "assembly") {
 else if (render_part == "exploded") {
     color("DimGray")   translate([-35, 0, 0]) housing_left_half();
     color("LightGray") translate([ 35, 0, 0]) housing_right_half();
-    trigger_at_pos(true);
+    // trigger_at_pos(true); // Disabled orange trigger mockup as requested
     
     head_electronics(true);
     handle_electronics(true);
@@ -95,7 +95,7 @@ else if (render_part == "cross_section") {
         union() {
             housing_left_half();
             housing_right_half();
-            trigger_at_pos(false);
+            // trigger_at_pos(false); // Disabled orange trigger mockup as requested
         }
         translate([split_x, -50, -200]) cube([200, 300, 400]);
     }
@@ -116,45 +116,54 @@ module trigger_at_pos(exploded) {
 //  SECTION 3: LEFT HALF
 // =============================================
 module housing_left_half() {
-    difference() {
-        union() {
-            // 1. Shell left portion
-            intersection() {
-                full_shell();
-                translate([-100, -50, -200])
-                cube([100 + split_x, 300, 400]);
-            }
-            // 2. Alignment pins (male)
-            alignment_features(true);
-            // 3. Head internal mounts (Clipped to left half)
-            intersection() {
-                head_outer();
+    union() {
+        difference() {
+            union() {
+                // 1. Shell left portion
                 intersection() {
-                    union() {
-                        gm77_pocket(true);
-                        esp32_rail(true);
-                        oled_guide(true);
+                    full_shell();
+                    translate([-100, -50, -200])
+                    cube([100 + split_x, 300, 400]);
+                }
+                // 2. Alignment pins (male)
+                alignment_features(true);
+                // 3. Head internal mounts (Clipped to left half)
+                intersection() {
+                    head_outer();
+                    intersection() {
+                        union() {
+                            gm77_pocket(true);
+                            esp32_rail(true);
+                        }
+                        translate([-100, -50, -200]) cube([100 + split_x, 300, 400]);
                     }
-                    translate([-100, -50, -200]) cube([100 + split_x, 300, 400]);
+                }
+                // 4. Handle internal mounts (Clipped to left half local X < 0)
+                intersection() {
+                    handle_with_neck();
+                    translate([head_w/2, neck_y, wall])
+                    rotate([handle_angle, 0, 0])
+                    intersection() {
+                        union() {
+                            battery_cradle(true);
+                            charger_pocket(true);
+                            boost_pocket(true);
+                            tact_pocket(true);
+                        }
+                        translate([-50, -50, -150]) cube([50, 100, 200]);
+                    }
                 }
             }
-            // 4. Handle internal mounts (Clipped to left half local X < 0)
+            all_cuts();
+        }
+        // 5. OLED Guide (Added AFTER cuts to prevent being carved away by the recessed pocket cutout)
+        intersection() {
+            head_outer();
             intersection() {
-                handle_with_neck();
-                translate([head_w/2, neck_y, wall])
-                rotate([handle_angle, 0, 0])
-                intersection() {
-                    union() {
-                        battery_cradle(true);
-                        charger_pocket(true);
-                        boost_pocket(true);
-                        tact_pocket(true);
-                    }
-                    translate([-50, -50, -150]) cube([50, 100, 200]);
-                }
+                oled_guide(true);
+                translate([-100, -50, -200]) cube([100 + split_x, 300, 400]);
             }
         }
-        all_cuts();
     }
 }
 
@@ -162,43 +171,52 @@ module housing_left_half() {
 //  SECTION 4: RIGHT HALF
 // =============================================
 module housing_right_half() {
-    difference() {
-        union() {
-            // 1. Shell right portion
-            intersection() {
-                full_shell();
-                translate([split_x, -50, -200])
-                cube([100, 300, 400]);
-            }
-            // 2. Head internal mounts (Clipped to right half)
-            intersection() {
-                head_outer();
+    union() {
+        difference() {
+            union() {
+                // 1. Shell right portion
                 intersection() {
-                    union() {
-                        gm77_pocket(false);
-                        esp32_rail(false);
-                        oled_guide(false);
+                    full_shell();
+                    translate([split_x, -50, -200])
+                    cube([100, 300, 400]);
+                }
+                // 2. Head internal mounts (Clipped to right half)
+                intersection() {
+                    head_outer();
+                    intersection() {
+                        union() {
+                            gm77_pocket(false);
+                            esp32_rail(false);
+                        }
+                        translate([split_x, -50, -200]) cube([100, 300, 400]);
                     }
-                    translate([split_x, -50, -200]) cube([100, 300, 400]);
+                }
+                // 3. Handle internal mounts (Clipped to right half local X > 0)
+                intersection() {
+                    handle_with_neck();
+                    translate([head_w/2, neck_y, wall])
+                    rotate([handle_angle, 0, 0])
+                    intersection() {
+                        union() {
+                            battery_cradle(false);
+                            charger_clamp();
+                            tact_pocket(false);
+                        }
+                        translate([0, -50, -150]) cube([50, 100, 200]);
+                    }
                 }
             }
-            // 3. Handle internal mounts (Clipped to right half local X > 0)
+            all_cuts();
+            alignment_features(false); // Female holes
+        }
+        // 4. OLED Guide (Added AFTER cuts to prevent being carved away by the recessed pocket cutout)
+        intersection() {
+            head_outer();
             intersection() {
-                handle_with_neck();
-                translate([head_w/2, neck_y, wall])
-                rotate([handle_angle, 0, 0])
-                intersection() {
-                    union() {
-                        battery_cradle(false);
-                        charger_clamp();
-                        tact_pocket(false);
-                    }
-                    translate([0, -50, -150]) cube([50, 100, 200]);
-                }
+                oled_guide(false);
+                translate([split_x, -50, -200]) cube([100, 300, 400]);
             }
         }
-        all_cuts();
-        alignment_features(false); // Female holes
     }
 }
 
@@ -262,10 +280,10 @@ module head_outer() {
 module head_inner() {
     w2 = 2*wall;
     hull() {
-        hslice(5+wall,       head_w - 5 - w2, head_h - 2 - w2, max(1,8-wall),   0);
-        hslice(35,           head_w - 2 - w2, head_h - w2,      max(1,8-wall),   0);
-        hslice(70,           head_w - w2,     head_h - w2,      max(1,8-wall),   0);
-        hslice(head_l-5-wall,head_w - 2 - w2, head_h - w2,      max(1,8-wall),   0);
+        hslice(5+wall,       head_w - 5 - w2, head_h - 2 - w2, max(1,8-wall),   wall);
+        hslice(35,           head_w - 2 - w2, head_h - w2,      max(1,8-wall),   wall);
+        hslice(70,           head_w - w2,     head_h - w2,      max(1,8-wall),   wall);
+        hslice(head_l-5-wall,head_w - 2 - w2, head_h - w2,      max(1,8-wall),   wall);
     }
 }
 
@@ -301,7 +319,7 @@ module handle_outer() {
         handle_slice(-55,  17.5, 15.5);    // Finger Groove 2 (Ring finger)
         handle_slice(-75,  18.0, 17.5);    // Ridge 2
         handle_slice(-95,  17.5, 15.5);    // Finger Groove 3 (Little finger)
-        handle_slice(-105, 20.0, 22.0);    // Flared bottom cap
+        handle_slice(-handle_h, 20.0, 22.0); // Flared bottom cap (Linked dynamically to handle_h)
     }
 }
 
@@ -314,7 +332,7 @@ module handle_inner() {
         handle_slice(-55,  17.5 - wall, 15.5 - wall);
         handle_slice(-75,  18.0 - wall, 17.5 - wall);
         handle_slice(-95,  17.5 - wall, 15.5 - wall);
-        handle_slice(-104, 20.0 - wall, 22.0 - wall);
+        handle_slice(-handle_h + 1.0, 20.0 - wall, 22.0 - wall); // Inner cavity bottom (Linked dynamically to handle_h)
     }
 }
 
@@ -356,9 +374,9 @@ module all_cuts() {
     translate([0, 0, -10.0 + 1.4])
     cube([28.1, 28.1, 20.0], center=true);
 
-    // 3) ESP32 USB slot - rear wall (cutout shifted and extended for flush plug-in)
-    translate([head_w/2 - 6.5, head_l - 12.0, 1.0])
-    cube([13.0, 15.0, 9.0]);
+    // 3) ESP32 USB slot - rear wall (cutout lengthened to accommodate deep ESP32 placement)
+    translate([head_w/2 - 6.5, head_l - 19.0, 1.0])
+    cube([13.0, 21.0, 9.0]);
 
     // 4) Ventilation slots
     for (i=[0:3])
@@ -422,14 +440,14 @@ module gm77_pocket(is_left) {
 module esp32_rail(is_left) {
     rail_w = 5.0;
     rail_l = 55.0;
-    rail_h = 7.5;
+    rail_h = 8.5; // Raised to match new esp32_z standoff height
     slot_h = 1.9;
     pcb_hw = esp32_size[0] / 2;  
     if (is_left) {
         translate([head_w/2 - pcb_hw - 2.5, esp32_y - rail_l/2, wall]) {
             difference() {
                 cube([rail_w, rail_l, rail_h]);
-                translate([2.5, 2.5, 2.9])
+                translate([2.5, 2.5, 4.5]) // Raised PCB slot placement offset to match esp32_z (4.5mm Standoff)
                 cube([3.0, rail_l - 2.5, slot_h]);
             }
         }
@@ -437,7 +455,7 @@ module esp32_rail(is_left) {
         translate([head_w/2 + pcb_hw - 2.5, esp32_y - rail_l/2, wall]) {
             difference() {
                 cube([rail_w, rail_l, rail_h]);
-                translate([-0.2, 2.5, 2.9])
+                translate([-0.2, 2.5, 4.5]) // Raised PCB slot placement offset to match esp32_z (4.5mm Standoff)
                 cube([3.0, rail_l - 2.5, slot_h]);
             }
         }
@@ -447,18 +465,32 @@ module esp32_rail(is_left) {
 // --- 7-C OLED Clamping Stopper Ribs (Aligned to rotate [oled_bevel_angle, 0, 180]) ---
 module oled_guide(is_left) {
     pcb_hw = oled_size[0]/2;
-    gw = 2.0; gh = 28.0; gd = 2.5;
+    gy = 6.0;  // Length of guide in Y (shortened from 12.0 to 6.0 for compact design)
+    gz = 3.5;  // Depth of guide in Z (reduced from 8.0 to 3.5 to slim down the support bracket)
+    slot_h = 1.6; // Slot height (PCB thickness 1.2 + clearance)
     
     translate([head_w/2, oled_pcb_y, oled_z])
     rotate([oled_bevel_angle, 0, 180]) {
         if (is_left) {
-            // Under 180 rotation, local +X is housing left
-            translate([pcb_hw + clearance, -gd/2, -gh/2])
-            cube([gw, gd, gh]);
+            // Left guide: Local +X (corresponds to Global -X / Left wall because of rotate 180)
+            translate([pcb_hw - 1.5, -gy/2 - 4.0, -0.6 - gz]) {
+                difference() {
+                    cube([20.0, gy, gz + 2.6]);
+                    // Limit slot cut to 1.55mm width to keep outer wall support solid
+                    translate([1.3, -1.0, gz - 0.2]) 
+                    cube([1.55, gy + 2.0, slot_h]);
+                }
+            }
         } else {
-            // Local -X is housing right
-            translate([-pcb_hw - clearance - gw, -gd/2, -gh/2])
-            cube([gw, gd, gh]);
+            // Right guide: Local -X (corresponds to Global +X / Right wall because of rotate 180)
+            translate([-pcb_hw - 2.5 - 16.0, -gy/2 - 4.0, -0.6 - gz]) {
+                difference() {
+                    cube([20.0, gy, gz + 2.6]);
+                    // Limit slot cut to 1.55mm width to keep outer wall support solid
+                    translate([17.15, -1.0, gz - 0.2])
+                    cube([1.55, gy + 2.0, slot_h]);
+                }
+            }
         }
     }
 }
@@ -469,15 +501,17 @@ module battery_cradle(is_left) {
     x_pos = 3.0;
     if (is_left) {
         difference() {
-            translate([x_pos, 0, -45]) cylinder(h=50, d=D+4, center=true);
-            translate([x_pos, 0, -45]) cylinder(h=52, d=D, center=true);
-            translate([x_pos + D, 0, -45]) cube([D*2, D*2, 60], center=true);
+            translate([x_pos, 0, -58]) cylinder(h=50, d=D+4, center=true); // Lowered from -45 to -58 to avoid switch collision
+            translate([x_pos, 0, -58]) cylinder(h=52, d=D, center=true);
+            translate([x_pos + D, 0, -58]) cube([D*2, D*2, 60], center=true);
+            // Cutout to allow the boost converter module and wiring to pass through the cradle wall
+            translate([-12.0, 0, -58]) cube([15.0, 15.0, 30.0], center=true);
         }
     } else {
         difference() {
-            translate([x_pos, 0, -45]) cylinder(h=12, d=D+4, center=true);
-            translate([x_pos, 0, -45]) cylinder(h=14, d=D, center=true);
-            translate([x_pos - D, 0, -45]) cube([D*2, D*2, 20], center=true);
+            translate([x_pos, 0, -58]) cylinder(h=12, d=D+4, center=true);
+            translate([x_pos, 0, -58]) cylinder(h=14, d=D, center=true);
+            translate([x_pos - D, 0, -58]) cube([D*2, D*2, 20], center=true);
         }
     }
 }
@@ -509,8 +543,8 @@ module charger_clamp() {
 // --- 7-F Boost Pocket side-by-side with Battery (X=-12.0, Y=0, Z=-45) ---
 // Designed as a hollow tube (open at Z-ends) for clean wiring below battery to charger
 module boost_pocket(is_left) {
-    x_pos = -12.0;
-    z_pos = -45.0;
+    x_pos = -10.5; // Shifted slightly right to merge solidly with the battery cradle wall
+    z_pos = -58.0; // Lowered from -45.0 to -58.0 to match lowered battery
     pw = stepup_size[0] + 2*clearance; 
     pt = stepup_size[2] + 0.2;         
     pl = 22.0;                         
@@ -609,8 +643,8 @@ module handle_electronics(exploded) {
 
     translate([head_w/2, neck_y, wall])
     rotate([handle_angle, 0, 0]) {
-        // Battery (X=3.0, Y=0, Z=-45)
-        translate([3.0, 0, -45] + bo) 
+        // Battery (X=3.0, Y=0, Z=-58)
+        translate([3.0, 0, -58] + bo) 
             rotate([-90, 0, 0])
                 battery_18650_wire();
         
@@ -619,8 +653,8 @@ module handle_electronics(exploded) {
             rotate([90, 0, 90])
                 charger_module_tp4056();
         
-        // Boost Converter VLT-VC013 (X=-12.0, Y=0, Z=-45)
-        translate([-12.0, 0, -45.0] + su) 
+        // Boost Converter VLT-VC013 (X=-10.5, Y=0, Z=-58)
+        translate([-10.5, 0, -58.0] + su) 
             rotate([90, 0, 90])
                 booster_module_vlt_vc013();
         
