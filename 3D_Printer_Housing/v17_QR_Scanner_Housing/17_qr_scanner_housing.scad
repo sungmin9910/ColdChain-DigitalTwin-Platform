@@ -58,6 +58,15 @@ align_pts = [
     [head_l - 18, 6]    
 ];
 
+// --- Assembly screw positions ---
+head_screw_pts = [
+    [52.0, 42.0]
+];
+handle_screw_pts = [
+    [-11.0, -10.0],
+    [12.5, -88.0]
+];
+
 // =============================================
 //  SECTION 2: RENDER CONTROL
 // =============================================
@@ -153,10 +162,20 @@ module housing_left_half() {
                         translate([-50, -50, -150]) cube([50, 100, 200]);
                     }
                 }
+                // 5. Screw Bosses (Left Half)
+                for (p = head_screw_pts) screw_boss_head(p[0], p[1], true);
+                translate([head_w/2, neck_y, wall])
+                rotate([handle_angle, 0, 0])
+                for (p = handle_screw_pts) screw_boss_handle(p[0], p[1], true);
             }
             all_cuts();
+            // Screw holes (Left Half)
+            for (p = head_screw_pts) screw_hole_head(p[0], p[1], true);
+            translate([head_w/2, neck_y, wall])
+            rotate([handle_angle, 0, 0])
+            for (p = handle_screw_pts) screw_hole_handle(p[0], p[1], true);
         }
-        // 5. OLED Guide (Added AFTER cuts to prevent being carved away by the recessed pocket cutout)
+        // 6. OLED Guide (Added AFTER cuts to prevent being carved away by the recessed pocket cutout)
         intersection() {
             head_outer();
             intersection() {
@@ -205,11 +224,21 @@ module housing_right_half() {
                         translate([0, -50, -150]) cube([50, 100, 200]);
                     }
                 }
+                // 4. Screw Bosses (Right Half)
+                for (p = head_screw_pts) screw_boss_head(p[0], p[1], false);
+                translate([head_w/2, neck_y, wall])
+                rotate([handle_angle, 0, 0])
+                for (p = handle_screw_pts) screw_boss_handle(p[0], p[1], false);
             }
             all_cuts();
             alignment_features(false); // Female holes
+            // Screw holes (Right Half)
+            for (p = head_screw_pts) screw_hole_head(p[0], p[1], false);
+            translate([head_w/2, neck_y, wall])
+            rotate([handle_angle, 0, 0])
+            for (p = handle_screw_pts) screw_hole_handle(p[0], p[1], false);
         }
-        // 4. OLED Guide (Added AFTER cuts to prevent being carved away by the recessed pocket cutout)
+        // 5. OLED Guide (Added AFTER cuts to prevent being carved away by the recessed pocket cutout)
         intersection() {
             head_outer();
             intersection() {
@@ -595,6 +624,56 @@ module alignment_features(is_left) {
             translate([split_x, y, z]) rotate([0,90,0]) cylinder(h=1.8, d=1.8);
         else
             translate([split_x-0.1, y, z]) rotate([0,90,0]) cylinder(h=2.0, d=2.2);
+    }
+}
+
+// =============================================
+//  SECTION 7-H: ASSEMBLY SCREW BOSSES & HOLES (NEW)
+// =============================================
+
+module screw_boss_head(y, z, is_left) {
+    br = 4.0;
+    intersection() {
+        if (is_left)
+            translate([0, y, z]) rotate([0,90,0]) cylinder(h=split_x, r=br);
+        else
+            translate([split_x, y, z]) rotate([0,90,0]) cylinder(h=split_x, r=br);
+        head_outer();
+    }
+}
+
+module screw_hole_head(y, z, is_left) {
+    if (is_left) {
+        // M3 clearance hole
+        translate([-1, y, z]) rotate([0,90,0]) cylinder(h=split_x+2, d=3.2);
+        // Countersink recess leaving a 5mm mounting wall
+        translate([-1, y, z]) rotate([0,90,0]) cylinder(h=split_x-5, d=6.0);
+    } else {
+        // M3 pilot hole
+        translate([split_x-0.1, y, z]) rotate([0,90,0]) cylinder(h=10, d=2.5);
+    }
+}
+
+module screw_boss_handle(ly, lz, is_left) {
+    br = 4.0;
+    intersection() {
+        if (is_left)
+            translate([-22.0, ly, lz]) rotate([0,90,0]) cylinder(h=22.0, r=br);
+        else
+            translate([0, ly, lz])   rotate([0,90,0]) cylinder(h=22.0, r=br);
+        handle_outer();
+    }
+}
+
+module screw_hole_handle(ly, lz, is_left) {
+    if (is_left) {
+        // Clearance hole through left handle boss
+        translate([-22, ly, lz]) rotate([0,90,0]) cylinder(h=23, d=3.2);
+        // Countersink recess leaving a 5mm mounting wall
+        translate([-22, ly, lz]) rotate([0,90,0]) cylinder(h=17, d=6.0);
+    } else {
+        // Pilot hole
+        translate([-0.1, ly, lz]) rotate([0,90,0]) cylinder(h=10, d=2.5);
     }
 }
 
