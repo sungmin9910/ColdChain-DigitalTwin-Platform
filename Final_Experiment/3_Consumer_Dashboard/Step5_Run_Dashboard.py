@@ -158,10 +158,10 @@ LANG_DICT = {
     }
 }
 
-# 1. 언어 설정 초기화 (쿼리 매개변수 우선, 없으면 세션 상태)
+# 1. 언어 설정 초기화 (쿼리 매개변수 우선, 없으면 세션 상태 - 기본값 영어 EN 설정)
 if 'lang' not in st.session_state:
-    qp_lang = st.query_params.get("lang", "KO").upper()
-    st.session_state.lang = qp_lang if qp_lang in ['KO', 'EN'] else 'KO'
+    qp_lang = st.query_params.get("lang", "EN").upper()
+    st.session_state.lang = qp_lang if qp_lang in ['KO', 'EN'] else 'EN'
 
 # 2. 페이지 설정 호출 (가장 먼저 실행)
 st.set_page_config(
@@ -170,17 +170,6 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="collapsed"
 )
-
-# 3. 사이드바 언어 선택기
-selected_lang_label = st.sidebar.selectbox(
-    "🌐 Language", 
-    ["한국어 (KO)", "English (EN)"], 
-    index=0 if st.session_state.lang == 'KO' else 1
-)
-lang_key = 'KO' if "한국어" in selected_lang_label else 'EN'
-if lang_key != st.session_state.lang:
-    st.session_state.lang = lang_key
-    st.rerun()
 
 # --- 커스텀 CSS (프리미엄 디자인) ---
 st.markdown("""
@@ -557,6 +546,21 @@ def translate_method(mt, lang):
         "무농약": "Pesticide-Free"
     }
     return mapping.get(mt, mt)
+
+# --- 메인 화면 언어 선택기 (Main Screen Language Selector) ---
+col_lang_left, col_lang_right = st.columns([3.8, 1.2])
+with col_lang_right:
+    selected_lang_label = st.selectbox(
+        "🌐 Language", 
+        ["English (EN)", "한국어 (KO)"], 
+        index=0 if st.session_state.lang == 'EN' else 1,
+        key="lang_selector",
+        label_visibility="collapsed"
+    )
+    lang_key = 'EN' if "English" in selected_lang_label else 'KO'
+    if lang_key != st.session_state.lang:
+        st.session_state.lang = lang_key
+        st.rerun()
 
 # --- 로직 시작 ---
 query_params = st.query_params

@@ -75,7 +75,7 @@ LANG_DICT = {
 }
 
 if 'lang' not in st.session_state:
-    st.session_state.lang = 'KO'
+    st.session_state.lang = 'EN'
 
 st.set_page_config(
     page_title=LANG_DICT[st.session_state.lang]['page_title'],
@@ -303,18 +303,6 @@ mqtt_client = start_mqtt_client()
 
 with st.sidebar:
     st.header(LANG_DICT[st.session_state.lang]['sidebar_title'])
-    
-    # 언어 선택기 추가
-    selected_lang_label = st.selectbox(
-        "🌐 Language", 
-        ["한국어 (KO)", "English (EN)"], 
-        index=0 if st.session_state.lang == 'KO' else 1
-    )
-    lang_key = 'KO' if "한국어" in selected_lang_label else 'EN'
-    if lang_key != st.session_state.lang:
-        st.session_state.lang = lang_key
-        st.rerun()
-        
     st.markdown(LANG_DICT[st.session_state.lang]['sidebar_desc'])
     if st.button(LANG_DICT[st.session_state.lang]['sidebar_reset_btn'], type="primary", use_container_width=True):
         # 1. DB 비우기
@@ -338,8 +326,22 @@ with st.sidebar:
         time.sleep(1)
         st.rerun()
 
-st.markdown(f"<h1 style='text-align: center; font-size: 40px; font-weight: 800; margin-bottom: 5px;'>{LANG_DICT[st.session_state.lang]['page_title']}</h1>", unsafe_allow_html=True)
-st.markdown(f"<p style='text-align: center; font-size: 16px; margin-bottom: 20px; color: #515154;'>{LANG_DICT[st.session_state.lang]['topic_running'].format(MQTT_TOPIC)}</p>", unsafe_allow_html=True)
+col_header, col_lang = st.columns([8.2, 1.8])
+with col_header:
+    st.markdown(f"<h1 style='text-align: left; font-size: 40px; font-weight: 800; margin-bottom: 5px;'>{LANG_DICT[st.session_state.lang]['page_title']}</h1>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: left; font-size: 16px; margin-bottom: 20px; color: #515154;'>{LANG_DICT[st.session_state.lang]['topic_running'].format(MQTT_TOPIC)}</p>", unsafe_allow_html=True)
+with col_lang:
+    selected_lang_label = st.selectbox(
+        "🌐 Language", 
+        ["English (EN)", "한국어 (KO)"], 
+        index=0 if st.session_state.lang == 'EN' else 1,
+        key="lang_selector",
+        label_visibility="collapsed"
+    )
+    lang_key = 'EN' if "English" in selected_lang_label else 'KO'
+    if lang_key != st.session_state.lang:
+        st.session_state.lang = lang_key
+        st.rerun()
 
 # 상단 5대 지표 레이아웃
 m1, m2, m3, m4, m5 = st.columns(5)
