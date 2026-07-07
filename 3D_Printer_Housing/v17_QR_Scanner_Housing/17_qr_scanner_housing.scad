@@ -407,12 +407,6 @@ module all_cuts() {
     translate([head_w/2 - 6.5, head_l - 19.0, 1.0])
     cube([13.0, 21.0, 9.0]);
 
-    // 4) Ventilation slots
-    for (i=[0:3])
-        translate([-1, 45 + i*10, 20])
-        rotate([0,90,0])
-        cylinder(h=head_w+10, d=2.0, center=true);
-
     // 5) USB-C charger port (Bottom of handle, Y=0)
     translate([head_w/2, neck_y, wall])
     rotate([handle_angle, 0, 0])
@@ -450,17 +444,16 @@ module gm77_pocket(is_left) {
     translate([head_w/2, gm77_y, gm77_z]) {
         difference() {
             if (is_left)
-                translate([-pw/2, 0, 0]) cube([pw, pl, ph], center=true);
+                translate([-head_w/4, 0, 0]) cube([head_w/2, pl, ph], center=true);
             else
-                translate([ pw/2, 0, 0]) cube([pw, pl, ph], center=true);
+                translate([ head_w/4, 0, 0]) cube([head_w/2, pl, ph], center=true);
             
             translate([0, 0, 1.0])
             cube([gm77_size[0]+2*clearance, gm77_size[1]+2*clearance, ph], center=true);
             
-            cube([gm77_size[0]-4, gm77_size[1]-4, ph+4], center=true);
-            
-            translate([0, gm77_size[1]/2+clearance, 1.5])
-            cube([14.0, 6.0, 12.0], center=true);
+            // 뒷벽 중앙을 폭 23.5mm 및 전체 높이로 뚫어 케이블 통로 확보 (양옆 2mm 코너 립만 남김)
+            translate([0, gm77_size[1]/2+clearance - 5.0, 0])
+            cube([gm77_size[0] - 4.0, 20.0, ph + 4.0], center=true);
         }
     }
 }
@@ -473,17 +466,19 @@ module esp32_rail(is_left) {
     slot_h = 1.9;
     pcb_hw = esp32_size[0] / 2;  
     if (is_left) {
-        translate([head_w/2 - pcb_hw - 2.5, esp32_y - rail_l/2, wall]) {
+        left_rail_x = head_w/2 - pcb_hw - 2.5;
+        translate([0, esp32_y - rail_l/2, wall]) {
             difference() {
-                cube([rail_w, rail_l, rail_h]);
-                translate([2.5, 2.5, 4.5]) // Raised PCB slot placement offset to match esp32_z (4.5mm Standoff)
+                cube([left_rail_x + rail_w, rail_l, rail_h]);
+                translate([left_rail_x + 2.5, 2.5, 4.5]) // Raised PCB slot placement offset to match esp32_z (4.5mm Standoff)
                 cube([3.0, rail_l - 2.5, slot_h]);
             }
         }
     } else {
-        translate([head_w/2 + pcb_hw - 2.5, esp32_y - rail_l/2, wall]) {
+        right_rail_x = head_w/2 + pcb_hw - 2.5;
+        translate([right_rail_x, esp32_y - rail_l/2, wall]) {
             difference() {
-                cube([rail_w, rail_l, rail_h]);
+                cube([head_w - right_rail_x, rail_l, rail_h]);
                 translate([-0.2, 2.5, 4.5]) // Raised PCB slot placement offset to match esp32_z (4.5mm Standoff)
                 cube([3.0, rail_l - 2.5, slot_h]);
             }
@@ -530,7 +525,10 @@ module battery_cradle(is_left) {
     x_pos = 3.0;
     if (is_left) {
         difference() {
-            translate([x_pos, 0, -58]) cylinder(h=50, d=D+4, center=true); // Lowered from -45 to -58 to avoid switch collision
+            union() {
+                translate([x_pos, 0, -58]) cylinder(h=50, d=D+4, center=true); // Lowered from -45 to -58 to avoid switch collision
+                translate([x_pos - D/2 - 10.0, 0, -58]) cube([20.0, D+4, 50.0], center=true);
+            }
             translate([x_pos, 0, -58]) cylinder(h=52, d=D, center=true);
             translate([x_pos + D, 0, -58]) cube([D*2, D*2, 60], center=true);
             // Cutout to allow the boost converter module and wiring to pass through the cradle wall
@@ -538,7 +536,10 @@ module battery_cradle(is_left) {
         }
     } else {
         difference() {
-            translate([x_pos, 0, -58]) cylinder(h=12, d=D+4, center=true);
+            union() {
+                translate([x_pos, 0, -58]) cylinder(h=12, d=D+4, center=true);
+                translate([x_pos + D/2 + 10.0, 0, -58]) cube([20.0, D+4, 12.0], center=true);
+            }
             translate([x_pos, 0, -58]) cylinder(h=14, d=D, center=true);
             translate([x_pos - D, 0, -58]) cube([D*2, D*2, 20], center=true);
         }
@@ -553,7 +554,8 @@ module charger_pocket(is_left) {
     if (is_left) {
         translate([-pt/2 - 2.0, 0, zb + 12.5])
         difference() {
-            cube([pt + 2.0, pw + 5.0, 25.0], center=true);
+            translate([-6.0, 0, 0])
+            cube([pt + 2.0 + 12.0, pw + 5.0, 25.0], center=true);
             translate([1.0, 0, 0])
             cube([pt + 0.2, pw, 26.0], center=true);
             translate([0, 0, -12.5])
@@ -565,8 +567,8 @@ module charger_pocket(is_left) {
 module charger_clamp() {
     zb = -handle_h + 1.25;
     pw = tp4056_size[0] + 2*clearance;
-    translate([0.6, 0, zb + 12.5])
-    cube([1.5, pw - 4.0, 20.0], center=true);
+    translate([10.0, 0, zb + 12.5])
+    cube([20.0, pw - 4.0, 20.0], center=true);
 }
 
 // --- 7-F Boost Pocket side-by-side with Battery (X=-12.0, Y=0, Z=-45) ---
@@ -580,8 +582,9 @@ module boost_pocket(is_left) {
     if (is_left) {
         translate([x_pos, 0, z_pos]) {
             difference() {
-                // outer box
-                cube([pt + 3.0, pw + 4.0, pl + 3.0], center=true);
+                // outer box extended to left wall
+                translate([-5.0, 0, 0])
+                cube([pt + 3.0 + 10.0, pw + 4.0, pl + 3.0], center=true);
                 // inner slot (open at both top and bottom with +10.0 height overlap)
                 cube([pt, pw, pl + 10.0], center=true);
                 // wire slot cuts on front and back
@@ -600,14 +603,14 @@ module tact_pocket(is_left) {
     translate([0, -14, -22]) {
         if (is_left) {
             difference() {
-                translate([-3.1, 0, 0]) cube([6.2, 8.0, 9.0], center=true);
+                translate([-10.0, 0, 0]) cube([20.0, 8.0, 9.0], center=true);
                 translate([-3.1, 1.0, 0]) cube([6.4, 5.2, 6.4], center=true);
                 translate([-3.1,-3.0, 0]) rotate([90,0,0]) cylinder(h=5, d=4.2, center=true);
                 translate([-3.1, 1.0,-4]) cube([5,4,3], center=true);
             }
         } else {
             difference() {
-                translate([3.1, 0, 0]) cube([6.2, 8.0, 9.0], center=true);
+                translate([10.0, 0, 0]) cube([20.0, 8.0, 9.0], center=true);
                 translate([3.1, 1.0, 0]) cube([6.4, 5.2, 6.4], center=true);
                 translate([3.1,-3.0, 0]) rotate([90,0,0]) cylinder(h=5, d=4.2, center=true);
                 translate([3.1, 1.0,-4]) cube([5,4,3], center=true);

@@ -4,7 +4,7 @@
 $openscad = "C:\Program Files\OpenSCAD\openscad.com"
 $scadViewFile = "$PSScriptRoot\view_mockups.scad"
 $scadHousingFile = "$PSScriptRoot\17_qr_scanner_housing.scad"
-$brainDir = "C:\Users\korea\.gemini\antigravity-ide\brain\8ab1f9b1-b574-4aa7-adfa-7c8a77fa8a8c"
+$brainDir = "C:\Users\korea\.gemini\antigravity-ide\brain\f41dadd4-22d2-439b-842c-34a16516698c"
 
 Write-Host "Starting V17.0 Hardware Mockups & Housing STL rendering..." -ForegroundColor Cyan
 
