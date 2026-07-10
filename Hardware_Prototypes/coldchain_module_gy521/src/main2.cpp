@@ -27,7 +27,7 @@ const char* mqtt_topic = "coldchain/truck01/sensor";
 // -----------------------------------------
 #define TX_INTERVAL_MS 60000          // 일반 센서 데이터 전송 주기 (1분)
 #define SAMPLE_INTERVAL_MS 20         // 가속도 센서 고속 풀링 주기 (20ms = 50Hz)
-#define SHOCK_THRESHOLD_G 2.5         // 심각한 충격(박스 손상/포트홀) 감지 임계값 (G)
+#define SHOCK_THRESHOLD_G 1.8         // 심각한 충격(박스 손상/포트홀) 감지 임계값 (G)
 #define SHOCK_DEBOUNCE_MS 3000        // 충격 이벤트 연속 발생 차단 시간 (3초 데드타임)
 
 // -----------------------------------------

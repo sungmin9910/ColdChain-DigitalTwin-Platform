@@ -87,11 +87,11 @@ st.set_page_config(
 st.markdown("""
     <style>
     [data-testid="stMetricValue"] {
-        font-size: 28px;
+        font-size: 36px;
         color: #00d4ff;
     }
     [data-testid="stMetricLabel"] {
-        font-size: 16px;
+        font-size: 20px;
         font-weight: bold;
     }
     .stMetric {
@@ -99,6 +99,13 @@ st.markdown("""
         padding: 15px;
         border-radius: 10px;
         border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    /* 테이블 및 일반 텍스트 폰트 확대 */
+    .stDataFrame td, .stDataFrame th {
+        font-size: 15px !important;
+    }
+    .stMarkdown p, .stMarkdown li {
+        font-size: 16px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -541,84 +548,105 @@ while True:
         # 데이터프레임 변환
         df = pd.DataFrame(data_history).set_index('timestamp')
         
-        # 차트용 데이터프레임 (최근 40개 데이터)
-        df_chart = df.tail(40).copy()
+        # 차트용 데이터프레임 (전체 누적 기록)
+        df_chart = df.copy()
         
-        # 그래프들 (Altair를 사용하여 X축 수평 가독성 개선 및 Y축 고정 확대/축소 설정)
-        if 'temperature' in df_chart.columns and 'humidity' in df_chart.columns:
+        # 1. 온도/습도 그래프 (온도와 습도 중 사용 가능한 컬럼 추출)
+        available_env = [col for col in ['temperature', 'humidity'] if col in df_chart.columns]
+        if available_env:
             df_reset = df_chart.reset_index()
             df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
-            df_long = df_reset.melt(id_vars=['timestamp'], value_vars=['temperature', 'humidity'], var_name='Metric', value_name='Value')
+            df_long = df_reset.melt(id_vars=['timestamp'], value_vars=available_env, var_name='Metric', value_name='Value')
+            
+            # 범례 한글화 매핑 (세션 언어가 KO이면 한글로 표시)
+            if st.session_state.lang == 'KO':
+                metric_labels = {'temperature': '온도 (°C)', 'humidity': '습도 (%)'}
+                domain_list = ['온도 (°C)', '습도 (%)']
+                y_title = '온도 / 습도'
+            else:
+                metric_labels = {'temperature': 'Temperature (°C)', 'humidity': 'Humidity (%)'}
+                domain_list = ['Temperature (°C)', 'Humidity (%)']
+                y_title = 'Temp / Humi'
+            
+            df_long['Metric'] = df_long['Metric'].map(metric_labels)
+            
             chart = alt.Chart(df_long).mark_line().encode(
-                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
-                y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title=None),
-                color=alt.Color('Metric:N', legend=alt.Legend(orient='bottom', title=None))
+                x=alt.X('timestamp:T', axis=alt.Axis(labels=False, ticks=False), title=None),
+                y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title=y_title),
+                color=alt.Color('Metric:N', 
+                                scale=alt.Scale(domain=domain_list, range=['#FF5733', '#33A2FF']),
+                                legend=alt.Legend(orient='bottom', title=None))
             ).properties(
                 height=400
-            ).interactive(bind_y=False)
-            env_chart.altair_chart(chart, use_container_width=True)
-        elif 'temperature' in df_chart.columns:
-            df_reset = df_chart.reset_index()
-            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
-            chart = alt.Chart(df_reset).mark_line().encode(
-                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
-                y=alt.Y('temperature:Q', scale=alt.Scale(zero=False), title=None)
-            ).properties(
-                height=400
-            ).interactive(bind_y=False)
-            env_chart.altair_chart(chart, use_container_width=True)
-        elif 'humidity' in df_chart.columns:
-            df_reset = df_chart.reset_index()
-            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
-            chart = alt.Chart(df_reset).mark_line().encode(
-                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
-                y=alt.Y('humidity:Q', scale=alt.Scale(zero=False), title=None)
-            ).properties(
-                height=400
+            ).configure_axis(
+                labelFontSize=12,
+                titleFontSize=14
+            ).configure_legend(
+                labelFontSize=12,
+                titleFontSize=14
             ).interactive(bind_y=False)
             env_chart.altair_chart(chart, use_container_width=True)
         
+        # 2. 조도 그래프
         if 'lux' in df_chart.columns:
             df_reset = df_chart.reset_index()
             df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
-            chart = alt.Chart(df_reset).mark_area(color='#FFD700', opacity=0.8).encode(
-                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
-                y=alt.Y('lux:Q', scale=alt.Scale(zero=False), title=None)
+            
+            # 범례 표시를 위해 Metric 컬럼 생성
+            metric_label = '조도 (Lux)' if st.session_state.lang == 'KO' else 'Illuminance (Lux)'
+            df_reset['Metric'] = metric_label
+            y_title = '조도 (Lux)' if st.session_state.lang == 'KO' else 'Lux'
+            
+            chart = alt.Chart(df_reset).mark_area().encode(
+                x=alt.X('timestamp:T', axis=alt.Axis(labels=False, ticks=False), title=None),
+                y=alt.Y('lux:Q', scale=alt.Scale(zero=False), title=y_title),
+                color=alt.Color('Metric:N', 
+                                scale=alt.Scale(domain=[metric_label], range=['#FFD700']), 
+                                legend=alt.Legend(orient='bottom', title=None))
             ).properties(
                 height=400
+            ).configure_axis(
+                labelFontSize=12,
+                titleFontSize=14
+            ).configure_legend(
+                labelFontSize=12,
+                titleFontSize=14
             ).interactive(bind_y=False)
             lux_chart.altair_chart(chart, use_container_width=True)
             
-        if 'g_force' in df_chart.columns and 'speed' in df_chart.columns:
+        # 3. 충격량 및 속도 그래프
+        available_g_speed = [col for col in ['g_force', 'speed'] if col in df_chart.columns]
+        if available_g_speed:
             df_reset = df_chart.reset_index()
             df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
-            df_long = df_reset.melt(id_vars=['timestamp'], value_vars=['g_force', 'speed'], var_name='Metric', value_name='Value')
+            df_long = df_reset.melt(id_vars=['timestamp'], value_vars=available_g_speed, var_name='Metric', value_name='Value')
+            
+            # 범례 한글화 매핑
+            if st.session_state.lang == 'KO':
+                metric_labels = {'g_force': '충격량 (G)', 'speed': '속도 (km/h)'}
+                domain_list = ['충격량 (G)', '속도 (km/h)']
+                y_title = '충격량 / 속도'
+            else:
+                metric_labels = {'g_force': 'Impact (G)', 'speed': 'Speed (km/h)'}
+                domain_list = ['Impact (G)', 'Speed (km/h)']
+                y_title = 'Impact / Speed'
+                
+            df_long['Metric'] = df_long['Metric'].map(metric_labels)
+            
             chart = alt.Chart(df_long).mark_line().encode(
-                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
-                y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title=None),
-                color=alt.Color('Metric:N', legend=alt.Legend(orient='bottom', title=None))
+                x=alt.X('timestamp:T', axis=alt.Axis(labels=False, ticks=False), title=None),
+                y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title=y_title),
+                color=alt.Color('Metric:N',
+                                scale=alt.Scale(domain=domain_list, range=['#E74C3C', '#2ECC71']),
+                                legend=alt.Legend(orient='bottom', title=None))
             ).properties(
                 height=400
-            ).interactive(bind_y=False)
-            gforce_chart.altair_chart(chart, use_container_width=True)
-        elif 'g_force' in df_chart.columns:
-            df_reset = df_chart.reset_index()
-            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
-            chart = alt.Chart(df_reset).mark_line().encode(
-                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
-                y=alt.Y('g_force:Q', scale=alt.Scale(zero=False), title=None)
-            ).properties(
-                height=400
-            ).interactive(bind_y=False)
-            gforce_chart.altair_chart(chart, use_container_width=True)
-        elif 'speed' in df_chart.columns:
-            df_reset = df_chart.reset_index()
-            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'])
-            chart = alt.Chart(df_reset).mark_line().encode(
-                x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
-                y=alt.Y('speed:Q', scale=alt.Scale(zero=False), title=None)
-            ).properties(
-                height=400
+            ).configure_axis(
+                labelFontSize=12,
+                titleFontSize=14
+            ).configure_legend(
+                labelFontSize=12,
+                titleFontSize=14
             ).interactive(bind_y=False)
             gforce_chart.altair_chart(chart, use_container_width=True)
 
