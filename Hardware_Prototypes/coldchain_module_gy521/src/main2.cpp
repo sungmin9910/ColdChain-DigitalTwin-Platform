@@ -291,7 +291,13 @@ void transmitData(float g_force_val, String status_val) {
   if (currentConnected) {
     client.publish(mqtt_topic, jsonBuffer);
   } else {
-    File file = LittleFS.open(offline_file, FILE_APPEND);
+    File file;
+    if (LittleFS.exists(offline_file)) {
+      file = LittleFS.open(offline_file, FILE_APPEND);
+    } else {
+      file = LittleFS.open(offline_file, FILE_WRITE);
+    }
+
     if (file) {
       if (file.size() < 1000000) { // 1MB 제한
         file.println(jsonBuffer);
