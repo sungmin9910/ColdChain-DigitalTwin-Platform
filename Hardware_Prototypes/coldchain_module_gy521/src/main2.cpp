@@ -61,6 +61,9 @@ void setup_wifi() {
   delay(10);
   Serial.print("Connecting to WiFi...");
   
+  WiFi.mode(WIFI_STA);
+  WiFi.setTxPower(WIFI_POWER_11dBm); // 송신 전력(TX Power)을 낮춰 배터리 동작 시 순간 소모 전류(Peak Current)를 줄입니다.
+  
   for (int i = 0; i < num_wifi_networks; i++) {
     wifiMulti.addAP(wifi_networks[i].ssid, wifi_networks[i].password);
   }
