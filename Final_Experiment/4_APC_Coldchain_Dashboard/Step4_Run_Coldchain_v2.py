@@ -76,6 +76,8 @@ LANG_DICT = {
 
 if 'lang' not in st.session_state:
     st.session_state.lang = 'EN'
+if 'run_id' not in st.session_state:
+    st.session_state.run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
 st.set_page_config(
     page_title=LANG_DICT[st.session_state.lang]['page_title'],
@@ -146,6 +148,7 @@ def init_mysql_table():
                     lat FLOAT,
                     lng FLOAT,
                     status VARCHAR(50),
+                    run_id VARCHAR(100) DEFAULT 'default_run',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
                 """)
@@ -185,7 +188,8 @@ def get_data_history():
                     "speed": item.get("speed", 0.0),
                     "lat": item.get("lat", 0.0),
                     "lng": item.get("lng", 0.0),
-                    "status": item.get("status")
+                    "status": item.get("status"),
+                    "run_id": item.get("run_id")
                 }
                 history.append(parsed_item)
             print(f"MySQL에서 {len(history)}개의 과거 데이터를 불러왔습니다.")
@@ -195,36 +199,38 @@ def get_data_history():
             conn.close()
     return history
 
-msg_queue = get_msg_queue()
-data_history = get_data_history()
-
-# 최근 데이터 삭제를 위한 전역 변수
-last_cleanup_time = 0
-CLEANUP_INTERVAL_SEC = 86400  # 하루(24시간) 마다 한 번씩 정리
-
-def cleanup_old_data():
+def load_run_data(run_id):
+    history = []
     conn = get_mysql_connection()
     if conn:
         try:
             with conn.cursor() as cursor:
-                # 7일 이상 지난 데이터 자동 삭제
-                cursor.execute("DELETE FROM sensor_data WHERE created_at < NOW() - INTERVAL 7 DAY")
-            conn.commit()
-            print("오래된 데이터 정리 완료 (7일 이전 데이터 삭제)")
+                cursor.execute("SELECT * FROM sensor_data WHERE run_id = %s ORDER BY id ASC", (run_id,))
+                items = cursor.fetchall()
+            
+            for item in items:
+                parsed_item = {
+                    "device": item.get("device"),
+                    "timestamp": item.get("timestamp_str"),
+                    "temperature": item.get("temperature", 0.0),
+                    "humidity": item.get("humidity", 0.0),
+                    "lux": item.get("lux", 0.0),
+                    "g_force": item.get("g_force", 0.0),
+                    "speed": item.get("speed", 0.0),
+                    "lat": item.get("lat", 0.0),
+                    "lng": item.get("lng", 0.0),
+                    "status": item.get("status"),
+                    "run_id": item.get("run_id")
+                }
+                history.append(parsed_item)
+            print(f"MySQL에서 실험 '{run_id}'의 데이터 {len(history)}개를 불러왔습니다.")
         except Exception as e:
-            print(f"데이터 정리 에러: {e}")
+            print(f"MySQL 데이터 로드 실패: {e}")
         finally:
             conn.close()
+    return history
 
-def save_to_mysql(msg_dict):
-    global last_cleanup_time
-    
-    # 24시간마다 한 번씩 정리 로직 실행
-    current_time = time.time()
-    if current_time - last_cleanup_time > CLEANUP_INTERVAL_SEC:
-        cleanup_old_data()
-        last_cleanup_time = current_time
-
+def save_to_mysql(msg_dict, run_id):
     conn = get_mysql_connection()
     if conn is None:
         return
@@ -235,8 +241,8 @@ def save_to_mysql(msg_dict):
             
             sql = """
             INSERT INTO sensor_data 
-            (device, timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            (device, timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status, run_id, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
             """
             val = (
                 msg_dict.get("device", "unknown"),
@@ -248,7 +254,8 @@ def save_to_mysql(msg_dict):
                 float(msg_dict.get("speed", 0.0)),
                 float(msg_dict.get("lat", 0.0)),
                 float(msg_dict.get("lng", 0.0)),
-                msg_dict.get("status", "")
+                msg_dict.get("status", ""),
+                run_id
             )
             cursor.execute(sql, val)
         conn.commit()
@@ -256,6 +263,9 @@ def save_to_mysql(msg_dict):
         print(f"MySQL 저장 에러: {e}")
     finally:
         conn.close()
+
+msg_queue = get_msg_queue()
+data_history = get_data_history()
 
 # ----------------------------------------------------------------
 # 2. MQTT 콜백 설정
@@ -308,30 +318,61 @@ mqtt_client = start_mqtt_client()
 # 3. UI 구성
 # ----------------------------------------------------------------
 
+# DB에서 고유 run_id 목록 가져오기
+run_ids = ["실시간 주행 (현재 실험)"]
+conn = get_mysql_connection()
+if conn:
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT DISTINCT run_id FROM sensor_data WHERE run_id IS NOT NULL ORDER BY id DESC")
+            rows = cursor.fetchall()
+            for r in rows:
+                val = r["run_id"]
+                if val not in run_ids:
+                    run_ids.append(val)
+    except Exception as e:
+        print(f"run_ids 로드 에러: {e}")
+    finally:
+        conn.close()
+
 with st.sidebar:
     st.header(LANG_DICT[st.session_state.lang]['sidebar_title'])
     st.markdown(LANG_DICT[st.session_state.lang]['sidebar_desc'])
-    if st.button(LANG_DICT[st.session_state.lang]['sidebar_reset_btn'], type="primary", use_container_width=True):
-        # 1. DB 비우기
-        conn = get_mysql_connection()
-        if conn:
-            try:
-                with conn.cursor() as cursor:
-                    cursor.execute("TRUNCATE TABLE sensor_data")
-                conn.commit()
-            except Exception as e:
-                st.error(LANG_DICT[st.session_state.lang]['reset_failed'].format(e))
-            finally:
-                conn.close()
+    
+    selected_run = st.selectbox("📂 주행 데이터 선택 (Run Select)", run_ids, index=0)
+    
+    st.markdown("---")
+    
+    if selected_run == "실시간 주행 (현재 실험)":
+        st.markdown(f"**현재 활성 ID**: `{st.session_state.run_id}`")
+        new_run_input = st.text_input("새 실험 이름 입력", placeholder="예: run_korea_30km")
         
-        # 2. 메모리 비우기
-        data_history.clear()
-        with msg_queue.mutex:
-            msg_queue.queue.clear()
-            
-        st.success(LANG_DICT[st.session_state.lang]['reset_success'])
-        time.sleep(1)
-        st.rerun()
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("🚀 새 실험 시작", type="primary", width="stretch"):
+                if new_run_input.strip():
+                    st.session_state.run_id = new_run_input.strip()
+                else:
+                    st.session_state.run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                
+                # 메모리 비우기
+                data_history.clear()
+                with msg_queue.mutex:
+                    msg_queue.queue.clear()
+                st.success(f"새 실험 시작: {st.session_state.run_id}")
+                time.sleep(1)
+                st.rerun()
+        with col_btn2:
+            if st.button("🛑 실험 종료", width="stretch"):
+                st.session_state.run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                data_history.clear()
+                with msg_queue.mutex:
+                    msg_queue.queue.clear()
+                st.info("현재 실험이 종료되고 새 실시간 세션으로 초기화되었습니다.")
+                time.sleep(1)
+                st.rerun()
+    else:
+        st.info(f"📂 과거 실험 데이터 `{selected_run}`을 조회 중입니다. 이 모드에서는 실시간 데이터 수신이 대기 상태가 됩니다.")
 
 col_header, col_lang = st.columns([8.2, 1.8])
 with col_header:
@@ -388,22 +429,37 @@ log_container = st.empty()
 # 4. 실시간 루프
 # ----------------------------------------------------------------
 last_db_save_time = 0
+loaded_run = None
+static_history = []
 
 while True:
-    while not msg_queue.empty():
-        msg = msg_queue.get()
-        data_history.append(msg)
-        
-        # 최적화: 10초에 한 번씩만 DB에 저장 (또는 강한 충격 발생 시 즉시 저장)
-        current_time = time.time()
-        if (current_time - last_db_save_time >= 10) or (msg.get('g_force', 0) > 1.8):
-            save_to_mysql(msg)  
-            last_db_save_time = current_time
-        if len(data_history) > 3600:
-            data_history.pop(0)
+    if selected_run == "실시간 주행 (현재 실험)":
+        while not msg_queue.empty():
+            msg = msg_queue.get()
+            msg['run_id'] = st.session_state.run_id
+            data_history.append(msg)
+            
+            # 최적화: 10초에 한 번씩만 DB에 저장 (또는 강한 충격 발생 시 즉시 저장)
+            current_time = time.time()
+            if (current_time - last_db_save_time >= 10) or (msg.get('g_force', 0) > 1.8):
+                save_to_mysql(msg, st.session_state.run_id)  
+                last_db_save_time = current_time
+            if len(data_history) > 3600:
+                data_history.pop(0)
+        display_history = data_history
+    else:
+        # 과거 데이터 조회 모드
+        if loaded_run != selected_run:
+            static_history = load_run_data(selected_run)
+            loaded_run = selected_run
+            
+        # 백그라운드 수신 큐 비워서 메모리 누수 방지
+        while not msg_queue.empty():
+            msg_queue.get()
+        display_history = static_history
 
-    if len(data_history) > 0:
-        latest = data_history[-1]
+    if len(display_history) > 0:
+        latest = display_history[-1]
         
         # 메트릭 업데이트 (값이 없을 경우를 대비해 0.0 처리)
         temp_metric.metric(LANG_DICT[st.session_state.lang]['metric_temp'], f"{latest.get('temperature', 0):.1f} °C")
@@ -415,7 +471,7 @@ while True:
         # ----------------------------------------------------------------
         # 5. 고도화된 지도 시각화 (Pydeck)
         # ----------------------------------------------------------------
-        df_gps = pd.DataFrame(data_history)
+        df_gps = pd.DataFrame(display_history)
         # 유효한 GPS 데이터만 필터링
         df_gps = df_gps[(df_gps['lat'] != 0) & (df_gps['lng'] != 0)]
         
@@ -427,12 +483,12 @@ while True:
                 zoom=14,
                 pitch=45,
             )
-
+ 
             # 변화량 계산 (급격한 변화 감지용)
             df_gps['temp_diff'] = df_gps['temperature'].diff().abs().fillna(0)
             df_gps['humi_diff'] = df_gps['humidity'].diff().abs().fillna(0)
             df_gps['lux_diff'] = df_gps['lux'].diff().abs().fillna(0)
-
+ 
             # 1. 이동 경로 레이어 (밝은 배경에서 가독성을 높이기 위해 선명한 진한 회색으로 변경 및 두께 조정)
             path_layer = pdk.Layer(
                 "PathLayer",
@@ -441,7 +497,7 @@ while True:
                 get_color=[70, 70, 70, 220], 
                 width_min_pixels=5,
             )
-
+ 
             # 2. 충격 지점 (강한 충격 > 1.8G) - 빨간색 (반지름 45)
             shock_df = df_gps[df_gps['g_force'] > 1.8].copy()
             shock_df['event_type'] = LANG_DICT[st.session_state.lang]['evt_shock']
@@ -456,7 +512,7 @@ while True:
                 get_radius=45,
                 pickable=True,
             )
-
+ 
             # 3. 조도 급변 지점 (Delta > 300 lx) - 밝은 배경에서도 잘 보이도록 진한 골드/오렌지톤으로 변경 (반지름 35)
             light_df = df_gps[df_gps['lux_diff'] > 300].copy()
             light_df['event_type'] = LANG_DICT[st.session_state.lang]['evt_light']
@@ -471,7 +527,7 @@ while True:
                 get_radius=35,
                 pickable=True,
             )
-
+ 
             # 4. 온도 급변 지점 (Delta > 1.5°C) - 주황색 (반지름 25)
             temp_df = df_gps[df_gps['temp_diff'] > 1.5].copy()
             temp_df['event_type'] = LANG_DICT[st.session_state.lang]['evt_temp']
@@ -486,7 +542,7 @@ while True:
                 get_radius=25,
                 pickable=True,
             )
-
+ 
             # 5. 습도 급변 지점 (Delta > 5%) - 파란색 (반지름 15)
             humi_df = df_gps[df_gps['humi_diff'] > 5.0].copy()
             humi_df['event_type'] = LANG_DICT[st.session_state.lang]['evt_humi']
@@ -501,7 +557,7 @@ while True:
                 get_radius=15,
                 pickable=True,
             )
-
+ 
             # 6. 현재 위치 레이어 (마지막 수신 위치) - 파란색 원형 마커 (반지름 30)
             current_df = df_gps.iloc[[-1]].copy()
             current_df['event_type'] = LANG_DICT[st.session_state.lang]['evt_current']
@@ -516,10 +572,10 @@ while True:
                 get_radius=30,
                 pickable=True,
             )
-
+ 
             # 모든 이벤트 데이터를 합쳐서 텍스트 아이콘 레이어 생성 (현재 위치 아이콘 포함)
             all_events = pd.concat([shock_df, light_df, temp_df, humi_df, current_df]).drop_duplicates(subset=['timestamp', 'icon']) if not (shock_df.empty and light_df.empty and temp_df.empty and humi_df.empty and current_df.empty) else pd.DataFrame()
-
+ 
             icon_layer = pdk.Layer(
                 "TextLayer",
                 data=all_events,
@@ -528,13 +584,13 @@ while True:
                 get_size=20,
                 get_alignment_baseline="'center'",
             )
-
+ 
             tooltip_text = (
                 "{event_type}\n시간: {timestamp}\n온도: {temperature}°C\n습도: {humidity}%\n충격: {g_force}G\n조도: {lux}lx" 
                 if st.session_state.lang == 'KO' else 
                 "{event_type}\nTime: {timestamp}\nTemp: {temperature}°C\nHumidity: {humidity}%\nImpact: {g_force}G\nLight: {lux}lx"
             )
-
+ 
             map_container.pydeck_chart(pdk.Deck(
                 layers=[path_layer, shock_layer, light_layer, temp_layer, humi_layer, current_layer, icon_layer],
                 initial_view_state=view_state,
@@ -544,9 +600,9 @@ while True:
             ))
         else:
             map_container.info(LANG_DICT[st.session_state.lang]['gps_wait'])
-
+ 
         # 데이터프레임 변환
-        df = pd.DataFrame(data_history).set_index('timestamp')
+        df = pd.DataFrame(display_history).set_index('timestamp')
         
         # 차트용 데이터프레임 (전체 누적 기록)
         df_chart = df.copy()
@@ -585,7 +641,7 @@ while True:
                 labelFontSize=12,
                 titleFontSize=14
             ).interactive(bind_y=False)
-            env_chart.altair_chart(chart, use_container_width=True)
+            env_chart.altair_chart(chart, width="stretch")
         
         # 2. 조도 그래프
         if 'lux' in df_chart.columns:
@@ -612,7 +668,7 @@ while True:
                 labelFontSize=12,
                 titleFontSize=14
             ).interactive(bind_y=False)
-            lux_chart.altair_chart(chart, use_container_width=True)
+            lux_chart.altair_chart(chart, width="stretch")
             
         # 3. 충격량 및 속도 그래프
         available_g_speed = [col for col in ['g_force', 'speed'] if col in df_chart.columns]
@@ -648,10 +704,10 @@ while True:
                 labelFontSize=12,
                 titleFontSize=14
             ).interactive(bind_y=False)
-            gforce_chart.altair_chart(chart, use_container_width=True)
-
+            gforce_chart.altair_chart(chart, width="stretch")
+ 
         # 로그
         log_container.dataframe(df.iloc[::-1].head(10), width="stretch")
-
+ 
     # 최적화: 1초 -> 2초 딜레이로 변경하여 클라우드 서버 부하 감소
     time.sleep(2)
