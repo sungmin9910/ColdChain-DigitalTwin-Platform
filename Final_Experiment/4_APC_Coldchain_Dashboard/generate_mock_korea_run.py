@@ -183,13 +183,12 @@ def generate_mock_run(run_id, points, avg_speed_kmh, interval_sec, start_time_st
             g_force = 2.14 if idx == 220 else 1.87
 
         # --- E. 상태(Status) 텍스트 지정 ---
-        status = "Normal"
         if g_force > 1.8:
-            status = "🚨 Hard Impact"
-        elif is_door_open and temp_offset > 1.5:
-            status = "🌡️ Sudden Temp Change"
-        elif is_in_tunnel:
-            status = "💡 Sudden Light Change"
+            status = "강한 충돌!!"
+        elif speed == 0.0:
+            status = "안전"
+        else:
+            status = "이동/진동"
             
         data_list.append({
             "device": "truck01",
@@ -266,24 +265,6 @@ if __name__ == "__main__":
         (35.824200, 127.148000),  # 전주시청 (도착)
     ]
     
-    # --- 코스 B: 전주시청 ~ 서울시청 (200km 테스트 코스) ---
-    jeonju_seoul_nodes = [
-        (35.824200, 127.148000),  # 전주시청 (출발)
-        (35.875000, 127.065000),  # 전주IC 진입 (호남고속도로)
-        (35.980000, 127.080000),  # 익산JC
-        (36.140000, 127.090000),  # 논산JC (천안논산고속도로 진입)
-        (36.310000, 127.110000),  # 탄천휴게소 부근
-        (36.430000, 127.160000),  # 공주JC
-        (36.560000, 127.190000),  # 정안휴게소 부근
-        (36.780000, 127.180000),  # 천안JC (경부고속도로 진입)
-        (36.980000, 127.100000),  # 안성IC 부근
-        (37.150000, 127.080000),  # 오산IC 부근
-        (37.330000, 127.100000),  # 신갈JC 부근
-        (37.460000, 127.040000),  # 양재IC 진입
-        (37.520000, 127.015000),  # 한남대교 남단
-        (37.566500, 126.978000),  # 서울시청 (도착)
-    ]
-    
     # 김제-전주 30km 가상 주행 데이터 생성 및 적재
     gimje_run_data = generate_mock_run(
         run_id="korea_30km_test",
@@ -294,16 +275,16 @@ if __name__ == "__main__":
     )
     insert_data_to_db(gimje_run_data)
     
-    print("-" * 50)
-    
-    # 전주-서울 200km 가상 주행 데이터 생성 및 적재
-    seoul_run_data = generate_mock_run(
-        run_id="korea_200km_test",
-        points=jeonju_seoul_nodes,
-        avg_speed_kmh=100.0,
-        interval_sec=10,
-        start_time_str="2026-07-15 13:00:00"
-    )
-    insert_data_to_db(seoul_run_data)
+    # 200km 테스트 데이터 완전히 제거 (요청 반영)
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM sensor_data WHERE run_id = 'korea_200km_test'")
+        conn.commit()
+        print("Successfully cleared 'korea_200km_test' from DB.")
+    except Exception as e:
+        print(f"Failed to clear korea_200km_test: {e}")
+    finally:
+        conn.close()
     
     print("Mock data generation successfully completed!")
