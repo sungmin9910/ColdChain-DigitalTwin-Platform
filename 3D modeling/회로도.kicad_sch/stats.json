@@ -1,0 +1,74 @@
+{
+  "metadata": {
+    "date": "2026-07-28T10:42:34",
+    "generator": "KiCad 10.0.4",
+    "project": "회로도.kicad_sch",
+    "board_name": "회로도.kicad_sch"
+  },
+  "board": {
+    "has_outline": false,
+    "width": null,
+    "height": null,
+    "area": null,
+    "front_component_density": null,
+    "back_component_density": null,
+    "front_copper_area": "121.30 mm²",
+    "back_copper_area": "121.30 mm²",
+    "min_track_clearance": "2147.4836 mm",
+    "min_track_width": "2147.4836 mm",
+    "min_drill_diameter": "1.0000 mm",
+    "board_thickness": "1.6000 mm",
+    "front_footprint_area": "496.318 mm²",
+    "back_footprint_area": "184.872 mm²",
+    "front_footprint_density": null,
+    "back_footprint_density": null
+  },
+  "pads": {
+    "스루홀": 53,
+    "smd": 0,
+    "연결선": 0,
+    "npth": 0,
+    "캐슬레이티드": 0,
+    "프레스핏": 0
+  },
+  "vias": {
+    "관통": 0,
+    "블라인드": 0,
+    "매립": 0,
+    "마이크로": 0
+  },
+  "components": {
+    "tht": {
+      "front": 6,
+      "back": 0,
+      "total": 6
+    },
+    "smd": {
+      "front": 0,
+      "back": 0,
+      "total": 0
+    },
+    "지정되지_않음": {
+      "front": 0,
+      "back": 0,
+      "total": 0
+    },
+    "total": {
+      "front": 6,
+      "back": 0,
+      "total": 6
+    }
+  },
+  "drill_holes": [
+    {
+      "count": 53,
+      "shape": "둥근",
+      "x_size": "1.0000 mm",
+      "y_size": "1.0000 mm",
+      "plated": true,
+      "source": "패드",
+      "start_layer": "F.Cu",
+      "stop_layer": "B.Cu"
+    }
+  ]
+}

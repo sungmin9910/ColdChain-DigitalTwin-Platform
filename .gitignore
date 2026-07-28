@@ -19,4 +19,12 @@ __pycache__/
 # Local runtime database files
 *blockchain_ledger.json
 
+# VS Code / Local History files
+.history/
+**/.history/
+
+# KiCad locks and temp files
+*.lck
+
+
 
