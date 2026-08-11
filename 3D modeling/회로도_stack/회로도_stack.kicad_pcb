@@ -87,6 +87,59 @@
 			(outputdirectory "")
 		)
 	)
+	(net 0 "")
+	(net 1 "GND")
+	(net 2 "3V3")
+	(net 3 "5V")
+	(net 4 "I2C_SDA")
+	(net 5 "I2C_SCL")
+	(net 6 "GPS_RX")
+	(net 7 "GPS_TX")
+	(net 8 "SHT_ALR")
+	(net 9 "5V_BOT")
+	(net 10 "3V3_BOT")
+	(net 11 "GND_BOT")
+	(net 12 "GPS_RX_BOT")
+	(net 13 "GPS_TX_BOT")
+	(net 14 "GPS_PPS")
+	(net 15 "I2C_SDA_BOT")
+	(net 16 "I2C_SCL_BOT")
+	(net 17 "BH_ADD")
+	(net 18 "EN")
+	(net 19 "IO4")
+	(net 20 "IO5")
+	(net 21 "IO6")
+	(net 22 "IO7")
+	(net 23 "IO15")
+	(net 24 "IO18")
+	(net 25 "IO19")
+	(net 26 "IO20")
+	(net 27 "IO3")
+	(net 28 "IO46")
+	(net 29 "IO10")
+	(net 30 "IO11")
+	(net 31 "IO12")
+	(net 32 "IO13")
+	(net 33 "IO14")
+	(net 34 "IO21")
+	(net 35 "IO47")
+	(net 36 "IO48")
+	(net 37 "IO45")
+	(net 38 "IO0")
+	(net 39 "IO35")
+	(net 40 "IO36")
+	(net 41 "IO37")
+	(net 42 "IO38")
+	(net 43 "IO39")
+	(net 44 "IO40")
+	(net 45 "IO41")
+	(net 46 "IO42")
+	(net 47 "IO44")
+	(net 48 "IO43")
+	(net 49 "IO2")
+	(net 50 "IO1")
+	(net 51 "IO26")
+	(net 52 "IO25")
 	(footprint "Connector_PinHeader_2.54mm:PinHeader_1x22_P2.54mm_Vertical"
 		(layer "F.Cu")
 		(uuid "2385bea7-047e-48ab-838f-7900c64dbc7d")
@@ -290,7 +343,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "6f3129c6-0a34-4fa2-8c99-27e181f77cd0")
-		)
+		 (net 1 "GND"))
 		(pad "2" thru_hole circle
 			(at 0 2.54 90)
 			(size 1.7 1.7)
@@ -298,7 +351,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "94ff54b3-18f4-414f-b6d7-51ab63148698")
-		)
+		 (net 34 "IO21"))
 		(pad "3" thru_hole circle
 			(at 0 5.08 90)
 			(size 1.7 1.7)
@@ -306,7 +359,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "ac45613a-c855-45e9-a656-725f9cfa6573")
-		)
+		 (net 35 "IO47"))
 		(pad "4" thru_hole circle
 			(at 0 7.62 90)
 			(size 1.7 1.7)
@@ -314,7 +367,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "1456f370-d05c-401b-bbbe-5a707f3ce1a2")
-		)
+		 (net 36 "IO48"))
 		(pad "5" thru_hole circle
 			(at 0 10.16 90)
 			(size 1.7 1.7)
@@ -322,7 +375,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "ffdf36d1-1fe7-4fe1-96e0-905a59bc27dd")
-		)
+		 (net 37 "IO45"))
 		(pad "6" thru_hole circle
 			(at 0 12.7 90)
 			(size 1.7 1.7)
@@ -330,7 +383,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "d5658329-344a-436a-ad61-4f032e5776eb")
-		)
+		 (net 38 "IO0"))
 		(pad "7" thru_hole circle
 			(at 0 15.24 90)
 			(size 1.7 1.7)
@@ -338,7 +391,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "14129e28-4eca-4c21-bfc8-0496ce5234bf")
-		)
+		 (net 39 "IO35"))
 		(pad "8" thru_hole circle
 			(at 0 17.78 90)
 			(size 1.7 1.7)
@@ -346,7 +399,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "d5a4fd81-da2b-4831-8b7c-c11217809248")
-		)
+		 (net 40 "IO36"))
 		(pad "9" thru_hole circle
 			(at 0 20.32 90)
 			(size 1.7 1.7)
@@ -354,7 +407,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "01d9908c-6962-48e1-82f9-1a8d33efb6b9")
-		)
+		 (net 41 "IO37"))
 		(pad "10" thru_hole circle
 			(at 0 22.86 90)
 			(size 1.7 1.7)
@@ -362,7 +415,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "96909443-6666-4c09-aae3-947aa9ebea97")
-		)
+		 (net 42 "IO38"))
 		(pad "11" thru_hole circle
 			(at 0 25.4 90)
 			(size 1.7 1.7)
@@ -370,7 +423,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "e0c14602-c98c-4a72-ae11-9372f351c2d4")
-		)
+		 (net 43 "IO39"))
 		(pad "12" thru_hole circle
 			(at 0 27.94 90)
 			(size 1.7 1.7)
@@ -378,7 +431,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "dd0032f9-c305-4b82-a9ba-8784cb0b88d9")
-		)
+		 (net 44 "IO40"))
 		(pad "13" thru_hole circle
 			(at 0 30.48 90)
 			(size 1.7 1.7)
@@ -386,7 +439,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "1c001925-d1a7-4435-92b0-d8dc898dd091")
-		)
+		 (net 45 "IO41"))
 		(pad "14" thru_hole circle
 			(at 0 33.02 90)
 			(size 1.7 1.7)
@@ -394,7 +447,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "e996bfd0-3ea4-490f-86c2-96cdb14e8a3a")
-		)
+		 (net 46 "IO42"))
 		(pad "15" thru_hole circle
 			(at 0 35.56 90)
 			(size 1.7 1.7)
@@ -402,7 +455,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "991b5231-74e2-4506-868f-1a6d98d4bfc1")
-		)
+		 (net 47 "IO44"))
 		(pad "16" thru_hole circle
 			(at 0 38.1 90)
 			(size 1.7 1.7)
@@ -410,7 +463,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "dadbc85e-bae2-4516-8d21-f6cba17dc0ad")
-		)
+		 (net 48 "IO43"))
 		(pad "17" thru_hole circle
 			(at 0 40.64 90)
 			(size 1.7 1.7)
@@ -418,7 +471,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "49c1b990-cbab-484e-941a-f48ba4a17836")
-		)
+		 (net 49 "IO2"))
 		(pad "18" thru_hole circle
 			(at 0 43.18 90)
 			(size 1.7 1.7)
@@ -426,7 +479,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "7153eda4-f195-4c7e-ae03-c705daef62c8")
-		)
+		 (net 50 "IO1"))
 		(pad "19" thru_hole circle
 			(at 0 45.72 90)
 			(size 1.7 1.7)
@@ -434,7 +487,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "972b66f9-661d-4c99-b029-55efa41fe483")
-		)
+		 (net 51 "IO26"))
 		(pad "20" thru_hole circle
 			(at 0 48.26 90)
 			(size 1.7 1.7)
@@ -442,7 +495,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "ee992c38-f6a9-4628-93dc-08d2ef008cfd")
-		)
+		 (net 52 "IO25"))
 		(pad "21" thru_hole circle
 			(at 0 50.8 90)
 			(size 1.7 1.7)
@@ -450,7 +503,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "d60fe5bf-adc4-40e5-b6af-c171e8c62461")
-		)
+		 (net 3 "5V"))
 		(pad "22" thru_hole circle
 			(at 0 53.34 90)
 			(size 1.7 1.7)
@@ -458,7 +511,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "c3428d26-239b-4ca3-8083-a1ca577ffa71")
-		)
+		 (net 1 "GND"))
 		(embedded_fonts no)
 		(model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x22_P2.54mm_Vertical.step"
 			(offset
@@ -688,7 +741,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "0170480a-46c0-4de3-a06e-491f6f3a1d30")
-		)
+		 (net 2 "3V3"))
 		(pad "2" thru_hole circle
 			(at 0 2.54 90)
 			(size 1.7 1.7)
@@ -696,7 +749,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "a51eae91-3689-4c85-80cb-e54e5e55ea90")
-		)
+		 (net 1 "GND"))
 		(pad "3" thru_hole circle
 			(at 0 5.08 90)
 			(size 1.7 1.7)
@@ -704,7 +757,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "14ca0537-baf0-4161-b67c-86084688d66f")
-		)
+		 (net 5 "I2C_SCL"))
 		(pad "4" thru_hole circle
 			(at 0 7.62 90)
 			(size 1.7 1.7)
@@ -712,7 +765,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "03325524-7258-48a0-aa94-fcff117141db")
-		)
+		 (net 4 "I2C_SDA"))
 		(pad "5" thru_hole circle
 			(at 0 10.16 90)
 			(size 1.7 1.7)
@@ -720,7 +773,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "50c409f2-6698-47fc-8c33-2e2991806339")
-		)
+		 (net 8 "SHT_ALR"))
 		(embedded_fonts no)
 		(model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x05_P2.54mm_Vertical.step"
 			(hide yes)
@@ -950,7 +1003,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "32c144f6-149d-4c5d-8afc-1a122be1d050")
-		)
+		 (net 9 "5V_BOT"))
 		(pad "2" thru_hole circle
 			(at 0 2.54 90)
 			(size 1.7 1.7)
@@ -958,7 +1011,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "37a90aee-aee1-469e-a817-0d9ce42e1aca")
-		)
+		 (net 12 "GPS_RX_BOT"))
 		(pad "3" thru_hole circle
 			(at 0 5.08 90)
 			(size 1.7 1.7)
@@ -966,7 +1019,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "7906cdda-4b3f-4e69-baec-b3e8a3125db3")
-		)
+		 (net 13 "GPS_TX_BOT"))
 		(pad "4" thru_hole circle
 			(at 0 7.62 90)
 			(size 1.7 1.7)
@@ -974,7 +1027,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "9a5ffb2e-0227-463e-8c8d-160b1bc714e5")
-		)
+		 (net 11 "GND_BOT"))
 		(pad "5" thru_hole circle
 			(at 0 10.16 90)
 			(size 1.7 1.7)
@@ -982,7 +1035,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "a17d545c-8c45-4a78-9de6-36b63d2aa5b1")
-		)
+		 (net 14 "GPS_PPS"))
 		(embedded_fonts no)
 		(model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x05_P2.54mm_Vertical.step"
 			(offset
@@ -1213,7 +1266,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "a70c7e17-07e1-4c13-911c-cbfe7601dfa1")
-		)
+		 (net 10 "3V3_BOT"))
 		(pad "2" thru_hole circle
 			(at 0 2.54 270)
 			(size 1.7 1.7)
@@ -1221,7 +1274,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "182712b8-528b-4843-9fe6-dd8c1408794f")
-		)
+		 (net 11 "GND_BOT"))
 		(pad "3" thru_hole circle
 			(at 0 5.08 270)
 			(size 1.7 1.7)
@@ -1229,7 +1282,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "6ba4e437-f85f-4a3f-a39f-b65808c32e2c")
-		)
+		 (net 16 "I2C_SCL_BOT"))
 		(pad "4" thru_hole circle
 			(at 0 7.62 270)
 			(size 1.7 1.7)
@@ -1237,7 +1290,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "94c2a380-28c4-47f2-b935-bc312976abe6")
-		)
+		 (net 15 "I2C_SDA_BOT"))
 		(pad "5" thru_hole circle
 			(at 0 10.16 270)
 			(size 1.7 1.7)
@@ -1245,7 +1298,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "ada36a4d-506c-4235-a5a9-a3560c53fecd")
-		)
+		 (net 17 "BH_ADD"))
 		(embedded_fonts no)
 		(model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x05_P2.54mm_Vertical.step"
 			(hide yes)
@@ -1474,7 +1527,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "0a1eb309-d4c3-4e34-8447-61204d565aab")
-		)
+		 (net 2 "3V3"))
 		(pad "2" thru_hole circle
 			(at 0 2.54 90)
 			(size 1.7 1.7)
@@ -1482,7 +1535,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "040a43f5-8db9-4246-a3a1-e4f24fb430dc")
-		)
+		 (net 18 "EN"))
 		(pad "3" thru_hole circle
 			(at 0 5.08 90)
 			(size 1.7 1.7)
@@ -1490,7 +1543,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "5f56d94c-54f5-4ba9-9e30-e8c117ca2965")
-		)
+		 (net 19 "IO4"))
 		(pad "4" thru_hole circle
 			(at 0 7.62 90)
 			(size 1.7 1.7)
@@ -1498,7 +1551,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "288b12d4-d32b-469f-b675-9cb3efb12d0b")
-		)
+		 (net 20 "IO5"))
 		(pad "5" thru_hole circle
 			(at 0 10.16 90)
 			(size 1.7 1.7)
@@ -1506,7 +1559,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "e929b469-15f1-44e3-946f-5375a674dfc7")
-		)
+		 (net 21 "IO6"))
 		(pad "6" thru_hole circle
 			(at 0 12.7 90)
 			(size 1.7 1.7)
@@ -1514,7 +1567,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "600e32d4-7aa2-4578-aac3-41e0daa5e99e")
-		)
+		 (net 22 "IO7"))
 		(pad "7" thru_hole circle
 			(at 0 15.24 90)
 			(size 1.7 1.7)
@@ -1522,7 +1575,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "696730eb-56d2-484a-85ae-3a99aedb211c")
-		)
+		 (net 23 "IO15"))
 		(pad "8" thru_hole circle
 			(at 0 17.78 90)
 			(size 1.7 1.7)
@@ -1530,7 +1583,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "9f58eceb-2804-429a-befd-76cf95a46342")
-		)
+		 (net 6 "GPS_RX"))
 		(pad "9" thru_hole circle
 			(at 0 20.32 90)
 			(size 1.7 1.7)
@@ -1538,7 +1591,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "1478f191-e0f6-4075-a54a-50876cda142b")
-		)
+		 (net 7 "GPS_TX"))
 		(pad "10" thru_hole circle
 			(at 0 22.86 90)
 			(size 1.7 1.7)
@@ -1546,7 +1599,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "fabaf7f9-a9ab-4dea-89a9-0a116468a3b6")
-		)
+		 (net 24 "IO18"))
 		(pad "11" thru_hole circle
 			(at 0 25.4 90)
 			(size 1.7 1.7)
@@ -1554,7 +1607,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "5ab77885-1ef5-45c0-920c-ba338c2b734c")
-		)
+		 (net 4 "I2C_SDA"))
 		(pad "12" thru_hole circle
 			(at 0 27.94 90)
 			(size 1.7 1.7)
@@ -1562,7 +1615,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "6d4afe86-92c9-4059-aed9-e921b2ba1601")
-		)
+		 (net 25 "IO19"))
 		(pad "13" thru_hole circle
 			(at 0 30.48 90)
 			(size 1.7 1.7)
@@ -1570,7 +1623,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "af1333b5-fcff-47bb-a2f3-a8d57b8969ad")
-		)
+		 (net 26 "IO20"))
 		(pad "14" thru_hole circle
 			(at 0 33.02 90)
 			(size 1.7 1.7)
@@ -1578,7 +1631,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "1217f211-819a-4015-b74f-939415288476")
-		)
+		 (net 27 "IO3"))
 		(pad "15" thru_hole circle
 			(at 0 35.56 90)
 			(size 1.7 1.7)
@@ -1586,7 +1639,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "1d4ff3da-75f9-4e06-a6c7-2c9837e4f9f3")
-		)
+		 (net 28 "IO46"))
 		(pad "16" thru_hole circle
 			(at 0 38.1 90)
 			(size 1.7 1.7)
@@ -1594,7 +1647,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "3fea9039-5675-476c-9981-d0fc8c114092")
-		)
+		 (net 5 "I2C_SCL"))
 		(pad "17" thru_hole circle
 			(at 0 40.64 90)
 			(size 1.7 1.7)
@@ -1602,7 +1655,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "f8713b59-fcd3-4be8-be19-86f9e1691a20")
-		)
+		 (net 29 "IO10"))
 		(pad "18" thru_hole circle
 			(at 0 43.18 90)
 			(size 1.7 1.7)
@@ -1610,7 +1663,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "82233b61-fb60-4e09-82c6-0029e9a5b8a5")
-		)
+		 (net 30 "IO11"))
 		(pad "19" thru_hole circle
 			(at 0 45.72 90)
 			(size 1.7 1.7)
@@ -1618,7 +1671,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "b5be075c-a6f8-441b-9eba-227412d389fe")
-		)
+		 (net 31 "IO12"))
 		(pad "20" thru_hole circle
 			(at 0 48.26 90)
 			(size 1.7 1.7)
@@ -1626,7 +1679,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "6fa8167e-aad2-444e-8f46-393e1c4f10b3")
-		)
+		 (net 32 "IO13"))
 		(pad "21" thru_hole circle
 			(at 0 50.8 90)
 			(size 1.7 1.7)
@@ -1634,7 +1687,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "24bee07d-eaef-4a31-87dc-0b65cca734d2")
-		)
+		 (net 33 "IO14"))
 		(pad "22" thru_hole circle
 			(at 0 53.34 90)
 			(size 1.7 1.7)
@@ -1642,7 +1695,7 @@
 			(layers "*.Cu" "*.Mask")
 			(remove_unused_layers no)
 			(uuid "f1b389ec-1cfa-4401-922b-075eb8e8bd68")
-		)
+		 (net 1 "GND"))
 		(embedded_fonts no)
 		(model "${KICAD10_3DMODEL_DIR}/Connector_PinHeader_2.54mm.3dshapes/PinHeader_1x22_P2.54mm_Vertical.step"
 			(offset
@@ -1846,4 +1899,23 @@
 		)
 	)
 	(embedded_fonts no)
-)
+
+	(segment (start 63.5 104.14) (end 64.77 105.41) (width 0.4) (layer "F.Cu") (net 2) (uuid "5a02b0ba-5464-41e4-9ea3-67d92af5c9ae"))
+	(segment (start 64.77 105.41) (end 64.77 138.43) (width 0.4) (layer "F.Cu") (net 2) (uuid "04fa6f5c-eb76-48e6-a311-b23105659baa"))
+	(segment (start 64.77 138.43) (end 66.04 139.7) (width 0.4) (layer "F.Cu") (net 2) (uuid "fb25dfdd-08a7-46b6-b6c3-455280724e31"))
+	(segment (start 116.84 104.14) (end 116.84 129.54) (width 0.4) (layer "B.Cu") (net 1) (uuid "60b288ec-10dd-4929-8864-4d4368f4db5b"))
+	(segment (start 116.84 129.54) (end 116.84 132.08) (width 0.4) (layer "B.Cu") (net 1) (uuid "1cca217e-cdce-4809-aef2-52727cc7ef77"))
+	(segment (start 116.84 132.08) (end 63.5 132.08) (width 0.4) (layer "B.Cu") (net 1) (uuid "b9af7fb0-cd85-4713-bf0b-dec62c6a8ff9"))
+	(segment (start 63.5 132.08) (end 63.5 129.54) (width 0.4) (layer "B.Cu") (net 1) (uuid "1aa2a7e8-ff1b-4dda-b213-7bea236e9b94"))
+	(segment (start 63.5 129.54) (end 63.5 139.7) (width 0.4) (layer "B.Cu") (net 1) (uuid "25e1e7ed-77c3-440e-8688-d2a6d482e915"))
+	(segment (start 63.5 139.7) (end 66.04 142.24) (width 0.4) (layer "B.Cu") (net 1) (uuid "3e145765-6f8b-4532-ab8e-a9f6a699ac19"))
+	(segment (start 88.9 104.14) (end 88.9 101.6) (width 0.2) (layer "F.Cu") (net 4) (uuid "1032c2f2-d6bc-48df-a579-22cfeec16149"))
+	(segment (start 88.9 101.6) (end 62.0 101.6) (width 0.2) (layer "F.Cu") (net 4) (uuid "5c1b09fa-bb27-4d61-8dfa-a49f79b510b7"))
+	(segment (start 62.0 101.6) (end 62.0 143.28) (width 0.2) (layer "F.Cu") (net 4) (uuid "f8d0330e-bc2e-483d-84a8-9b97c8f7611b"))
+	(segment (start 62.0 143.28) (end 66.04 147.32) (width 0.2) (layer "F.Cu") (net 4) (uuid "0a068c2a-9450-4826-ab92-16361d7d5adb"))
+	(segment (start 101.6 104.14) (end 101.6 109.22) (width 0.2) (layer "B.Cu") (net 5) (uuid "61a79446-c573-49a2-bd4f-3bde65d92408"))
+	(segment (start 101.6 109.22) (end 60.8 109.22) (width 0.2) (layer "B.Cu") (net 5) (uuid "a8256ddb-2baa-49df-8931-6ac61875a441"))
+	(segment (start 60.8 109.22) (end 60.8 139.54) (width 0.2) (layer "B.Cu") (net 5) (uuid "a4eab177-c997-4d49-a26c-624f78f1f029"))
+	(segment (start 60.8 139.54) (end 66.04 144.78) (width 0.2) (layer "B.Cu") (net 5) (uuid "b0e38c28-6494-4390-9ca2-b1288d9ec773"))
+	(segment (start 190.5 132.08) (end 193.04 132.08) (width 0.4) (layer "B.Cu") (net 11) (uuid "52a7e6f4-7663-4358-aa01-795ac7654a3d"))
+	(segment (start 193.04 132.08) (end 198.12 127.0) (width 0.4) (layer "B.Cu") (net 11) (uuid "863ef7b2-4b5c-4022-97f0-6309a80f6b8f")))
