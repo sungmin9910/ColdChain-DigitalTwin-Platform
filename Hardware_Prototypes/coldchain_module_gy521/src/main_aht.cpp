@@ -2,7 +2,6 @@
 #include <Wire.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_SHT4x.h>
 #include <Adafruit_AHTX0.h>
 #include <BH1750.h>
 #include <TinyGPS++.h>
@@ -32,19 +31,15 @@ const char* mqtt_topic = "coldchain/truck01/sensor";
 #define SHOCK_DEBOUNCE_MS 3000        // 충격 이벤트 연속 발생 차단 시간 (3초 데드타임)
 
 // -----------------------------------------
-// 객체 및 핀 설정
+// 객체 및 핀 설정 (AHT10 / AHT20 센서 전용)
 // -----------------------------------------
 Adafruit_MPU6050 mpu;
-Adafruit_SHT4x sht4 = Adafruit_SHT4x();
 Adafruit_AHTX0 aht;
-bool isAhtSensor = false;
-bool isShtSensor = false;
-
 BH1750 lightMeter;
 TinyGPSPlus gps;
 
-// GPS는 Serial2 사용 (RX: 16, TX: 17)
-#define GPS_SERIAL Serial2
+// ESP32-C3/S3 GPS용 Serial1 (RX: GPIO 20, TX: GPIO 21)
+#define GPS_SERIAL Serial1
 
 WiFiMulti wifiMulti;
 WiFiClient espClient;
@@ -67,7 +62,7 @@ void setup_wifi() {
   Serial.print("Connecting to WiFi...");
   
   WiFi.mode(WIFI_STA);
-  WiFi.setTxPower(WIFI_POWER_11dBm); // 송신 전력(TX Power)을 낮춰 배터리 동작 시 순간 소모 전류(Peak Current)를 줄입니다.
+  WiFi.setTxPower(WIFI_POWER_11dBm);
   
   for (int i = 0; i < num_wifi_networks; i++) {
     wifiMulti.addAP(wifi_networks[i].ssid, wifi_networks[i].password);
@@ -88,7 +83,7 @@ bool reconnectNonBlocking() {
     if (now - lastReconnectAttempt > 5000) {
       lastReconnectAttempt = now;
       Serial.print("Attempting MQTT connection (non-blocking)...");
-      String clientId = "ESP32-GY521-";
+      String clientId = "ESP32C3-AHT-";
       clientId += String(random(0xffff), HEX);
       if (client.connect(clientId.c_str())) {
         Serial.println("connected!");
@@ -130,7 +125,7 @@ void sendOfflineData() {
       if (client.publish(mqtt_topic, line.c_str())) {
         published = true;
         sentCount++;
-        delay(50); // prevent network congestion
+        delay(50);
       } else {
         Serial.println("❌ Failed to publish offline record, buffering remaining...");
         failCount++;
@@ -169,9 +164,12 @@ void sendOfflineData() {
 
 void setup() {
   Serial.begin(115200);
-  GPS_SERIAL.begin(9600, SERIAL_8N1, 16, 17); // GPS 초기화
   
-  Wire.begin(); 
+  // GPS 초기화 (RX: GPIO 20, TX: GPIO 21)
+  GPS_SERIAL.begin(9600, SERIAL_8N1, 20, 21);
+  
+  // I2C 초기화 (SDA: GPIO 8, SCL: GPIO 9)
+  Wire.begin(8, 9); 
 
   // 1. MPU6050 초기화
   if (!mpu.begin()) {
@@ -182,20 +180,14 @@ void setup() {
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
   }
 
-  // 2. 온습도 센서 초기화 (AHT10/AHT20 또는 SHT4x 자동 감지)
-  if (aht.begin()) {
-    isAhtSensor = true;
-    Serial.println("✅ AHT10/AHT20 Temp & Humidity Sensor Detected!");
-  } else if (sht4.begin()) {
-    isShtSensor = true;
-    sht4.setPrecision(SHT4X_HIGH_PRECISION);
-    sht4.setHeater(SHT4X_NO_HEATER);
-    Serial.println("✅ SHT4x Temp & Humidity Sensor Detected!");
+  // 2. AHT10 / AHT20 온습도 센서 초기화
+  if (!aht.begin()) {
+    Serial.println("❌ Could not find AHT10/AHT20 sensor! Check I2C wiring (SDA=8, SCL=9, addr 0x38)");
   } else {
-    Serial.println("⚠️ Could not find AHT10/AHT20 or SHT4x sensor! (Check I2C wiring 0x38/0x44)");
+    Serial.println("✅ AHT10/AHT20 Temp & Humidity Sensor initialized!");
   }
 
-  // 3. BH1750 초기화
+  // 3. BH1750 조도 센서 초기화
   if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
     Serial.println("Error initialising BH1750");
   }
@@ -221,12 +213,10 @@ void setup() {
   lastSampleTime = now;
 }
 
-// -----------------------------------------
-// UTC tm 구조체를 Unix Epoch 초로 직접 계산하는 함수
-// -----------------------------------------
+// UTC tm 구조체를 Unix Epoch 초로 계산
 time_t customTimegm(struct tm *t) {
   int year = t->tm_year + 1900;
-  int month = t->tm_mon + 1; // tm_mon은 0~11 이므로 1~12로 변환
+  int month = t->tm_mon + 1;
   int day = t->tm_mday;
   int hour = t->tm_hour;
   int min = t->tm_min;
@@ -236,43 +226,23 @@ time_t customTimegm(struct tm *t) {
     0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334
   };
 
-  // 1970년부터 이전 연도까지의 일수 계산 (윤년 포함)
   long days = (year - 1970) * 365 + (year - 1969) / 4 - (year - 1901) / 100 + (year - 1601) / 400;
-
-  // 해당 연도의 누적 일수 더하기
   days += days_before_month[month - 1];
   days += day - 1;
 
-  // 해당 연도가 윤년이고 3월 이후인 경우 1일 추가
   if (month > 2) {
     bool isLeap = (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0));
-    if (isLeap) {
-      days++;
-    }
+    if (isLeap) days++;
   }
 
-  // 최종 초 단위 계산
   return (time_t)(((days * 24 + hour) * 60 + min) * 60 + sec);
 }
 
-// -----------------------------------------
 // 데이터 계측 및 MQTT/LittleFS 전송 공통 함수
-// -----------------------------------------
-
 void transmitData(float g_force_val, String status_val) {
-  // 온습도 측정 (AHT10/AHT20 또는 SHT4x 자동 분기)
+  // AHT10 / AHT20 온습도 측정
   sensors_event_t humidity, temp_evt;
-  float tempVal = 0.0, humVal = 0.0;
-
-  if (isAhtSensor) {
-    aht.getEvent(&humidity, &temp_evt);
-    tempVal = temp_evt.temperature;
-    humVal = humidity.relative_humidity;
-  } else if (isShtSensor) {
-    sht4.getEvent(&humidity, &temp_evt);
-    tempVal = temp_evt.temperature;
-    humVal = humidity.relative_humidity;
-  }
+  aht.getEvent(&humidity, &temp_evt);
 
   // BH1750 조도 측정
   float lux = lightMeter.readLightLevel();
@@ -286,10 +256,10 @@ void transmitData(float g_force_val, String status_val) {
 
   // JSON 구성
   StaticJsonDocument<512> doc;
-  doc["device"] = "gy521";
+  doc["device"] = "gy521-aht";
   doc["timestamp_str"] = timeStr;
-  doc["temperature"] = String(tempVal, 2);
-  doc["humidity"] = String(humVal, 2);
+  doc["temperature"] = String(temp_evt.temperature, 2);
+  doc["humidity"] = String(humidity.relative_humidity, 2);
   doc["lux"] = String(lux, 1);
   doc["g_force"] = String(g_force_val, 2);
   
@@ -309,7 +279,6 @@ void transmitData(float g_force_val, String status_val) {
   Serial.print("📡 Transmission: ");
   Serial.println(jsonBuffer);
 
-  // 온라인이면 전송, 오프라인이면 LittleFS에 저장
   bool currentConnected = client.connected();
   if (currentConnected) {
     client.publish(mqtt_topic, jsonBuffer);
@@ -322,15 +291,13 @@ void transmitData(float g_force_val, String status_val) {
     }
 
     if (file) {
-      if (file.size() < 1000000) { // 1MB 제한
+      if (file.size() < 1000000) {
         file.println(jsonBuffer);
         Serial.println("💾 Saved data to LittleFS (Offline mode)");
       } else {
-        Serial.println("⚠️ LittleFS buffer full (>= 1MB)!");
+        Serial.println("⚠️ LittleFS buffer full!");
       }
       file.close();
-    } else {
-      Serial.println("❌ Failed to open offline file for appending!");
     }
   }
 }
@@ -338,7 +305,6 @@ void transmitData(float g_force_val, String status_val) {
 void loop() {
   bool currentConnected = client.connected();
 
-  // WiFi가 연결된 상태에서만 MQTT 재연결 시도 (비블로킹)
   if (wifiMulti.run() == WL_CONNECTED) {
     if (!currentConnected) {
       currentConnected = reconnectNonBlocking();
@@ -349,55 +315,48 @@ void loop() {
     client.loop();
   }
 
-  // 연결 상태가 오프라인에서 온라인으로 전환되었을 때 플러시 플래그 활성화
   if (currentConnected && !wasConnected) {
     checkOfflineData = true;
   }
   wasConnected = currentConnected;
 
-  // 플래그가 활성화되면 저장된 오프라인 데이터 전송
   if (currentConnected && checkOfflineData) {
     checkOfflineData = false;
     sendOfflineData();
   }
 
-  // GPS 데이터 파싱
   while (GPS_SERIAL.available() > 0) {
     gps.encode(GPS_SERIAL.read());
   }
 
   unsigned long now = millis();
 
-  // 1. 고속 가속도 샘플링 (SAMPLE_INTERVAL_MS 간격으로 수집)
+  // 1. 고속 가속도 샘플링 (50Hz)
   if (now - lastSampleTime >= SAMPLE_INTERVAL_MS) {
     lastSampleTime = now;
 
     sensors_event_t a, g, temp_mpu;
     mpu.getEvent(&a, &g, &temp_mpu);
     
-    // 3축 합성 가속도 크기 계산
     float total_accel = sqrt(pow(a.acceleration.x, 2) + pow(a.acceleration.y, 2) + pow(a.acceleration.z, 2));
     float g_force = total_accel / 9.80665; 
 
-    // 피크 홀드 적용: 전송 주기 내 최고 충격값 보관
     if (g_force > max_g_force) {
       max_g_force = g_force;
     }
 
-    // 2. 실시간 임계값 초과 충격 발생 시 즉각 전송 (이벤트 드리븐)
+    // 2. 실시간 임계값 초과 충격 이벤트 전송 (1.8G 이상)
     if (g_force >= SHOCK_THRESHOLD_G) {
       if (now - lastShockTime >= SHOCK_DEBOUNCE_MS) {
         lastShockTime = now;
         Serial.printf("⚠️ [SHOCK DETECTED] High G-Force event: %.2fg!\n", g_force);
         transmitData(g_force, "강한 충돌!!");
-        
-        // 피크 홀드 값 초기화 (이전 충격을 일반 전송 주기가 중복 반영하지 않도록)
         max_g_force = 1.0; 
       }
     }
   }
 
-  // 3. GPS 데이터가 유효하고 시스템 시간이 미동기 상태이면 GPS UTC 시간으로 시간 설정 (1초마다 검사)
+  // 3. GPS 시각 동기화
   static unsigned long lastGpsSyncCheck = 0;
   if (now - lastGpsSyncCheck >= 1000) {
     lastGpsSyncCheck = now;
@@ -405,7 +364,7 @@ void loop() {
     if (gps.date.isValid() && gps.time.isValid() && gps.date.year() > 2020) {
       time_t now_time = time(NULL);
       struct tm *now_tm = localtime(&now_time);
-      if (now_tm->tm_year < 120) { // 시스템 시간이 2020년 이전인 경우 (미동기화 상태)
+      if (now_tm->tm_year < 120) {
         struct tm gpsTimeinfo = {0};
         gpsTimeinfo.tm_year = gps.date.year() - 1900;
         gpsTimeinfo.tm_mon = gps.date.month() - 1;
@@ -415,22 +374,20 @@ void loop() {
         gpsTimeinfo.tm_sec = gps.time.second();
         gpsTimeinfo.tm_isdst = 0;
 
-        // customTimegm()을 통해 UTC 기준으로 에포크 초 변환하여 타임존 이중 오프셋 방지
         time_t utcEpoch = customTimegm(&gpsTimeinfo);
         if (utcEpoch != -1) {
           struct timeval tv = { .tv_sec = utcEpoch, .tv_usec = 0 };
           settimeofday(&tv, NULL);
-          Serial.println("⏰ System time synced with GPS UTC (KST computed by timezone offset)!");
+          Serial.println("⏰ System time synced with GPS UTC!");
         }
       }
     }
   }
 
-  // 4. 일반 데이터 주기적 전송 (TX_INTERVAL_MS = 60000ms 간격)
+  // 4. 일반 데이터 주기적 전송 (1분 간격)
   if (now - lastTxTime >= TX_INTERVAL_MS) {
     lastTxTime = now;
 
-    // 상태 판별
     String status = "안전";
     if (max_g_force > SHOCK_THRESHOLD_G) {
       status = "강한 충돌!!";
@@ -438,10 +395,7 @@ void loop() {
       status = "이동/진동";
     }
 
-    // 전송
     transmitData(max_g_force, status);
-
-    // 전송 완료 후 다음 주기를 위한 피크 홀드 값 초기화
     max_g_force = 1.0; 
   }
 }

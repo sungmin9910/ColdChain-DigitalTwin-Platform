@@ -31,7 +31,7 @@ const char* mqtt_topic = "coldchain/truck01/sensor";
 #define SHOCK_DEBOUNCE_MS 3000        // 충격 이벤트 연속 발생 차단 시간 (3초 데드타임)
 
 // -----------------------------------------
-// 객체 및 핀 설정
+// 객체 및 핀 설정 (SHT45 센서 전용)
 // -----------------------------------------
 Adafruit_MPU6050 mpu;
 Adafruit_SHT4x sht4 = Adafruit_SHT4x();
