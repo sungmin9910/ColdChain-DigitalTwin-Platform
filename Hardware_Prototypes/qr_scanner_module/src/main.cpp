@@ -34,8 +34,9 @@ WebServer server(80); // 80번 포트에 웹서버 생성
 #define OLED_RESET -1
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// 현재 스캔 단계 (A10 = scan1.py, A11 = scan2.py ...)
-String currentMode = "A10";
+// 현재 스캔 단계 및 모드 (기본값: AUTO 메인 모드)
+bool isAutoMode = true;
+String manualMode = "A10";
 
 // --- 중복 스캔 방지용 변수 ---
 String lastScannedData = "";
@@ -43,7 +44,7 @@ unsigned long lastScanTime = 0;
 const unsigned long SCAN_DEBOUNCE_INTERVAL = 5000; // 동일 바코드 중복 스캔 방지 시간 (5초)
 
 // --- OLED 업데이트 함수 ---
-void updateOLED(String msg = "") {
+void updateOLED(String msg = "", String fmId = "", String activeMode = "") {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
@@ -56,15 +57,31 @@ void updateOLED(String msg = "") {
   } else {
     display.println("WiFi: Disconnected");
   }
+  display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
 
-  // 중단: 현재 모드 아주 크게 표시
-  display.setCursor(0, 16);
-  display.setTextSize(1);
-  display.println("Current Mode:");
-  
-  display.setCursor(0, 28);
-  display.setTextSize(3);
-  display.println(currentMode);
+  // 중단: 현재 모드 표시
+  display.setCursor(0, 14);
+  if (isAutoMode) {
+    display.setTextSize(1);
+    display.println("Mode: [ AUTO ]");
+    if (activeMode != "" && fmId != "") {
+      display.setCursor(0, 26);
+      display.print("Box #"); display.print(fmId);
+      display.setCursor(0, 36);
+      display.setTextSize(2);
+      display.print("-> "); display.println(activeMode);
+    } else {
+      display.setCursor(0, 30);
+      display.setTextSize(1);
+      display.println("Ready to Auto-Scan..");
+    }
+  } else {
+    display.setTextSize(1);
+    display.print("Mode: [ MANUAL ]");
+    display.setCursor(0, 28);
+    display.setTextSize(3);
+    display.println(manualMode);
+  }
 
   // 하단: 추가 메시지 (스캔 성공, DB 저장 등)
   if (msg != "") {
@@ -82,29 +99,49 @@ void handleRoot() {
   html += "<style>body{font-family:'Malgun Gothic',sans-serif;text-align:center;margin-top:50px;background:#f4f4f9;} ";
   html += "button{padding:20px 40px;font-size:24px;background:#007BFF;color:white;border:none;border-radius:15px;box-shadow: 0 4px 6px rgba(0,0,0,0.1);}</style></head><body>";
   html += "<h2>🚚 콜드체인 QR 스캐너</h2>";
-  html += "<h1>현재 스캔 모드: <span style='color:#FF5722;font-size:50px;'>" + currentMode + "</span></h1>";
   
-  if (currentMode == "A10") html += "<p style='font-size:20px;'>(박스 입고 단계)</p>";
-  else if (currentMode == "A11") html += "<p style='font-size:20px;'>(세척 완료 단계)</p>";
-  else if (currentMode == "A13") html += "<p style='font-size:20px;'>(포장 완료 단계)</p>";
-  else if (currentMode == "A14") html += "<p style='font-size:20px;'>(저장 단계)</p>";
-  else if (currentMode == "A15") html += "<p style='font-size:20px;'>(최종 출하 단계)</p>";
+  if (isAutoMode) {
+    html += "<h1>현재 모드: <span style='color:#28A745;font-size:45px;'>🤖 AUTO (지능형)</span></h1>";
+    html += "<p style='font-size:20px;'>(스캔 시 DB 이력 기반 단계 자동 판단)</p>";
+  } else {
+    html += "<h1>현재 모드: <span style='color:#FF5722;font-size:45px;'>✋ MANUAL (" + manualMode + ")</span></h1>";
+    if (manualMode == "A10") html += "<p style='font-size:20px;'>(수동: 박스 입고 단계)</p>";
+    else if (manualMode == "A11") html += "<p style='font-size:20px;'>(수동: 세척 완료 단계)</p>";
+    else if (manualMode == "A13") html += "<p style='font-size:20px;'>(수동: 포장 완료 단계)</p>";
+    else if (manualMode == "A14") html += "<p style='font-size:20px;'>(수동: 저장 단계)</p>";
+    else if (manualMode == "A15") html += "<p style='font-size:20px;'>(수동: 최종 출하 단계)</p>";
+  }
   
-  html += "<br><br><a href='/next'><button>👉 다음 단계로 변경</button></a>";
+  html += "<br><br><a href='/next'><button>👉 다음 모드/단계로 변경</button></a>";
   html += "</body></html>";
   server.send(200, "text/html", html);
 }
 
+void cycleMode() {
+  if (isAutoMode) {
+    isAutoMode = false;
+    manualMode = "A10";
+  } else {
+    if (manualMode == "A10") manualMode = "A11";
+    else if (manualMode == "A11") manualMode = "A13";
+    else if (manualMode == "A13") manualMode = "A14";
+    else if (manualMode == "A14") manualMode = "A15";
+    else if (manualMode == "A15") {
+      isAutoMode = true; // 수동 모드 순환을 마치면 다시 AUTO 메인 모드로 복귀!
+    }
+  }
+  
+  if (isAutoMode) {
+    Serial.println("\n🔄 모드 전환됨 -> 🤖 AUTO (지능형 자동 판단)");
+    updateOLED("Mode: AUTO");
+  } else {
+    Serial.println("\n🔄 모드 전환됨 -> ✋ MANUAL (" + manualMode + ")");
+    updateOLED("Mode: MANUAL " + manualMode);
+  }
+}
+
 void handleNext() {
-  if (currentMode == "A10") currentMode = "A11";
-  else if (currentMode == "A11") currentMode = "A13";
-  else if (currentMode == "A13") currentMode = "A14";
-  else if (currentMode == "A14") currentMode = "A15";
-  else if (currentMode == "A15") currentMode = "A10";
-  
-  Serial.println("\n📱 폰에서 모드 변경됨 -> " + currentMode);
-  updateOLED("Mode Changed via Web");
-  
+  cycleMode();
   server.sendHeader("Location", "/");
   server.send(303);
 }
@@ -156,11 +193,14 @@ void setup() {
   server.begin();
   
   Serial.println("==========================================");
-  Serial.println("ESP32 Standalone Scanner Ready. (DB Fetch Mode)");
-  Serial.println("Current Mode: " + currentMode);
-  Serial.println("버튼(GPIO 0)을 누르거나 스마트폰 웹페이지(http://" + WiFi.localIP().toString() + ")에서 단계를 변경하세요.");
-  Serial.println("==========================================");
-  
+  Serial.println("ESP32 Standalone Scanner Ready.");
+  Serial.println("Main Mode: AUTO (지능형 자동 판단)");
+  Serial.println("Backup: 버튼 클릭 시 MANUAL 수동 모드로 순환");
+  // 시리얼 부팅 더미 및 응답 버퍼 비우기
+  while (ScannerSerial.available()) {
+    ScannerSerial.read();
+  }
+
   updateOLED("System Ready");
 }
 
@@ -176,11 +216,9 @@ String getQueryParam(String url, String param) {
 
 // FmID 추출 (Streamlit 쿼리 파라미터 또는 기존 URL 패턴)
 String getFmID(String url) {
-  // 1. 새 Streamlit URL 방식 (?FmID=33)
   String fmId = getQueryParam(url, "FmID");
   if (fmId != "NULL" && fmId != "''") return fmId;
   
-  // 2. 기존 방식 (/qr/33?) - 역호환성 유지
   int lastSlash = url.lastIndexOf('/');
   int questionMark = url.indexOf('?');
   if (lastSlash != -1 && questionMark != -1 && lastSlash < questionMark) {
@@ -192,13 +230,33 @@ String getFmID(String url) {
 }
 
 void processScan(String rawData) {
-  // 1. 모드 변경용 특수 QR 코드 인식
+  // 1. 스캔 데이터 수신 시 앞쪽에 섞인 GM77 ACK 응답 바이너리(0x04 등) 정제
+  int httpIdx = rawData.indexOf("http");
+  int modeIdx = rawData.indexOf("MODE:");
+
+  if (httpIdx != -1) {
+    rawData = rawData.substring(httpIdx);
+  } else if (modeIdx != -1) {
+    rawData = rawData.substring(modeIdx);
+  } else {
+    // 유효한 URL 및 MODE 명령어가 아닌 바이너리 신호는 무시
+    return;
+  }
+
+  // 2. 모드 변경용 특수 QR 코드 인식
   if (rawData.startsWith("MODE:")) {
-    currentMode = rawData.substring(5);
-    currentMode.trim();
+    String modeVal = rawData.substring(5);
+    modeVal.trim();
+    if (modeVal == "AUTO") {
+      isAutoMode = true;
+    } else {
+      isAutoMode = false;
+      manualMode = modeVal;
+    }
     Serial.println("\n=================================");
-    Serial.println("스캔 단계가 변경되었습니다: " + currentMode);
+    Serial.println("스캔 모드가 QR 스캔에 의해 변경되었습니다: " + (isAutoMode ? "AUTO" : manualMode));
     Serial.println("=================================\n");
+    updateOLED("Mode Changed via QR");
     return;
   }
 
@@ -206,6 +264,7 @@ void processScan(String rawData) {
   String fmId = getFmID(rawData);
   if (fmId == "NULL" || fmId == "''") {
     Serial.println("❌ FmID를 찾을 수 없습니다.");
+    updateOLED("No FmID!");
     return;
   }
 
@@ -228,70 +287,90 @@ void processScan(String rawData) {
     Serial.println("✅ AWS DB Connection Success!");
     MySQL_Query query_executor(&conn);
     
-    // [추가] AWS RDS 기본 시간(UTC)을 한국 시간(KST, +09:00)으로 맞춰주기
     query_executor.execute("SET time_zone = '+09:00'");
+
+    // 타겟 모드 결정 (AUTO 메인 vs MANUAL 수동)
+    String targetMode = "";
+    if (isAutoMode) {
+      String checkQuery = "SELECT Lo FROM lab225.qr WHERE FmID = " + fmId + " ORDER BY id DESC LIMIT 1";
+      Serial.println("🔍 DB에서 FmID (" + fmId + ")의 이전 이력 조회 중...");
+      String lastLo = "NONE";
+      if (query_executor.execute(checkQuery.c_str())) {
+        row_values *row = query_executor.get_next_row();
+        if (row != NULL && row->values[0] != NULL) {
+          lastLo = String(row->values[0]);
+        }
+        while (row != NULL) { row = query_executor.get_next_row(); }
+      }
+
+      Serial.println("💡 DB 이전 최신 이력(Lo): " + lastLo);
+      if (lastLo == "NONE" || lastLo == "A00") targetMode = "A10";
+      else if (lastLo == "A10") targetMode = "A11";
+      else if (lastLo == "A11" || lastLo == "A12") targetMode = "A13";
+      else if (lastLo == "A13") targetMode = "A14";
+      else if (lastLo == "A14") targetMode = "A15";
+      else if (lastLo == "A15") {
+        Serial.println("⚠️ 이미 최종 출하(A15)가 완료된 상자입니다.");
+        updateOLED("Already Completed!", fmId, "A15");
+        conn.close();
+        return;
+      }
+      Serial.println("🤖 [AUTO] 지능형 판단 결과 단계: " + targetMode);
+    } else {
+      targetMode = manualMode;
+      Serial.println("✋ [MANUAL] 수동 지정 단계: " + targetMode);
+    }
 
     // [센서 데이터 통합 가져오기 (GPS, 온습도)]
     String latStr = "NULL", lonStr = "NULL", tpStr = "NULL", hmStr = "NULL";
-    // 데이터베이스 스키마 명시(lab225.sensor_data) 및 실제 컬럼명(lat, lng), 정렬 조건(id DESC) 반영
     String sensor_query = "SELECT lat, lng, temperature, humidity FROM lab225.sensor_data ORDER BY id DESC LIMIT 1";
     Serial.println("🔍 GPS/센서 데이터 조회 중...");
     if (query_executor.execute(sensor_query.c_str())) {
-      column_names *cols = query_executor.get_columns();
       row_values *row = query_executor.get_next_row();
       if (row != NULL) {
         if (row->values[0] != NULL) latStr = row->values[0];
         if (row->values[1] != NULL) lonStr = row->values[1];
         if (row->values[2] != NULL) tpStr = row->values[2];
         if (row->values[3] != NULL) hmStr = row->values[3];
-        Serial.print("✅ GPS 데이터 수신 성공 -> Lat: ");
-        Serial.print(latStr);
-        Serial.print(", Lng: ");
-        Serial.println(lonStr);
-      } else {
-        Serial.println("⚠️ sensor_data 테이블에 데이터가 존재하지 않습니다.");
       }
-      // 버퍼 비우기
       while (row != NULL) { row = query_executor.get_next_row(); }
-    } else {
-      Serial.println("❌ sensor_data 테이블 조회 실패 (SQL 쿼리 오류)");
     }
 
-    // [INSERT 쿼리 생성 (INSERT ... SELECT 사용)]
+    // [INSERT 쿼리 생성]
     String query = "";
-    if (currentMode == "A10") {
+    if (targetMode == "A10") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, Lat, lon) VALUES ";
       query += "('A10', " + ac + ", " + fmId + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", " + rp + ", NOW(), " + latStr + ", " + lonStr + ")";
     }
-    else if (currentMode == "A11") {
+    else if (targetMode == "A11") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, Lat, lon) ";
       query += "SELECT 'A11', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, NOW(), " + latStr + ", " + lonStr + " ";
       query += "FROM lab225.qr WHERE FmID = " + fmId + " AND APC_AD IS NOT NULL ORDER BY APC_AD DESC LIMIT 1";
     }
-    else if (currentMode == "A12") {
+    else if (targetMode == "A12") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, Lat, lon) ";
       query += "SELECT 'A12', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, NOW(), " + latStr + ", " + lonStr + " ";
       query += "FROM lab225.qr WHERE Lo = 'A11' AND FmID = " + fmId + " ORDER BY APC_WD DESC LIMIT 1";
     }
-    else if (currentMode == "A13") {
+    else if (targetMode == "A13") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
       query += "SELECT 'A13', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, NOW(), " + latStr + ", " + lonStr + ", AGrade, BGrade, CGrade, DefectRate ";
       query += "FROM lab225.qr WHERE Lo = 'A12' AND FmID = " + fmId + " ORDER BY APC_RT DESC LIMIT 1";
     }
-    else if (currentMode == "A14") {
+    else if (targetMode == "A14") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
       query += "SELECT 'A14', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, NOW(), " + tpStr + ", " + hmStr + ", " + latStr + ", " + lonStr + ", AGrade, BGrade, CGrade, DefectRate ";
       query += "FROM lab225.qr WHERE Lo = 'A13' AND FmID = " + fmId + " ORDER BY APC_PT DESC LIMIT 1";
     }
-    else if (currentMode == "A15") {
+    else if (targetMode == "A15") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
       query += "SELECT 'A15', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, NOW(), " + latStr + ", " + lonStr + ", AGrade, BGrade, CGrade, DefectRate ";
       query += "FROM lab225.qr WHERE Lo = 'A14' AND FmID = " + fmId + " ORDER BY APC_StD DESC LIMIT 1";
     }
 
     if (query_executor.execute(query.c_str())) {
-      Serial.println("✅ DB 저장 성공! (단계: " + currentMode + ")");
-      updateOLED("DB Save OK!");
+      Serial.println("✅ DB 저장 성공! (단계: " + targetMode + ")");
+      updateOLED("DB Save OK!", fmId, targetMode);
     } else {
       Serial.println("❌ DB 저장 실패: 쿼리 오류 또는 이전 단계 데이터 없음");
       updateOLED("DB Save FAIL!");
@@ -299,18 +378,43 @@ void processScan(String rawData) {
     conn.close();
   } else {
     Serial.println("❌ DB 연결 실패 (AWS)");
-    Serial.println("힌트1: AWS RDS 보안 그룹에서 현재 IP(" + WiFi.localIP().toString() + ")의 3306 포트를 허용했는지 확인하세요.");
-    Serial.println("힌트2: AWS RDS의 '퍼블릭 액세스' 설정이 '예'로 되어있는지 확인하세요.");
     updateOLED("DB Conn FAIL!");
   }
+}
+
+// 시리얼에서 0x00(NUL) 및 제어 바이너리를 걸러내고 9600bps 속도에 맞춰 전체 URL(최대 1.5초)을 완전하게 수신하는 함수
+String readCleanScannerData() {
+  String result = "";
+  unsigned long start = millis();
+  unsigned long lastCharTime = millis();
+
+  while (millis() - start < 1500) {
+    if (ScannerSerial.available()) {
+      char c = (char)ScannerSerial.read();
+      lastCharTime = millis();
+      
+      if (c == '\r' || c == '\n') {
+        if (result.length() > 0) break;
+      } else if (c >= 32 && c <= 126) {
+        result += c;
+      }
+    } else {
+      if (result.length() > 0 && (millis() - lastCharTime > 150)) {
+        break;
+      }
+      delay(5);
+    }
+  }
+  return result;
 }
 
 unsigned long lastButtonPress = 0;
 
 void loop() {
-  // 스캐너 데이터 처리
+  // 스캐너 데이터 처리 (NUL 및 바이너리 제어문자 제거 정제)
   if (ScannerSerial.available()) {
-    String scannedData = ScannerSerial.readStringUntil('\r');
+    delay(50); // 패킷 수신 완료 대기
+    String scannedData = readCleanScannerData();
     scannedData.trim();
     if (scannedData.length() > 0) {
       unsigned long currentTime = millis();
@@ -327,20 +431,13 @@ void loop() {
     }
   }
 
-  // 버튼을 통한 수동 모드 전환 (디바운스 500ms 적용)
+  // 버튼을 통한 모드 순환 전환 (AUTO ↔ MANUAL A10->A11->A13->A14->A15->AUTO)
   if (digitalRead(BUTTON_PIN) == LOW && millis() - lastButtonPress > 500) {
-    if (currentMode == "A10") currentMode = "A11";
-    else if (currentMode == "A11") currentMode = "A13"; // A12는 PC에서 발급하므로 건너뜀
-    else if (currentMode == "A13") currentMode = "A14";
-    else if (currentMode == "A14") currentMode = "A15";
-    else if (currentMode == "A15") currentMode = "A10";
-    
-    Serial.println("\n🔘 버튼 눌림 - 스캔 단계가 " + currentMode + "(으)로 변경되었습니다.");
-    updateOLED("Mode Changed");
+    cycleMode();
     lastButtonPress = millis();
   }
 
-  // 웹서버 클라이언트 처리 (스마트폰 접속 대기)
+  // 웹서버 클라이언트 처리
   server.handleClient();
 }
 
