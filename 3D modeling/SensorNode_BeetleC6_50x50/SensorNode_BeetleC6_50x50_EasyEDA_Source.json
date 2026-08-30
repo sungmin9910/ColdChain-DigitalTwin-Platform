@@ -1,0 +1,154 @@
+{
+  "head": {
+    "docType": "3",
+    "editorVersion": "6.5.40",
+    "newUID": "c6_sensornode_50x50_rev2",
+    "c_para": {
+      "name": "SensorNode_BeetleC6_50x50_v2",
+      "package": "",
+      "BOM_Supplier": "",
+      "BOM_Supplier_Part": "",
+      "Contributor": "Antigravity",
+      "link": ""
+    }
+  },
+  "canvas": "CA~1000~1000~#000000~yes~#333333~10~10~mm~1~0~#666666~none~0~0~100~100~1.6~0~50~50~2~0",
+  "board": {
+    "width_mm": 50.0,
+    "height_mm": 50.0,
+    "corner_radius_mm": 2.0,
+    "layer_count": 2,
+    "thickness_mm": 1.6,
+    "mounting_holes_m3": [
+      {"x": 3.5, "y": 3.5, "drill": 3.2, "pad": 5.5},
+      {"x": 46.5, "y": 3.5, "drill": 3.2, "pad": 5.5},
+      {"x": 3.5, "y": 46.5, "drill": 3.2, "pad": 5.5},
+      {"x": 46.5, "y": 46.5, "drill": 3.2, "pad": 5.5}
+    ],
+    "components": [
+      {
+        "designator": "MCU1",
+        "name": "Beetle ESP32-C6 Mini",
+        "footprint": "HDR-TH_2x8P-P2.54-W17.78mm",
+        "center_x_mm": 25.0,
+        "center_y_mm": 25.0,
+        "rotation": 0,
+        "description": "Main MCU (Pin 1-8 Left, Pin 9-16 Right) with USB-C flush to top edge"
+      },
+      {
+        "designator": "SW1",
+        "name": "Power Slide Switch",
+        "footprint": "SW-SMD_PCM12",
+        "center_x_mm": 44.5,
+        "center_y_mm": 13.0,
+        "rotation": 0,
+        "description": "Slide Switch safely positioned below H2 M3 mounting hole keepout"
+      },
+      {
+        "designator": "U2",
+        "name": "SHT45",
+        "footprint": "DFN-4_1.5x1.5mm",
+        "center_x_mm": 6.5,
+        "center_y_mm": 19.0,
+        "rotation": 0,
+        "description": "High Precision Temp/Humidity Sensor, Left Outer Edge Thermal Isolation"
+      },
+      {
+        "designator": "U3",
+        "name": "BH1750",
+        "footprint": "SOIC-8 / WSOF-6",
+        "center_x_mm": 6.5,
+        "center_y_mm": 30.0,
+        "rotation": 0,
+        "description": "Digital Ambient Light Sensor (I2C 0x23)"
+      },
+      {
+        "designator": "U4",
+        "name": "ADXL345",
+        "footprint": "LGA-14_3x5mm",
+        "center_x_mm": 43.5,
+        "center_y_mm": 19.5,
+        "rotation": 0,
+        "description": "3-Axis Digital Accelerometer (I2C 0x53)"
+      },
+      {
+        "designator": "J1",
+        "name": "JST-PH-2P",
+        "footprint": "JST_PH_S2B-PH-K_1x02_P2.00mm",
+        "center_x_mm": 44.0,
+        "center_y_mm": 26.0,
+        "rotation": 90,
+        "description": "3.7V Li-Po Battery JST Ingress Connector"
+      },
+      {
+        "designator": "J2",
+        "name": "MicroSD TF Socket",
+        "footprint": "MicroSD_Molex_47309",
+        "center_x_mm": 26.0,
+        "center_y_mm": 44.0,
+        "rotation": 0,
+        "description": "SPI MicroSD Storage Card Slot facing bottom edge"
+      },
+      {
+        "designator": "U5",
+        "name": "ATGM336H GPS",
+        "footprint": "SMD_ATGM336H_Module",
+        "center_x_mm": 14.0,
+        "center_y_mm": 43.0,
+        "rotation": 0,
+        "description": "GPS Navigation Module clear of H3 M3 mounting hole"
+      },
+      {
+        "designator": "J3",
+        "name": "IPEX / u.FL",
+        "footprint": "Hirose_U.FL-R-SMT-1",
+        "center_x_mm": 6.5,
+        "center_y_mm": 38.5,
+        "rotation": 0,
+        "description": "GPS External Active/Passive Antenna Connector"
+      },
+      {
+        "designator": "R1_R2",
+        "name": "100kΩ Battery Divider (0603)",
+        "footprint": "R_0603",
+        "center_x_mm": 11.5,
+        "center_y_mm": 34.0,
+        "rotation": 0,
+        "description": "ADC Voltage Divider to Beetle GPIO 4 (BAT_ADC)"
+      },
+      {
+        "designator": "R3_R4",
+        "name": "4.7kΩ I2C Pull-ups (0603)",
+        "footprint": "R_0603",
+        "center_x_mm": 11.5,
+        "center_y_mm": 12.5,
+        "rotation": 0,
+        "description": "SDA & SCL Pull-Up Resistors connected to 3.3V"
+      },
+      {
+        "designator": "C1",
+        "name": "10uF Decoupling (0603)",
+        "footprint": "C_0603",
+        "center_x_mm": 11.5,
+        "center_y_mm": 16.5,
+        "rotation": 0,
+        "description": "3.3V Power Decoupling Capacitor"
+      }
+    ],
+    "netlist": {
+      "VCC_3V3": ["MCU1.1", "U2.4", "U3.1", "U4.1", "U4.6", "U4.7", "J2.4", "U5.1", "R3.1", "R4.1", "C1.1"],
+      "GND": ["MCU1.2", "U2.3", "U3.2", "U3.3", "U3.4", "U4.2", "U4.4", "U4.5", "U4.12", "J1.2", "J2.6", "J2.SH", "U5.2", "U5.5", "U5.8", "J3.2", "R2.2", "C1.2", "H1.1", "H2.1", "H3.1", "H4.1"],
+      "BAT_POS": ["J1.1", "SW1.1"],
+      "VBAT_MCU": ["SW1.2", "MCU1.8", "R1.1"],
+      "BAT_ADC": ["R1.2", "R2.1", "MCU1.7"],
+      "I2C_SDA": ["MCU1.9", "U2.1", "U3.8", "U4.13", "R3.2"],
+      "I2C_SCL": ["MCU1.10", "U2.2", "U3.7", "U4.14", "R4.2"],
+      "GPS_RX": ["MCU1.11", "U5.3"],
+      "GPS_TX": ["MCU1.12", "U5.4"],
+      "SPI_CS": ["MCU1.13", "J2.2"],
+      "SPI_SCK": ["MCU1.14", "J2.5"],
+      "SPI_MISO": ["MCU1.15", "J2.7"],
+      "SPI_MOSI": ["MCU1.16", "J2.3"]
+    }
+  }
+}
