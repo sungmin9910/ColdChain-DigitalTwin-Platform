@@ -1,0 +1,13 @@
+Comment,Designator,Footprint,LCSC Part #,Description
+100k 1% 0603,"R1,R2",R_0603_1608Metric,C25803,Battery ADC Voltage Divider (100k)
+4.7k 1% 0603,"R3,R4",R_0603_1608Metric,C23163,I2C SDA/SCL Pull-up Resistors (4.7k)
+10uF 10V 0603,C1,C_0603_1608Metric,C19702,3.3V Power Decoupling Capacitor
+SHT45-AD1B,U2,Sensirion_DFN-4-1EP_1.5x1.5mm,C2909387,Sensirion High Precision Temp/Humidity Sensor (DFN-4)
+BH1750FVI,U3,SOIC-8_3.9x4.9mm_P1.27mm,C78960,Ambient Light Sensor (I2C)
+ADXL345BCCZ,U4,LGA-14_3x5mm_P0.8mm,C51477,3-Axis Accelerometer (LGA-14)
+ATGM336H-5N31,U5,SMD_ATGM336H,C90983,GPS/BDS Navigation Module
+SW_SPDT_PCM12,SW1,SW_SPDT_PCM12,C318884,SPDT Slide Power Switch
+MicroSD Slot,J2,MicroSD_Molex_47309-0001,C721035,TF/MicroSD Card Slot (Push-Pull)
+IPEX / U.FL,J3,U.FL_Hirose_U.FL-R-SMT-1,C2988399,RF Coaxial Antenna Connector
+JST-PH-2P 2.0mm,J1,JST_PH_S2B-PH-K_1x02_P2.00mm,C131337,3.7V Battery Ingress Header
+PinHeader 1x08 2.54mm Female,"J_MCU_L,J_MCU_R",PinHeader_1x08_P2.54mm_Vertical,C225484,Beetle ESP32-C6 Socket (1x8 Female Header)
