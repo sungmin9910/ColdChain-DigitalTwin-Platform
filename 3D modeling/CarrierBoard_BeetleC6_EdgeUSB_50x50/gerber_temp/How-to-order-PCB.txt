@@ -1,0 +1,19 @@
+================================================================================
+CarrierBoard_BeetleC6_EdgeUSB_50x50 Production Release v3
+================================================================================
+PCB Dimensions: 50.0mm x 50.0mm x 1.6mm (2-layer FR-4, 1oz Cu)
+Mounting Holes: 4x M3 (3.2mm drill, 5.5mm pad) at (103.5, 103.5), (146.5, 103.5), (103.5, 146.5), (146.5, 146.5)
+
+Key Layout Features:
+1. Beetle ESP32-C6 relocated to BOTTOM (Y=100.0mm ~ 125.0mm):
+   - USB-C port is perfectly FLUSH with the BOTTOM PCB edge (Y=100.0mm)
+   - Extremely convenient for direct external cable insertion
+2. Non-overlapping Clean Distribution:
+   - SHT45: Top-Left Front (Horizontal, Y=144.0mm)
+   - BH1750: Top-Right Front (Horizontal, Y=144.0mm)
+   - JST & Switch: Top-Center Front (Y=138.5 ~ 146.5mm)
+   - GY-521: Mid-Left Back (Vertical, X=108.5mm)
+   - ATGM336H GPS: Mid-Right Back (Vertical, X=141.5mm)
+   - 0mm Overhang: Every module stays 100% inside 50.0mm x 50.0mm.
+3. Clean 2mm Chamfered Corners:
+   - Eliminates arc-quadrant concave bugs in RS-274X viewers.

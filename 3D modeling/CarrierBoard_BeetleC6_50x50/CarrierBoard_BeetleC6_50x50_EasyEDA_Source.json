@@ -1,0 +1,95 @@
+{
+  "head": {
+    "docType": "3",
+    "editorVersion": "6.5.40",
+    "newUID": "carrierboard_beetlec6_50x50_option_b",
+    "c_para": {
+      "name": "CarrierBoard_BeetleC6_50x50_OptionB",
+      "package": "",
+      "BOM_Supplier": "",
+      "BOM_Supplier_Part": "",
+      "Contributor": "Antigravity",
+      "link": ""
+    }
+  },
+  "canvas": "CA~1000~1000~#000000~yes~#333333~10~10~mm~1~0~#666666~none~0~0~100~100~1.6~0~50~50~2~0",
+  "board": {
+    "width_mm": 50.0,
+    "height_mm": 50.0,
+    "corner_radius_mm": 2.0,
+    "layer_count": 2,
+    "thickness_mm": 1.6,
+    "mounting_holes_m3": [
+      {"x": 3.5, "y": 3.5, "drill": 3.2, "pad": 5.5},
+      {"x": 46.5, "y": 3.5, "drill": 3.2, "pad": 5.5},
+      {"x": 3.5, "y": 46.5, "drill": 3.2, "pad": 5.5},
+      {"x": 46.5, "y": 46.5, "drill": 3.2, "pad": 5.5}
+    ],
+    "components": [
+      {
+        "designator": "MCU_BEETLE_C6",
+        "name": "Beetle ESP32-C6 Mini",
+        "footprint": "HDR-TH_2x8P-W17.78mm",
+        "center_x_mm": 25.89,
+        "center_y_mm": 23.89,
+        "layer": "Top",
+        "description": "Center mounted DFRobot Beetle ESP32-C6 Mini with USB-C facing top edge"
+      },
+      {
+        "designator": "SHT45",
+        "name": "SHT45 Module (Option-B Inward)",
+        "footprint": "HDR-TH_1x5P-P2.54mm",
+        "center_x_mm": 12.5,
+        "center_y_mm": 15.08,
+        "layer": "Top",
+        "description": "Body fits completely inside 50x50mm (X=0.5 to 12.5mm)"
+      },
+      {
+        "designator": "BH1750",
+        "name": "BH1750 Module (Option-B Inward)",
+        "footprint": "HDR-TH_1x5P-P2.54mm",
+        "center_x_mm": 12.5,
+        "center_y_mm": 32.08,
+        "layer": "Top",
+        "description": "Body fits completely inside 50x50mm (X=0.5 to 12.5mm)"
+      },
+      {
+        "designator": "GY521",
+        "name": "GY-521 MPU6050 (Option-B Inward)",
+        "footprint": "HDR-TH_1x8P-P2.54mm",
+        "center_x_mm": 38.5,
+        "center_y_mm": 26.89,
+        "layer": "Bottom",
+        "description": "Body fits completely inside 50x50mm (X=38.5 to 48.0mm)"
+      },
+      {
+        "designator": "ATGM336H_GPS",
+        "name": "ATGM336H GPS (Option-B Inward)",
+        "footprint": "HDR-TH_1x5P-P2.54mm",
+        "center_x_mm": 25.0,
+        "center_y_mm": 42.5,
+        "layer": "Bottom",
+        "rotation": 90,
+        "description": "Body fits completely inside 50x50mm (Y=30.0 to 42.5mm)"
+      },
+      {
+        "designator": "J1",
+        "name": "JST-PH-2P 3.7V Battery",
+        "footprint": "JST_PH_S2B-PH-K_1x02_P2.00mm",
+        "center_x_mm": 44.0,
+        "center_y_mm": 10.0,
+        "layer": "Top",
+        "description": "3.7V LiPo Battery Input"
+      },
+      {
+        "designator": "SW1",
+        "name": "Power Switch",
+        "footprint": "SW-SMD_PCM12",
+        "center_x_mm": 44.5,
+        "center_y_mm": 15.5,
+        "layer": "Top",
+        "description": "Slide Power Switch"
+      }
+    ]
+  }
+}

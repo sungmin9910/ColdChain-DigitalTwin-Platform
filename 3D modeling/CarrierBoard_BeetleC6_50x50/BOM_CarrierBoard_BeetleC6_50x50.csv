@@ -1,0 +1,12 @@
+Comment,Designator,Footprint,LCSC Part #,Description,Mounting Side
+PinHeader 1x08 2.54mm Female,"J_MCU_L,J_MCU_R",PinHeader_1x08_P2.54mm_Vertical,C225484,DFRobot Beetle ESP32-C6 Socket (2열),Top
+PinHeader 1x05 2.54mm Female,J_SHT45,PinHeader_1x05_P2.54mm_Vertical,C225485,SHT45 온습도 모듈 소켓 (5핀),Top
+PinHeader 1x05 2.54mm Female,J_BH1750,PinHeader_1x05_P2.54mm_Vertical,C225485,BH1750 조도 모듈 소켓 (5핀),Top
+PinHeader 1x08 2.54mm Female,J_GY521,PinHeader_1x08_P2.54mm_Vertical,C225484,GY-521 (MPU6050) 모듈 소켓 (8핀),Bottom
+PinHeader 1x05 2.54mm Female,J_GPS,PinHeader_1x05_P2.54mm_Vertical,C225485,GPS (Neo-6m) 모듈 소켓 (5핀),Bottom
+JST-PH-2P 2.0mm Horizontal,J1,JST_PH_S2B-PH-K_1x02_P2.00mm,C131337,3.7V 리튬배터리 직결 커넥터,Top
+SW_SPDT_PCM12,SW1,SW_SPDT_PCM12,C318884,전원 ON/OFF 슬라이드 스위치,Top
+100k 1% 0603,"R1,R2",R_0603_1608Metric,C25803,배터리 잔량 전압 분배 저항 (100kΩ),Top
+4.7k 1% 0603,"R3,R4",R_0603_1608Metric,C23163,I2C 버스 풀업 저항 (4.7kΩ),Top
+10uF 10V 0603,C1,C_0603_1608Metric,C19702,3.3V 파워 디커플링 커패시터,Top
+Mounting Hole M3,"H1,H2,H3,H4",MountingHole_3.2mm_M3_Pad,-,M3 볼트/너트 고정용 마운팅 홀 (3.2mm),Through

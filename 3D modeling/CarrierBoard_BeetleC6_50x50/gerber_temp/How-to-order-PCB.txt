@@ -1,0 +1,4 @@
+CarrierBoard_BeetleC6_50x50 Production Release Option-B
+Board Size: 50.0mm x 50.0mm
+Option B: Inward Overhang Architecture (All sensor modules fit 100% inside 50x50mm)
+Sensors: SHT45 (Top), BH1750 (Top), GY-521 (Bottom), ATGM336H GPS (Bottom)
