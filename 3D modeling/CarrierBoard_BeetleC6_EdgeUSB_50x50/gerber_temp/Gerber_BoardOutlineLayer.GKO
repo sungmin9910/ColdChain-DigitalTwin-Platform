@@ -1,6 +1,4 @@
-G04 Layer: BoardOutline*
-G04 CarrierBoard_BeetleC6_EdgeUSB_50x50 Production Release v3*
-G04 USB-C Port Flush to Bottom PCB Edge (Y=100.0mm)*
+G04 Layer: BoardOutlineLayer*
 %FSLAX45Y45*%
 %MOMM*%
 %LPD*%

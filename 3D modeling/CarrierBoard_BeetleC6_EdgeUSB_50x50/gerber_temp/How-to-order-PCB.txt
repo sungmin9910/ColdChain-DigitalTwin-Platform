@@ -1,19 +1,16 @@
-================================================================================
-CarrierBoard_BeetleC6_EdgeUSB_50x50 Production Release v3
-================================================================================
-PCB Dimensions: 50.0mm x 50.0mm x 1.6mm (2-layer FR-4, 1oz Cu)
-Mounting Holes: 4x M3 (3.2mm drill, 5.5mm pad) at (103.5, 103.5), (146.5, 103.5), (103.5, 146.5), (146.5, 146.5)
-
-Key Layout Features:
-1. Beetle ESP32-C6 relocated to BOTTOM (Y=100.0mm ~ 125.0mm):
-   - USB-C port is perfectly FLUSH with the BOTTOM PCB edge (Y=100.0mm)
-   - Extremely convenient for direct external cable insertion
-2. Non-overlapping Clean Distribution:
-   - SHT45: Top-Left Front (Horizontal, Y=144.0mm)
-   - BH1750: Top-Right Front (Horizontal, Y=144.0mm)
-   - JST & Switch: Top-Center Front (Y=138.5 ~ 146.5mm)
-   - GY-521: Mid-Left Back (Vertical, X=108.5mm)
-   - ATGM336H GPS: Mid-Right Back (Vertical, X=141.5mm)
-   - 0mm Overhang: Every module stays 100% inside 50.0mm x 50.0mm.
-3. Clean 2mm Chamfered Corners:
-   - Eliminates arc-quadrant concave bugs in RS-274X viewers.
+JLCPCB Production Gerber Package v4
+Board: CarrierBoard Beetle ESP32-C6 EdgeUSB (50x50mm)
+Production Release Date: 2026-09-14
+Specs:
+- Dimensions: 50.0mm x 50.0mm
+- Layers: 2 Layers (FR-4)
+- Thickness: 1.6mm
+- Copper Weight: 1 oz
+- Silkscreen: White
+- Solder Mask: Matte Black or Green
+- Verified Real Sensors:
+  1. Sensirion SHT45 Qwiic (SZH-MIN069 / Adafruit form factor, 25.5x17.8mm)
+  2. InvenSense GY-521 MPU6050 (SZH-EK007, 20.7x15.65mm)
+  3. ROHM BH1750 GY-302 (SZH-EK070, 13.9x18.5mm)
+  4. Zhongke Micro ATGM336H-5N (SZH-MIN053, 13.1x15.7mm)
+  5. DFRobot Beetle ESP32-C6 Mini (DFR1117, 20.5x25.0mm EdgeUSB Flush)
