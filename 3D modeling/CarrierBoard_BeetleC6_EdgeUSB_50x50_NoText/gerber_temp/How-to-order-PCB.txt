@@ -1,0 +1,16 @@
+JLCPCB Production Gerber Package v4
+Board: CarrierBoard Beetle ESP32-C6 EdgeUSB (50x50mm)
+Production Release Date: 2026-09-14
+Specs:
+- Dimensions: 50.0mm x 50.0mm
+- Layers: 2 Layers (FR-4)
+- Thickness: 1.6mm
+- Copper Weight: 1 oz
+- Silkscreen: White
+- Solder Mask: Matte Black or Green
+- Verified Real Sensors:
+  1. Sensirion SHT45 Qwiic (SZH-MIN069 / Adafruit form factor, 25.5x17.8mm)
+  2. InvenSense GY-521 MPU6050 (SZH-EK007, 20.7x15.65mm)
+  3. ROHM BH1750 GY-302 (SZH-EK070, 13.9x18.5mm)
+  4. Zhongke Micro ATGM336H-5N (SZH-MIN053, 13.1x15.7mm)
+  5. DFRobot Beetle ESP32-C6 Mini (DFR1117, 20.5x25.0mm EdgeUSB Flush)
