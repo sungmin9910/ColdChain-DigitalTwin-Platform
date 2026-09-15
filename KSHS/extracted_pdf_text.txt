@@ -1,0 +1,258 @@
+P-6-410
+
+Applications of Dynamic Quick Response Codes 
+From  Farm to Customers
+
+Sung Min Han1, Hyo Eun Lee2, Seong Min Kim1,2,3*
+
+1Department of Bioindustrial Machinery Engineering, Jeonbuk National University, Jeonju-si, 54896, Korea
+2Department of Agricultural Machinery Engineering, Graduate School, Jeonbuk National University, Jeonju-si, 54896, Korea 
+3Institute for Agricultural Machinery & ICT Convergence, Jeonbuk National University, Jeonju-si, 54896, Korea
+
+Abstract
+
+Results and Discussion
+
+⚫ Application of Dynamic QR Code at Shipping Point
+
+Detailed Scenarios and Web Visualization
+
+❖ Scan QR code at Shipping Point(A15) in APC
+
+⚫ Application of Dynamic QR Code at Farm Warehouse (A01)
+
+❖ Generate and scan QR code at the Farm Warehouse (A01) for shipping to APC
+
+➢ Store data into the DB upon arrival at the farm warehouse: Farm ID, Date, 
+Input time to the farm warehouse, Warehouse temperature and humidity, 
+etc.
+
+➢ Store data into the DB at APC: APC ID, Date, Input time to Out-Point, 
+
+Quantity of Product, Quality of Product etc. 
+
+⚫ Application of Dynamic QR Code at Product-In Point
+
+❖ Scan QR code generated from the Farm (A01) at Product-in Point(A10) in APC
+
+➢ QR code scanner acquires information on a box
+➢ Store  data  into  the  DB  at  APC:  APC  ID,  date,  Information  generated  form 
+
+the farm, Product-in time, Quantity of Product, etc.
+
+⚫ Application of Dynamic QR Code at Retail Point
+
+❖ Consumers can access to information of the products in a retail shop
+
+➢ Website is organized for easy viewing by consumers when they scan 
+
+the QR code.
+
+➢ Fruit  type,  Harvest  location,  Harvester,  Market  arrival  date,  Grade, 
+
+etc.
+
+⚫ Application of Dynamic QR Code at Washing Point
+
+❖ Scan QR code at Washing Point(A11) in APC
+
+➢ Store data into the DB at APC: APC ID, Date, Input time to Washing Point, 
+
+Quantity of Product, etc. 
+
+⚫ Application of Dynamic QR Code at Sorting Point
+
+❖ Scan QR code at Sorting Point(A12) in APC
+
+➢ Store data into the DB at APC: APC ID, Date, Input time to Sorting Point, 
+
+Quantity of Product, Quality of Product etc. 
+
+involves  multiple 
+
+interconnected  stages.  A 
+
+The  agricultural  product  supply  chain,  spanning  from  farms  to 
+lack  of 
+consumers, 
+transparency  across  these  stages  often  results  in  quality  degradation, 
+inefficient  inventory  management,  and  diminished  consumer  trust. 
+Traditional  static  QR  codes  store  only  fixed  information  captured  at  the 
+time  of  production,  making  it  difficult  to  reflect  new  data  generated 
+during  later  stages  of  the  supply  chain.  To  address  this  limitation, 
+digitalization  of  supply  chain  management  requires  systems  capable  of 
+real-time  data  updating  and  sharing.    Dynamic  QR  codes,  connected  to 
+databases through redirect URLs, enable continuous information updates 
+and  transparent  tracking  of  production,  processing,  and  logistics 
+throughout  the  entire  product  lifecycle.  In  this  study,  a  real-time  data 
+management  and  traceability  system  based  on  dynamic  QR  codes  was 
+designed  and  implemented  to  cover  the  entire  workflow  from  farms  to 
+consumers.  QR  codes  generated  at  each  stage  were  automatically 
+synchronized with a centralized database, while a graphical user interface 
+(GUI)  allowed  workers  to  intuitively  enter  and  access  information. 
+Integrated  QR  code  scanners  facilitated  automatic  collection  of  key  data 
+such  as  location,  environmental  conditions,  grading  results,  and 
+processing times. As a result, all process information—from harvesting to 
+consumption—was  recorded  in  real  time  and  made  instantly  accessible 
+via QR codes. System application demonstrated practical benefits: farmers 
+could  review  processing  and  distribution  data  to  inform  cultivation  and 
+management  practices;  workers  could  efficiently  check  production  and 
+storage  information  to  optimize  inventory  and  logistics  management  at 
+agricultural processing centers (APCs); and consumers could scan product 
+QR codes to verify production history, cultivation methods, quality grades, 
+and distribution channels, thereby strengthening trust in food safety and 
+product  quality.  This  study  highlights  that  dynamic  QR  codes  serve  not 
+only as tools for delivering information but also as a digital backbone for 
+modern  agricultural  supply  chains.  In  particular,  their  ability  to  support 
+real-time  data  updates  and  information  sharing  enhances  traceability, 
+streamlines inventory management, and promotes transparency across all 
+stakeholders.
+
+Key Words: Agricultural  Products,  Dynamic  QR  Code,  Farm,  Agricultural 
+Products Processing Complex, Customer
+
+Introduction
+
+Utilizing Dynamic QR Code in Fresh Supply 
+Chain
+
+⚫ Supply Chain DB Architecture
+
+❖ Database in Supply Chain
+
+➢ Product Producing & Processing Sector
+➢ Product Storage and Transportation (Logistics) Sector
+➢ Consumer Sector
+
+Supply Chain DB
+
+DB
+“A10”
+
+DB
+“B”
+
+APC (A10)
+
+Storage (A14)
+
+Trucking (A15)
+
+Consumer (B)
+
+DB
+“A00”
+
+Farm (A01)
+
+GUI
+
+xml
+
+pdf
+
+excl
+
+QR code
+generation
+
+DB
+Visualization
+Statistics
+
+DB
+Visualization
+Statistics
+
+DB
+Visualization
+Statistics
+
+DB
+Visualization
+Statistics
+
+DB
+Visualization
+Statistics
+
+⚫ Application of Dynamic QR Code at Packing Point
+
+❖ Scan QR code at Packing Point(A13) in APC
+
+➢ Store data into the DB at APC: APC ID, Date, Input time to Packing Point, 
+
+Quantity of Product, Quality of Product etc. 
+
+~
+
+Object
+
+⚫ Application of Dynamic QR Code at Storage Point
+
+❖ Scan QR code at Storage Point(A14) in APC
+
+⚫ To  explore  the  application  of  dynamic  QR  codes  within  Agricultural 
+
+Products Processing Complexes (APCs).
+
+⚫ To  design  a  system  for  real-time  data  tracking  throughout  key  APC      
+
+processes such as washing, sorting, and packaging.
+
+⚫ To  create  a  web-based  interface  for  consumers  to  access  product       
+
+traceability information by scanning a dynamic QR code.
+
+➢ Store  data  into  the  DB  at  APC:  APC  ID,  Date,  Input  time  to  Storaging 
+
+Point, Quantity of Product, Quality of Product etc. 
+
+➢ If  stored,  the  temperature  and  humidity  of  the  storage  facility  can  be 
+
+monitored and saved to the DB.
+
+Conclusions
+
+This  study  has  investigated  a  real-time  data  management  and 
+traceability  system  using  dynamic  QR  codes,  focusing  on  the 
+process  from  the  moment  agricultural  products  are  received  at 
+the  Agricultural  Processing  Center  (APC)  until  they  reach  the 
+consumer.  All  information  generated  at  each  stage  within  the 
+APC—including  receiving,  washing,  sorting,  packaging,  and 
+shipping—is  recorded  and  synchronized  in  real  time  onto  the 
+dynamic  QR  code.  Through  this  system,  the  APC  can  maximize 
+the efficiency of its internal processes and perform precise, data-
+logistics  management.  Furthermore,  consumers  can 
+driven 
+enhance  their  trust  in  product  quality  by  directly  verifying  the 
+transparent  processing  history  from  the  APC  simply  by  scanning 
+the QR code. In conclusion, dynamic QR codes have shown high 
+potential  as  a  key  technology  for  enhancing  supply  chain 
+transparency  and  efficiency  by  digitally  integrating  the  complex 
+internal processes of the APC and the distribution chain.
+
+References
+
+1. Baidong,  H.,  and  Z.  Yukun.  2019.  Research  on  Quickpass 
+Payment  Terminal  Application  System  Based  on  dynamic  QR 
+Code. J. Phys.: Conf. Ser. 1168 032059. doi:10.1088/1742-6596/ 
+1168/3/032059
+
+2. Denso Wave. www.denso-wave.com
+3. Dey.  S.,  S.  Saha,  A.  Kumar,  and  K.  McDonald-Maier.  2021. 
+FoodSQRBlock:  Digitizing  Food  Production  and  the  Supply 
+Chain with Blockchain and QR Code in the Cloud. Sustainability, 
+13, 3486. doi:10.3390/ su13063486
+
+4. Gouhua,  S.  2013.  Research  on  the  Fresh  Agricultural  Product 
+Supply  Chain  Coordination  with  Supply  Disruption.  Discrete 
+Dynamics in Nature and Society, Vol. 2013, Article ID 416790, 9 
+pages. dx.doi.org/10.1155/2013/416790
+
+Acknowledgement
+
+This  work  was  carried  out  with  the  support  of  "Project  No. 
+PJ017108", Rural Development Administration, Korea.
+
+

@@ -43,21 +43,8 @@ WebServer server(80); // 80번 포트에 웹서버 생성
 bool isAutoMode = true;
 String manualMode = "A10";
 
-// ==========================================
-// ⏱️ Latency(지연 시간) 정밀 측정용 전역 변수
-// ==========================================
-unsigned long t_trigger_start = 0; // 트리거 버튼 누른 시각
-unsigned long t_decode_start = 0;  // 시리얼 수신 시작 시각 (자동 스캔 대비)
-unsigned long t_decode_end = 0;    // 시리얼 디코드 수신 완료 시각
-unsigned long t_db_start = 0;      // DB 쿼리 시작 시각
-unsigned long t_db_end = 0;        // DB 저장 완료 시각
-
-unsigned long last_decode_latency = 0; // 최근 측정된 Decode Latency (ms)
-unsigned long last_total_latency = 0;  // 최근 측정된 Total Latency (ms)
-unsigned long scan_counter = 0;        // 총 스캔 측정 횟수
-
 // --- OLED 업데이트 함수 ---
-void updateOLED(String msg = "", String fmId = "", String activeMode = "", unsigned long decLat = 0, unsigned long totLat = 0) {
+void updateOLED(String msg = "", String fmId = "", String activeMode = "") {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
@@ -72,36 +59,34 @@ void updateOLED(String msg = "", String fmId = "", String activeMode = "", unsig
   }
   display.drawLine(0, 10, 128, 10, SSD1306_WHITE);
 
-  // 중단: 현재 모드 및 박스 ID 표시
-  display.setCursor(0, 13);
+  // 중단: 현재 모드 표시
+  display.setCursor(0, 14);
   if (isAutoMode) {
     display.setTextSize(1);
-    display.print("Mode: [ AUTO ]");
+    display.println("Mode: [ AUTO ]");
     if (activeMode != "" && fmId != "") {
-      display.setCursor(0, 24);
+      display.setCursor(0, 26);
       display.print("Box #"); display.print(fmId);
-      display.setCursor(0, 34);
+      display.setCursor(0, 36);
       display.setTextSize(2);
       display.print("-> "); display.println(activeMode);
     } else {
-      display.setCursor(0, 26);
+      display.setCursor(0, 30);
       display.setTextSize(1);
       display.println("Ready to Auto-Scan..");
     }
   } else {
     display.setTextSize(1);
     display.print("Mode: [ MANUAL ]");
-    display.setCursor(0, 25);
-    display.setTextSize(2);
+    display.setCursor(0, 28);
+    display.setTextSize(3);
     display.println(manualMode);
   }
 
-  // 하단: Latency 수치 또는 상태 메시지 표시
-  display.setTextSize(1);
-  display.setCursor(0, 52);
-  if (decLat > 0 || totLat > 0) {
-    display.printf("Dec:%lums Tot:%lums", decLat, totLat);
-  } else if (msg != "") {
+  // 하단: 추가 메시지 (스캔 성공, DB 저장 등)
+  if (msg != "") {
+    display.setCursor(0, 54);
+    display.setTextSize(1);
     display.println(msg);
   }
 
@@ -111,32 +96,23 @@ void updateOLED(String msg = "", String fmId = "", String activeMode = "", unsig
 // --- 스마트폰 리모컨 UI 함수 ---
 void handleRoot() {
   String html = "<html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>";
-  html += "<style>body{font-family:'Malgun Gothic',sans-serif;text-align:center;margin-top:40px;background:#f4f4f9;} ";
-  html += "button{padding:18px 36px;font-size:22px;background:#007BFF;color:white;border:none;border-radius:12px;box-shadow: 0 4px 6px rgba(0,0,0,0.1);} ";
-  html += ".card{background:white;padding:20px;margin:20px auto;max-width:350px;border-radius:15px;box-shadow:0 2px 8px rgba(0,0,0,0.1);}</style></head><body>";
+  html += "<style>body{font-family:'Malgun Gothic',sans-serif;text-align:center;margin-top:50px;background:#f4f4f9;} ";
+  html += "button{padding:20px 40px;font-size:24px;background:#007BFF;color:white;border:none;border-radius:15px;box-shadow: 0 4px 6px rgba(0,0,0,0.1);}</style></head><body>";
   html += "<h2>🚚 콜드체인 QR 스캐너</h2>";
   
   if (isAutoMode) {
-    html += "<h1>현재 모드: <span style='color:#28A745;font-size:38px;'>🤖 AUTO (지능형)</span></h1>";
-    html += "<p style='font-size:16px;color:#666;'>(스캔 시 DB 이력 기반 단계 자동 판단)</p>";
+    html += "<h1>현재 모드: <span style='color:#28A745;font-size:45px;'>🤖 AUTO (지능형)</span></h1>";
+    html += "<p style='font-size:20px;'>(스캔 시 DB 이력 기반 단계 자동 판단)</p>";
   } else {
-    html += "<h1>현재 모드: <span style='color:#FF5722;font-size:38px;'>✋ MANUAL (" + manualMode + ")</span></h1>";
-    if (manualMode == "A10") html += "<p style='font-size:16px;'>(수동: 박스 입고 단계)</p>";
-    else if (manualMode == "A11") html += "<p style='font-size:16px;'>(수동: 세척 완료 단계)</p>";
-    else if (manualMode == "A13") html += "<p style='font-size:16px;'>(수동: 포장 완료 단계)</p>";
-    else if (manualMode == "A14") html += "<p style='font-size:16px;'>(수동: 저장 단계)</p>";
-    else if (manualMode == "A15") html += "<p style='font-size:16px;'>(수동: 최종 출하 단계)</p>";
+    html += "<h1>현재 모드: <span style='color:#FF5722;font-size:45px;'>✋ MANUAL (" + manualMode + ")</span></h1>";
+    if (manualMode == "A10") html += "<p style='font-size:20px;'>(수동: 박스 입고 단계)</p>";
+    else if (manualMode == "A11") html += "<p style='font-size:20px;'>(수동: 세척 완료 단계)</p>";
+    else if (manualMode == "A13") html += "<p style='font-size:20px;'>(수동: 포장 완료 단계)</p>";
+    else if (manualMode == "A14") html += "<p style='font-size:20px;'>(수동: 저장 단계)</p>";
+    else if (manualMode == "A15") html += "<p style='font-size:20px;'>(수동: 최종 출하 단계)</p>";
   }
   
-  // 지연 시간 실시간 모니터링 카드
-  html += "<div class='card'>";
-  html += "<h3 style='margin:0 0 10px 0;'>⏱️ 최근 Latency 측정 결과</h3>";
-  html += "<p style='margin:5px 0;'><strong>스캔 횟수:</strong> " + String(scan_counter) + " 회</p>";
-  html += "<p style='margin:5px 0;'><strong>디코드 지연 (Decode):</strong> <span style='color:#007BFF;font-weight:bold;font-size:20px;'>" + String(last_decode_latency) + " ms</span></p>";
-  html += "<p style='margin:5px 0;'><strong>전체 처리 시간 (Total):</strong> <span style='color:#28A745;font-weight:bold;font-size:20px;'>" + String(last_total_latency) + " ms</span></p>";
-  html += "</div>";
-
-  html += "<br><a href='/next'><button>👉 다음 모드/단계로 변경</button></a>";
+  html += "<br><br><a href='/next'><button>👉 다음 모드/단계로 변경</button></a>";
   html += "</body></html>";
   server.send(200, "text/html", html);
 }
@@ -190,7 +166,7 @@ void setup() {
   
   // 버튼을 입력용으로 설정 (내부 풀업)
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  pinMode(SCAN_TRIGGER_PIN, INPUT_PULLUP); // 메인: 스캔 트리거 버튼 입력 설정
+  pinMode(SCAN_TRIGGER_PIN, INPUT_PULLUP); // 신규: 스캔 트리거 버튼 입력 설정
 
   // 다중 Wi-Fi 연결
   Serial.print("Connecting to WiFi...");
@@ -208,20 +184,21 @@ void setup() {
   
   Serial.println("\n✅ WiFi Connected!");
   Serial.print("Connected to SSID: ");
-  Serial.println(WiFi.SSID());
+  Serial.println(WiFi.SSID()); // 실제 연결된 와이파이 이름 출력
   Serial.print("📱 스마트폰 리모컨 주소: http://");
-  Serial.println(WiFi.localIP());
+  Serial.println(WiFi.localIP()); // ESP32의 현재 IP 출력
 
   // 웹서버 라우팅 및 시작
   server.on("/", handleRoot);
   server.on("/next", handleNext);
   server.begin();
   
-  Serial.println("==================================================");
-  Serial.println(" ColdChain Smart QR Scanner (Latency Benchmark)   ");
-  Serial.println(" - Mode: AUTO / MANUAL Supported                  ");
-  Serial.println(" - CSV Header: CSV_ROW,ScanID,FmID,Mode,Decode_ms,DB_ms,Total_ms");
-  Serial.println("==================================================");
+  Serial.println("==========================================");
+  Serial.println("ESP32 Standalone Scanner Ready.");
+  Serial.println("Main Mode: AUTO (지능형 자동 판단)");
+  Serial.println("Backup: 더블 클릭 시 MANUAL 수동 모드로 순환");
+  Serial.println("버튼(GPIO 0/25)을 누르거나 스마트폰 웹페이지(http://" + WiFi.localIP().toString() + ")에서 모드를 변경하세요.");
+  Serial.println("==========================================");
 
   // 스캐너를 호스트 모드로 자동 전환 시도
   ScannerSerial.write(0x00);
@@ -290,16 +267,14 @@ void processScan(String rawData) {
     Serial.println("스캔 모드가 QR 스캔에 의해 변경되었습니다: " + (isAutoMode ? "AUTO" : manualMode));
     Serial.println("=================================\n");
     updateOLED("Mode Changed via QR");
-    t_trigger_start = 0;
     return;
   }
 
-  // 3. 일반 과일 QR URL 파싱
+  // 2. 일반 과일 QR URL 파싱
   String fmId = getFmID(rawData);
   if (fmId == "NULL" || fmId == "''") {
     Serial.println("❌ FmID를 찾을 수 없습니다.");
     updateOLED("No FmID!");
-    t_trigger_start = 0;
     return;
   }
 
@@ -315,21 +290,9 @@ void processScan(String rawData) {
   String std = getQueryParam(rawData, "StD");
   String rp = getQueryParam(rawData, "Rp");
 
-  // ⏱️ 디코드 지연 시간(Decode Latency) 계산
-  unsigned long decode_latency = 0;
-  if (t_trigger_start > 0) {
-    decode_latency = t_decode_end - t_trigger_start;
-  } else {
-    decode_latency = t_decode_end - t_decode_start;
-  }
-  last_decode_latency = decode_latency;
-
-  // 4. DB 접속 및 처리
+  // 3. DB 접속 및 처리
   updateOLED("Connecting DB...");
   Serial.println("Connecting to AWS RDS...");
-  
-  t_db_start = millis(); // DB 처리 시작 시각
-
   if (conn.connect(server_addr, db_port, user, password_db)) {
     Serial.println("✅ AWS DB Connection Success!");
     MySQL_Query query_executor(&conn);
@@ -361,7 +324,6 @@ void processScan(String rawData) {
         Serial.println("⚠️ 이미 최종 출하(A15)가 완료된 상자입니다.");
         updateOLED("Already Completed!", fmId, "A15");
         conn.close();
-        t_trigger_start = 0;
         return;
       }
       Serial.println("🤖 [AUTO] 지능형 판단 결과 단계: " + targetMode);
@@ -410,52 +372,18 @@ void processScan(String rawData) {
       query += "WHERE Q.Lo = 'A14' AND Q.FmID = " + fmId + " ORDER BY Q.APC_StD DESC LIMIT 1";
     }
 
-    bool isSuccess = query_executor.execute(query.c_str());
-    t_db_end = millis(); // DB 처리 완료 시각
-
-    // ⏱️ 지연 시간 계산 (ms)
-    unsigned long db_latency = t_db_end - t_db_start;
-    unsigned long total_latency = 0;
-    if (t_trigger_start > 0) {
-      total_latency = t_db_end - t_trigger_start;
-    } else {
-      total_latency = decode_latency + db_latency;
-    }
-    
-    last_total_latency = total_latency;
-    scan_counter++;
-
-    if (isSuccess) {
+    if (query_executor.execute(query.c_str())) {
       Serial.println("✅ DB 저장 성공! (단계: " + targetMode + ")");
-      updateOLED("DB Save OK!", fmId, targetMode, decode_latency, total_latency);
+      updateOLED("DB Save OK!", fmId, targetMode);
     } else {
       Serial.println("❌ DB 저장 실패: 쿼리 오류 또는 이전 단계 데이터 없음");
-      updateOLED("DB Save FAIL!", fmId, targetMode, decode_latency, total_latency);
+      updateOLED("DB Save FAIL!");
     }
-
-    // ==========================================
-    // ⏱️ Latency 결과 리포트 출력
-    // ==========================================
-    Serial.println("==================================================");
-    Serial.printf("⏱️ [스캔 #%lu Latency 리포트]\n", scan_counter);
-    Serial.printf(" - 박스 ID (FmID)       : %s\n", fmId.c_str());
-    Serial.printf(" - 진행 단계 (Mode)     : %s\n", targetMode.c_str());
-    Serial.printf(" - 디코드 지연 (Decode) : %lu ms\n", decode_latency);
-    Serial.printf(" - 클라우드 DB 지연     : %lu ms\n", db_latency);
-    Serial.printf(" - 전체 처리 시간 (Total): %lu ms\n", total_latency);
-    Serial.println("--------------------------------------------------");
-    // 엑셀/파이썬 데이터 분석용 CSV 포맷 출력
-    Serial.printf("CSV_ROW,%lu,%s,%s,%lu,%lu,%lu\n", scan_counter, fmId.c_str(), targetMode.c_str(), decode_latency, db_latency, total_latency);
-    Serial.println("==================================================\n");
-
     conn.close();
   } else {
     Serial.println("❌ DB 연결 실패 (AWS)");
     updateOLED("DB Conn FAIL!");
   }
-
-  // 다음 측정을 위해 트리거 시작 시각 리셋
-  t_trigger_start = 0;
 }
 
 // 시리얼에서 0x00(NUL) 및 제어 바이너리를 걸러내고 9600bps 속도에 맞춰 전체 URL(최대 1.5초)을 완전하게 수신하는 함수
@@ -509,8 +437,6 @@ void loop() {
     if (triggerClickCount == 1) {
       // 1회 클릭: GM77 스캔 트리거 명령어 전송
       Serial.println("\n🔫 1회 클릭: GM77 스캔 명령어 전송");
-      t_trigger_start = millis(); // ⏱️ [트리거 시작 시점 기록]
-      
       ScannerSerial.write(0x00);
       delay(50);
       ScannerSerial.write(triggerCmd, sizeof(triggerCmd));
@@ -530,11 +456,8 @@ void loop() {
 
   // 3. 스캐너 데이터 수신 처리 (NUL 및 바이너리 제어문자 제거 정제)
   if (ScannerSerial.available()) {
-    t_decode_start = millis(); // 패킷 도착 감지 시점
     delay(50); // 패킷 수신 완료 대기
     String scannedData = readCleanScannerData();
-    t_decode_end = millis(); // ⏱️ [디코드 및 시리얼 수신 완료 시점]
-    
     scannedData.trim();
     if (scannedData.length() > 0) {
       Serial.println("\n📷 스캔된 데이터: " + scannedData);
@@ -545,3 +468,4 @@ void loop() {
   // 웹서버 클라이언트 처리
   server.handleClient();
 }
+

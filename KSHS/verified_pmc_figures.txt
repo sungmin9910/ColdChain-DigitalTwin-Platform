@@ -1,0 +1,27 @@
+=== PMC13564522: Quality Variation Patterns and Predictive Modeling of Fermented Soybean Whey-Based Tofu Under Cold-Chain Conditions Using Kinetic and Machine Learning Approaches ===
+URL: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC13564522/
+  - Figure 1: Temperature and time settings for different cold-chain transport modes of fermented soybean whey-based tofu.
+  - Figure 2: Changes in TVC and PBC in FSW-tofu under different logistics modes.
+  - Figure 3: Changes in textural properties of FSW-tofu under different logistics modes.
+  - Figure 4: Changes in water-holding capacity of FSW-tofu under different logistics modes.
+  - Figure 5: Fitting results of measured and predicted values for microbial and quality indicators of FSW-tofu in validation set S3.
+  - Figure 6: Fitting results of measured and predicted values for microbial and quality indicators of FSW‑tofu in validation set E3.
+=== PMC8537554: Effects of Salinity and Abscisic Acid on Lipid Transfer Protein Accumulation, Suberin Deposition and Hydraulic Conductance in Pea Roots ===
+URL: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8537554/
+  - Figure 1: Effects of NaCl and ABA on LTP localization in the central cylinder of root basal part. Root section of pea plants grown without NaCl and exogenous AB
+  - Figure 2: Effects of NaCl and ABA on ABA localization in the central cylinder of root basal part. Root section of pea plants grown without NaCl and exogenous AB
+  - Figure 3: Effects of NaCl and ABA on suberin deposition. Root cross-sections in the endoderm region of pea plants grown under control conditions (a), treated wi
+  - Figure 4: Abundance of transcripts of Ps-LTP1 gene in pea roots treated with NaCl and ABA. Means ± SE are presented. Means for the control, NaCl and ABA treatme
+  - Figure 5: Spatial structure of pea Ps-LTP1 complexed with 10 conformations of ABA calculated by means of blind molecular docking (a). Interaction of Ps-LTP1 wit
+  - Figure 6: Effects of ABA on the fluorescence level of the LTP-TNS complexes. Ps-LTP1, Lc-LTP2 and Ag-LTP – LTPs from pea, lentil and dill. Results are expressed
+=== PMC9824632: Semantic Segmentation of Terrestrial Laser Scans of Railway Catenary Arches: A Use Case Perspective ===
+URL: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9824632/
+  - Figure 1: An example of a catenary arch (not in dataset) that shows the labels of the majority of the classes (own work).
+  - Figure 2: Processing steps for locating catenary arches within a large scene.
+  - Figure 3: Overview of the dataset. Note the large variation of catenary arch types present in the dataset.
+  - Figure 4: Normalised class distribution after the voxel centroid nearest neighbour filter is applied.
+  - Figure 5: Overview of the processing steps, from the raw arch data to the data fed to the machine learning model.
+=== PMC7924345: Another One Bites the Gut: Nuclear Receptor LRH-1 in Intestinal Regeneration and Cancer ===
+URL: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7924345/
+  - Figure 1: The intestine under physiological and pathological conditions. The small intestine presents a well-organized architecture, composed by villi surrounde
+  - Figure 2: The multifaceted role of the Liver Receptor Homolog-1 (LRH-1) in the intestine. LRH-1 is nuclear receptor that can be endogenously activated by phosph

@@ -1,0 +1,5 @@
+BH1750 조도 센서 모듈 GY-302 [SZH-EK070]
+Features
+Dimensions: 13.9mm X 18.5mm    ROHM chip using original BH1750FVI
+Power supply: 3-5v
+Data range: 0-65535    Sensors built 16bitAD converter    Direct digital output, omit the complex calculations omit the calibration    Does not distinguish between ambient light    Spectral characteristics close to visual sensitivity    Available on a wide range of high-precision measurement brightness 1 lux

@@ -1,0 +1,254 @@
+[
+  {
+    "pmc_id": "13564522",
+    "title": "Quality Variation Patterns and Predictive Modeling of Fermented Soybean Whey-Based Tofu Under Cold-Chain Conditions Using Kinetic and Machine Learning Approaches",
+    "journal": "Foods",
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC13564522/",
+    "figures": [
+      [
+        "Figure 1",
+        "Temperature and time settings for different cold-chain transport modes of fermented soybean whey-based tofu."
+      ],
+      [
+        "Figure 2",
+        "Changes in TVC and PBC in FSW-tofu under different logistics modes."
+      ],
+      [
+        "Figure 3",
+        "Changes in textural properties of FSW-tofu under different logistics modes."
+      ],
+      [
+        "Figure 4",
+        "Changes in water-holding capacity of FSW-tofu under different logistics modes."
+      ],
+      [
+        "Figure 5",
+        "Fitting results of measured and predicted values for microbial and quality indicators of FSW-tofu in validation set S3."
+      ],
+      [
+        "Figure 6",
+        "Fitting results of measured and predicted values for microbial and quality indicators of FSW‑tofu in validation set E3."
+      ]
+    ]
+  },
+  {
+    "pmc_id": "13569487",
+    "title": "Optimizing irrigation scheduling in apple orchards: soil moisture thresholds balance yield, fruit quality, and water use efficiency",
+    "journal": "Scientific Reports",
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC13569487/",
+    "figures": [
+      [
+        "Fig. 1",
+        "(a) Daily meteorological data during experimental period (2024). (b) Daily meteorological data during experimental period (2025)."
+      ],
+      [
+        "Fig. 2",
+        "Mean seasonal volumetric water content (VWC) maintained under the four automated irrigation treatments during the study period. Bars represent mean values, and error bars indicate ± standard deviation (SD) of repeated sensor measurements."
+      ]
+    ]
+  },
+  {
+    "pmc_id": "10614132",
+    "title": "Progress in building clinically relevant patient‐derived tumor xenograft models for cancer research",
+    "journal": "Animal Models and Experimental Medicine",
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10614132/",
+    "figures": [
+      [
+        "FIGURE 1",
+        "Overview of the PDOX (patient‐derived orthotopic xenograft) modeling process and its applications in cancer research. Orthotopic transplantation (F1) involves inserting tumors from cancer patients into the corresponding locations, such as the lung, breast, colon, ovary, or pancreas. Once developed, secondary recipients (F2) receive the tumors for growth. Then, the expanded tumors can be cryopreserved or transplanted into F3 mice to serve as avatar mice. The avatar model can evaluate and rank those potential treatments that could be given to the patient as part of individual drug therapy."
+      ],
+      [
+        "FIGURE 2",
+        "This figure shows three models to develop humanized mice. CD34+ hematopoietic stem cell (HSC) model: Immunodeficient mice are administered intravenous (i.v.) or intraperitoneal (i.p.) injections of HSCs from bone marrow, fetal liver, granulocyte, or umbilical cord blood. Peripheral blood lymphocyte model: peripheral blood mononuclear cells (PBMC) are injected intravenously or intraperitoneally into an adult immunodeficient mouse. Bone marrow–liver–thymus (BLT) model: HSCs taken from the fetal liver are injected intravenously, and fetal liver and thymus pieces are inserted under the renal capsule in nude mice."
+      ],
+      [
+        "FIGURE 3",
+        "Setting up an experiment to produce zebrafish xenografts. After adult zebrafish spawn embryos at a rate of 300 eggs/week, they grow into larvae on the fifth day. The patient's tumor cells (~500 cells) are subcutaneously injected into the perivitelline space or the yolk sac of zebrafish larvae. Zebrafish can be used for live imaging in ~5 days for research on cancer metastasis, molecular mechanisms, and preclinical drug testing."
+      ]
+    ]
+  },
+  {
+    "pmc_id": "8704512",
+    "title": "Supervised Statistical Learning Prediction of Soybean Varieties and Cultivation Sites Using Rapid UPLC-MS Separation, Method Validation, and Targeted Metabolomic Analysis of 31 Phenolic Compounds in the Leaves",
+    "journal": "Metabolites",
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8704512/",
+    "figures": [
+      [
+        "Figure 1",
+        "Representative phenolic compounds presented in soybean (SB) leaves. Hereafter, chemical names of three acetate- and three malonate isoflavones were used as acetyl- and malonyl isoflavone, respectively, for convenience. Chemical symbols in the table: O-Gs, O-glycosides include mono-, di-, tri-glycosides; O-Glc, 1-dehydro-glucose; O-Glc-Ac, acetyl 1-dehydro-glucose; and O-Glc-Ma, malonyl 1-dehydro-glucose."
+      ],
+      [
+        "Figure 2",
+        "SB plant growth and changes of phenolics. The weight changes of (A1) leaf and (A2) stem and content of phenolic classes changes per (B1) dry weight of leaf and (B2) plant by cultivation period. Legends in figure: CJ, Cheng-ja no.3 variety; DW, Dae-won variety; PJ, Pa-ju city; YC, Yeon-chen city; CM, coumestan; FE, flavones; FL, flavonols; and IS, isoflavones. Lower case letters indicate statistical difference among the samples in the same cultivation period using comparisons of each pair by Student’s t-test (p < 0.05)."
+      ],
+      [
+        "Figure 3",
+        "Changes of individual compounds in the SB leaves by cultivation periods. Content per (A) dry weight of the leaves and (B) plant; (A1 and B1) isoflavones, (A2 and B2) flavones and kaempferol glycosides, and (A3 and B3) coumestrol, isorhamnetin, and quercetin glycosides. Legends in figure: CJ, Cheng-ja no.3 variety; DW, Dae-won variety; PJ, Pa-ju city; and YC, Yeon-chen city. Lower case letters indicate statistical difference among the samples in the same cultivation period using comparisons of each pair by Student’s t-test (p < 0.05)."
+      ],
+      [
+        "Figure 4",
+        "Multivariate analysis of SL metabolites. (A1) OPLS score plot with one y-variable (cultivation day), (A2) validation of the OPLS model using 100-permutation test, (A3) S-plot of OPLS, and (A4) VIP plot, (B1 and C1) OPLS-DA score plots for variety of SB plant and cultivation sites, (B2 and C2) validation of the models using 100-permutation, (B3 and C3) S-plot of OPLS-DA, and (B4 and C4) VIP plots."
+      ],
+      [
+        "Figure 5",
+        "Predictive modeling using machine learning. Reports of the boosted tree model for (A) the variety and (B) the cultivate on-site discriminations."
+      ]
+    ]
+  },
+  {
+    "pmc_id": "9656712",
+    "title": "Radiofrequency Energy Harvesting Systems for Internet of Things Applications: A Comprehensive Overview of Design Issues",
+    "journal": "Sensors (Basel, Switzerland)",
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9656712/",
+    "figures": [
+      [
+        "Figure 1",
+        "RF-EH-WS design considerations and paper organization."
+      ],
+      [
+        "Figure 2",
+        "Far-field WPT and RF/DC conversion blocks of an RF-EH system."
+      ],
+      [
+        "Figure 3",
+        "Various WIPT architectures. (a) WPCN. (b) SWIPT. (c) WPBC."
+      ],
+      [
+        "Figure 4",
+        "SWIPT transmission techniques in different domains: (a) Time. (b) Power. (c) Antenna. (d) Space."
+      ],
+      [
+        "Figure 5",
+        "Different types of backscatter communications systems. (a) Monostatic. (b) Bistatic. (c) Ambient."
+      ],
+      [
+        "Figure 6",
+        "Small signal model of Schottky diode."
+      ],
+      [
+        "Figure 7",
+        "Optimal loads of commonly used diodes. (a) Avago diodes. (b) Skyworks and Macon diodes."
+      ],
+      [
+        "Figure 8",
+        "Comparison of the detection threshold of the diodes. (a) 900 MHz GSM band. (b). 2.45 GHz ISM band. (c) 5.8 GHz ISM band. (d). Schematic for the diode detection threshold."
+      ],
+      [
+        "Figure 9",
+        "Half-wave rectifier topologies. (a) SSD. (b). SPD."
+      ],
+      [
+        "Figure 10",
+        "Full-wave rectifier topologies. (a) FB. (b). SVD. (c) LVD."
+      ],
+      [
+        "Figure 11",
+        "Performance comparison of main commonly used rectifier topologies. (a) 900 MHz GSM band. (b). 2.45 GHz ISM band."
+      ],
+      [
+        "Figure 12",
+        "Voltages multiplier topologies. (a) Greinacher rectifier configuration. (b). Cockcroft-Walton voltage multiplier."
+      ],
+      [
+        "Figure 13",
+        "Performance comparison of multistage rectifiers. (a) Voltage. (b) Efficiency. (c) The trade-off between voltage and efficiency."
+      ],
+      [
+        "Figure 14",
+        "The principle of the impedance matching."
+      ],
+      [
+        "Figure 15",
+        "Shunt stub matching technique."
+      ],
+      [
+        "Figure 16",
+        "Designed matching filters for 3-stages voltage multiplier. (a) L low pass. (b) L high pass. (c) π low pass. (d) π high pass. (e) Tee low pass. (f) Tee high pass."
+      ],
+      [
+        "Figure 17",
+        "Comparison of performance achieved with various filter configurations. (a). Efficiency. (b) Voltage. (c) Reflection coefficient."
+      ],
+      [
+        "Figure 18",
+        "Structure of DC/DC boost converter."
+      ],
+      [
+        "Figure 19",
+        "Main network topologies. (a) Star, (b) Mesh, (c) Cluster."
+      ],
+      [
+        "Figure 20",
+        "Energy harvesting communication model for solving TCTM problem."
+      ],
+      [
+        "Figure 21",
+        "Energy harvesting communication model for solving STTM problem."
+      ],
+      [
+        "Figure 22",
+        "Variation in ambient power density in the 900 MHz, 1.8 GHz and 2.4 GHz bands."
+      ]
+    ]
+  },
+  {
+    "pmc_id": "7694112",
+    "title": "Adult Diabetes and Prediabetes Prevalence in Kuwait: Data from the Cross-Sectional Kuwait Diabetes Epidemiology Program",
+    "journal": "Journal of Clinical Medicine",
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7694112/",
+    "figures": [
+      [
+        "Figure 1",
+        "The adjusted prevalence of diabetes and prediabetes according to different diagnostic criteria (n = 4937). KDEP Survey, adults in Kuwait aged 20 years or more. Prevalence adjusted for age, sex and nationality and presented with 95% confidence intervals."
+      ]
+    ]
+  },
+  {
+    "pmc_id": "8912451",
+    "title": "Product Development of Natural Fibre-Composites for Various Applications: Design for Sustainability",
+    "journal": "Polymers",
+    "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8912451/",
+    "figures": [
+      [
+        "Figure 1",
+        "The Prism of Sustainability. Adapted with permission from Ref. [31]. Copyright 2010 Elsevier."
+      ],
+      [
+        "Figure 2",
+        "Implementation steps of sustainable design development. Adapted with permission from Ref. [66]. Copyright 2021 MDPI."
+      ],
+      [
+        "Figure 3",
+        "The design process in concurrent engineering."
+      ],
+      [
+        "Figure 4",
+        "Schematic representations of natural fibres. Adapted with permission from Ref. [95]. Copyright 2021 MDPI."
+      ],
+      [
+        "Figure 5",
+        "Schematic diagram of components of lignocellulosic fibre. Adapted with permission from Ref. [95]. Copyright 2021 MDPI."
+      ],
+      [
+        "Figure 6",
+        "Concurrent engineering wheel."
+      ],
+      [
+        "Figure 7",
+        "Biocomposite product development flow. Adapted with permission from Ref. [105]. Copyright 2021 MDPI."
+      ],
+      [
+        "Figure 8",
+        "Elements within DfS. Adapted with permission from Ref. [47]. Copyright 2007 Dialnet."
+      ],
+      [
+        "Figure 9",
+        "The general concept of AHP (a) and ANP (b) in the design selection process. Adapted with permission from Ref. [118]. Copyright 2020 Wiley."
+      ],
+      [
+        "Figure 10",
+        "The challenges faced by natural fibre reinforced polymer composites."
+      ]
+    ]
+  }
+]
