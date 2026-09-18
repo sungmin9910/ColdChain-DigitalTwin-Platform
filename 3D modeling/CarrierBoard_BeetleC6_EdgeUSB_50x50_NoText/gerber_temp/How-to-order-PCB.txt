@@ -1,16 +1,36 @@
-JLCPCB Production Gerber Package v4
-Board: CarrierBoard Beetle ESP32-C6 EdgeUSB (50x50mm)
-Production Release Date: 2026-09-14
-Specs:
-- Dimensions: 50.0mm x 50.0mm
-- Layers: 2 Layers (FR-4)
-- Thickness: 1.6mm
-- Copper Weight: 1 oz
-- Silkscreen: White
-- Solder Mask: Matte Black or Green
-- Verified Real Sensors:
-  1. Sensirion SHT45 Qwiic (SZH-MIN069 / Adafruit form factor, 25.5x17.8mm)
-  2. InvenSense GY-521 MPU6050 (SZH-EK007, 20.7x15.65mm)
-  3. ROHM BH1750 GY-302 (SZH-EK070, 13.9x18.5mm)
-  4. Zhongke Micro ATGM336H-5N (SZH-MIN053, 13.1x15.7mm)
-  5. DFRobot Beetle ESP32-C6 Mini (DFR1117, 20.5x25.0mm EdgeUSB Flush)
+=============================================================
+JLCPCB Production Gerber Package v10 (DRC Zero-Error Certified)
+Board Name: CarrierBoard Beetle ESP32-C6 EdgeUSB (50x50mm, NoText Edition)
+Release Date: 2026-09-18
+KiCad Version: KiCad 10.0.4
+
+[JLCPCB Quotation / Order Parameter Guide]
+-------------------------------------------------------------
+1. PCB Dimensions: 50.0 mm x 50.0 mm
+2. PCB Qty: 5 pcs (or desired quantity)
+3. Layer Count: 2 Layers
+4. Base Material: FR-4
+5. Board Thickness: 1.6 mm
+6. Copper Weight: 1 oz (Outer layer)
+7. Solder Mask: Matte Black or Green (Recommended: Black / Green)
+8. Silkscreen: White (Minimalistic NoText outline aesthetic)
+9. Surface Finish: HASL with lead (Economical) or LeadFree HASL / ENIG (Gold)
+10. Remove Order Number: Specify location or "Yes" (Recommended to preserve clean look)
+11. Min Hole Size / Min Track: Standard (0.4mm drill / 0.35mm trace)
+12. PCB Assembly: NO (Choose "PCB Only", all modules and headers are socketed/hand-soldered)
+
+[Included Layers]
+- Gerber_TopCopperLayer.GTL        (Front Copper / 3V3 Power Rail & Signals)
+- Gerber_BottomCopperLayer.GBL     (Back Copper / I2C SDA & SCL & UART & GND)
+- Gerber_TopSilkscreenLayer.GTO    (Front Silkscreen / Component Placement Outlines)
+- Gerber_BottomSilkscreenLayer.GBO (Back Silkscreen / Sensor Outlines)
+- Gerber_TopSolderMaskLayer.GTS    (Front Solder Mask)
+- Gerber_BottomSolderMaskLayer.GBS (Back Solder Mask)
+- Gerber_BoardOutlineLayer.GKO     (Edge Cuts / 50x50mm Chamfered Profile)
+- Gerber_Drill.DRL                 (Plated Through Holes, Vias & M3 Mounts)
+
+[DRC Certification]
+- Short Circuits: 0 (PASSED)
+- Clearance Violations: 0 (PASSED)
+- Unconnected Items: 0 (PASSED)
+=============================================================

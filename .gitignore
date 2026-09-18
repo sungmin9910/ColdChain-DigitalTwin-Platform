@@ -28,3 +28,15 @@ __pycache__/
 
 
 
+
+*.bak
+*.kicad_prl
+*drc_report.json
+*drc_final_report.json
+
+scratch/*.kicad_pcb
+scratch/*.kicad_prl
+scratch/*report*.json
+scratch/*drc*.json
+scratch/target_drc_check.json
+scratch/gerber_test/

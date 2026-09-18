@@ -1,0 +1,15 @@
+Ref,Val,Package,PosX,PosY,Rot,Side
+"","","MountingHole_3.2mm_M3_Pad",103.500000,-103.500000,0.000000,top
+"","","MountingHole_3.2mm_M3_Pad",146.500000,-103.500000,0.000000,top
+"","","MountingHole_3.2mm_M3_Pad",103.500000,-146.500000,0.000000,top
+"","","MountingHole_3.2mm_M3_Pad",146.500000,-146.500000,0.000000,top
+"J1","","JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal",123.000000,-146.500000,0.000000,top
+"J_BH1750","","PinHeader_1x05_P2.54mm_Horizontal",142.750000,-123.200000,0.000000,top
+"J_GPS","","PinHeader_1x05_P2.54mm_Horizontal",107.410000,-109.500000,0.000000,top
+"J_GY521","","PinHeader_1x08_P2.54mm_Horizontal",138.420000,-127.500000,0.000000,top
+"J_MCU_L","","PinHeader_1x08_P2.54mm_Vertical",116.110000,-111.550000,0.000000,top
+"J_MCU_R","","PinHeader_1x08_P2.54mm_Vertical",133.890000,-111.550000,0.000000,top
+"J_SHT45","","PinHeader_1x05_P2.54mm_Horizontal",113.250000,-127.500000,0.000000,top
+"R3","","R_0603_1608Metric",122.000000,-142.000000,0.000000,top
+"R4","","R_0603_1608Metric",128.000000,-142.000000,0.000000,top
+"SW1","","SW_SPDT_PCM12",116.000000,-146.500000,0.000000,top

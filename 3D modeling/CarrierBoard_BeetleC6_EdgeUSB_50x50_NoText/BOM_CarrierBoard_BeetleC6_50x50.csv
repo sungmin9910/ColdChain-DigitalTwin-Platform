@@ -1,0 +1,6 @@
+Comment,Designator,Footprint,LCSC Part #
+"1x8P Female Header 2.54mm","J_MCU_L, J_MCU_R, J_GY521","PinHeader_1x08_P2.54mm_Vertical","C27438"
+"1x5P Female Header 2.54mm","J_BH1750, J_GPS, J_SHT45","PinHeader_1x05_P2.54mm_Vertical","C50950"
+"4.7k 1% 0603","R3, R4","R_0603_1608Metric","C23163"
+"SW_SPDT_PCM12","SW1","SW_SPDT_PCM12","C318884"
+"JST-PH-2P 2.0mm","J1","JST_PH_S2B-PH-K_1x02_P2.00mm","C131337"
