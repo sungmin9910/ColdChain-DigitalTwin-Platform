@@ -67,6 +67,11 @@ flowchart TD
 ### 📄 3. [KSHS/](./KSHS/) (학술 발표 및 학회 성과 아카이브)
 * 본 기술 플랫폼의 독창성과 학술적 기여를 인정받은 **한국원예학회(KSHS)** 제출 최종 초록, 포스터(PDF/HTML), 그리고 슬라이드 PPTX 파일이 들어있습니다.
 
+### 📚 4. [docs/](./docs/) (기술 가이드 및 연구 로드맵)
+* `04_ColdChain_FDT_Process.md`: 전체 농가-APC-소비자 FDT 유통 프로세스 규격서.
+* `05_Scanner_Comparison.md`: ESP32 자작 스캐너 vs Jetson+MQ160W 비교 분석서.
+* **`06_Master_Thesis_Research_Roadmap.md`**: **석사 학위 논문 본심사 및 SCIE 저널 게재를 위한 연구 고도화 처방전 로드맵**.
+
 ---
 
 ## 🛠️ 시작 가이드 (Quick Start)
