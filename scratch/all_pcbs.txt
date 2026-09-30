@@ -1,0 +1,182 @@
+
+============================
+PCB: 3D modeling\CarrierBoard_BeetleC6_50x50\CarrierBoard_BeetleC6_50x50.kicad_pcb
+  H1           ( 1 pads) at ('103.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 103.5)
+  H2           ( 1 pads) at ('146.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 103.5)
+  H3           ( 1 pads) at ('103.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 146.5)
+  H4           ( 1 pads) at ('146.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 146.5)
+  J_MCU_L      ( 8 pads) at ('117.0', '123.89', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 117.0 123.89)
+  J_MCU_R      ( 8 pads) at ('134.78', '123.89', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 134.78 123.89)
+  J_SHT45      ( 5 pads) at ('112.5', '115.08', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" (layer "F.Cu") (at 112.5 115.08)
+  J_BH1750     ( 5 pads) at ('112.5', '132.08', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" (layer "F.Cu") (at 112.5 132.08)
+  J_GY521      ( 8 pads) at ('138.5', '126.89', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "B.Cu") (at 138.5 126.89)
+  J_GPS        ( 5 pads) at ('125.0', '142.5', '90') layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" (layer "B.Cu") (at 125.0 142.5 90)
+  J1           ( 2 pads) at ('144.0', '110.0', None) layer=F.Cu | Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal" (layer "F.Cu") (at 144.0 110.0)
+  SW1          ( 3 pads) at ('144.5', '115.5', None) layer=F.Cu | Button_Switch_SMD:SW_SPDT_PCM12" (layer "F.Cu") (at 144.5 115.5)
+
+============================
+PCB: 3D modeling\CarrierBoard_BeetleC6_EdgeUSB_50x50\CarrierBoard_BeetleC6_EdgeUSB_50x50.kicad_pcb
+  ?            ( 1 pads) at ('103.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 103.5)
+  ?            ( 1 pads) at ('146.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 103.5)
+  ?            ( 1 pads) at ('103.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 146.5)
+  ?            ( 1 pads) at ('146.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 146.5)
+  J_MCU_L      ( 8 pads) at ('116.11', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 116.11 111.55)
+  J_MCU_R      ( 8 pads) at ('133.89', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 133.89 111.55)
+  J_BH1750     ( 5 pads) at ('142.75', '123.2', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "F.Cu") (at 142.75 123.2)
+  J_GPS        ( 5 pads) at ('107.41', '109.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "B.Cu") (at 107.41 109.5)
+  J1           ( 2 pads) at ('123.0', '146.5', None) layer=F.Cu | Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal" (layer "F.Cu") (at 123.0 146.5)
+  SW1          ( 3 pads) at ('116.0', '146.5', None) layer=F.Cu | Button_Switch_SMD:SW_SPDT_PCM12" (layer "F.Cu") (at 116.0 146.5)
+  R3           ( 2 pads) at ('122.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 122.0 142.0)
+  R4           ( 2 pads) at ('128.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 128.0 142.0)
+  J_SHT45      ( 5 pads) at ('113.25', '127.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "B.Cu") (at 113.25 127.5)
+  J_GY521      ( 8 pads) at ('138.42', '127.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Horizontal" (layer "B.Cu") (at 138.42 127.5)
+
+============================
+PCB: 3D modeling\CarrierBoard_BeetleC6_EdgeUSB_50x50_NoText\CarrierBoard_BeetleC6_EdgeUSB_50x50.kicad_pcb
+  ?            ( 1 pads) at ('103.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu")
+  ?            ( 1 pads) at ('146.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu")
+  ?            ( 1 pads) at ('103.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu")
+  ?            ( 1 pads) at ('146.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu")
+  J_MCU_L      ( 8 pads) at ('116.11', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu")
+  J_MCU_R      ( 8 pads) at ('133.89', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu")
+  J_BH1750     ( 5 pads) at ('142.75', '123.2', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "F.Cu")
+  J_GPS        ( 5 pads) at ('107.41', '109.5', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "F.Cu")
+  J1           ( 2 pads) at ('123.0', '146.5', None) layer=F.Cu | Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal" (layer "F.Cu")
+  SW1          ( 3 pads) at ('116.0', '146.5', None) layer=F.Cu | Button_Switch_SMD:SW_SPDT_PCM12" (layer "F.Cu")
+  R3           ( 2 pads) at ('122.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu")
+  R4           ( 2 pads) at ('128.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu")
+  J_SHT45      ( 5 pads) at ('113.25', '127.5', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "F.Cu")
+  J_GY521      ( 8 pads) at ('138.42', '127.5', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Horizontal" (layer "F.Cu")
+
+============================
+PCB: 3D modeling\SensorNode_BeetleC6_50x50\SensorNode_BeetleC6_50x50.kicad_pcb
+  H1           ( 1 pads) at ('103.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 103.5)
+  H2           ( 1 pads) at ('146.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 103.5)
+  H3           ( 1 pads) at ('103.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 146.5)
+  H4           ( 1 pads) at ('146.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 146.5)
+  J_MCU_L      ( 8 pads) at ('116.11', '125.0', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 116.11 125.0)
+  J_MCU_R      ( 8 pads) at ('133.89', '125.0', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 133.89 125.0)
+  SW1          ( 3 pads) at ('144.5', '113.0', None) layer=F.Cu | Button_Switch_SMD:SW_SPDT_PCM12" (layer "F.Cu") (at 144.5 113.0)
+  J1           ( 2 pads) at ('144.0', '126.0', None) layer=F.Cu | Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal" (layer "F.Cu") (at 144.0 126.0)
+  U4           (14 pads) at ('143.5', '119.5', None) layer=F.Cu | Package_LGA:LGA-14_3x5mm_P0.8mm" (layer "F.Cu") (at 143.5 119.5)
+  U2           ( 4 pads) at ('106.5', '119.0', None) layer=F.Cu | Sensor_Humidity:Sensirion_DFN-4-1EP_1.5x1.5mm_P0.8mm_EP0.7x1.15mm" (layer "F.Cu") (at 106.5 119.0)
+  U3           ( 8 pads) at ('106.5', '130.0', None) layer=F.Cu | Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" (layer "F.Cu") (at 106.5 130.0)
+  R3           ( 2 pads) at ('111.5', '111.5', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 111.5 111.5)
+  R4           ( 2 pads) at ('111.5', '114.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 111.5 114.0)
+  C1           ( 2 pads) at ('111.5', '116.5', None) layer=F.Cu | Capacitor_SMD:C_0603_1608Metric" (layer "F.Cu") (at 111.5 116.5)
+  R1           ( 2 pads) at ('111.5', '133.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 111.5 133.0)
+  R2           ( 2 pads) at ('111.5', '135.5', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 111.5 135.5)
+  U5           ( 8 pads) at ('114.0', '143.0', None) layer=F.Cu | RF_GPS:ATGM336H" (layer "F.Cu") (at 114.0 143.0)
+  J3           ( 3 pads) at ('106.5', '138.5', None) layer=F.Cu | Connector_Coaxial:U.FL_Hirose_U.FL-R-SMT-1_Vertical" (layer "F.Cu") (at 106.5 138.5)
+  J2           (10 pads) at ('126.0', '144.0', None) layer=F.Cu | Connector_Card:MicroSD_Molex_47309-0001" (layer "F.Cu") (at 126.0 144.0)
+
+============================
+PCB: 3D modeling\회로도.kicad_sch\회로도.kicad_sch.kicad_pcb
+  J3           ( 8 pads) at ('101.6', '86.36', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical
+  J6           ( 5 pads) at ('129.54', '86.36', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
+  J4           ( 5 pads) at ('101.6', '104.14', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
+  J1           (15 pads) at ('101.6', '134.62', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x15_P2.54mm_Vertical
+  J5           ( 5 pads) at ('129.54', '104.14', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
+  J2           (15 pads) at ('101.6', '109.22', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x15_P2.54mm_Vertical
+
+============================
+PCB: 3D modeling\회로도_c3_supermini\회로도_c3_supermini.kicad_pcb
+  J3           ( 8 pads) at ('101.6', '86.36', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical
+  J4           ( 5 pads) at ('101.6', '104.14', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
+  J5           ( 5 pads) at ('129.54', '104.14', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
+  J6           ( 5 pads) at ('129.54', '86.36', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
+  J1           ( 8 pads) at ('101.6', '127', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical
+  J2           ( 8 pads) at ('101.6', '109.22', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical
+
+============================
+PCB: 3D modeling\회로도_stack\회로도_stack.kicad_pcb
+  J2           (22 pads) at ('63.5', '129.54', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x22_P2.54mm_Vertical
+  J4           ( 5 pads) at ('66.04', '139.7', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
+  J5           ( 5 pads) at ('190.5', '124.46', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
+  J6           ( 5 pads) at ('198.12', '129.54', '180') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical
+  J1           (22 pads) at ('63.5', '104.14', '90') layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x22_P2.54mm_Vertical
+
+============================
+PCB: scratch\base_board.kicad_pcb
+  H            ( 1 pads) at ('103.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 103.5)
+  H            ( 1 pads) at ('146.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 103.5)
+  H            ( 1 pads) at ('103.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 146.5)
+  H            ( 1 pads) at ('146.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 146.5)
+  J_MCU_L      ( 8 pads) at ('116.11', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 116.11 111.55)
+  J_MCU_R      ( 8 pads) at ('133.89', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 133.89 111.55)
+  J_BH1750     ( 5 pads) at ('142.75', '123.2', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "F.Cu") (at 142.75 123.2)
+  J_GPS        ( 5 pads) at ('107.41', '109.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "B.Cu") (at 107.41 109.5)
+  J1           ( 2 pads) at ('123.0', '146.5', None) layer=F.Cu | Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal" (layer "F.Cu") (at 123.0 146.5)
+  SW1          ( 3 pads) at ('116.0', '146.5', None) layer=F.Cu | Button_Switch_SMD:SW_SPDT_PCM12" (layer "F.Cu") (at 116.0 146.5)
+  R3           ( 2 pads) at ('122.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 122.0 142.0)
+  R4           ( 2 pads) at ('128.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 128.0 142.0)
+  J_SHT45      ( 5 pads) at ('113.25', '127.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "B.Cu") (at 113.25 127.5)
+  J_GY521      ( 8 pads) at ('138.42', '127.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Horizontal" (layer "B.Cu") (at 138.42 127.5)
+
+============================
+PCB: scratch\optimized_drc.kicad_pcb
+  ?            ( 1 pads) at ('103.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 103.5)
+  ?            ( 1 pads) at ('146.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 103.5)
+  ?            ( 1 pads) at ('103.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 146.5)
+  ?            ( 1 pads) at ('146.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 146.5)
+  J_MCU_L      ( 8 pads) at ('116.11', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 116.11 111.55)
+  J_MCU_R      ( 8 pads) at ('133.89', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 133.89 111.55)
+  J_BH1750     ( 5 pads) at ('142.75', '123.2', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "F.Cu") (at 142.75 123.2)
+  J_GPS        ( 5 pads) at ('107.41', '109.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "B.Cu") (at 107.41 109.5)
+  J1           ( 2 pads) at ('123.0', '146.5', None) layer=F.Cu | Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal" (layer "F.Cu") (at 123.0 146.5)
+  SW1          ( 3 pads) at ('116.0', '146.5', None) layer=F.Cu | Button_Switch_SMD:SW_SPDT_PCM12" (layer "F.Cu") (at 116.0 146.5)
+  R3           ( 2 pads) at ('122.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 122.0 142.0)
+  R4           ( 2 pads) at ('128.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 128.0 142.0)
+  J_SHT45      ( 5 pads) at ('113.25', '127.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "B.Cu") (at 113.25 127.5)
+  J_GY521      ( 8 pads) at ('138.42', '127.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Horizontal" (layer "B.Cu") (at 138.42 127.5)
+
+============================
+PCB: scratch\perfect_drc.kicad_pcb
+  ?            ( 1 pads) at ('103.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 103.5)
+  ?            ( 1 pads) at ('146.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 103.5)
+  ?            ( 1 pads) at ('103.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 146.5)
+  ?            ( 1 pads) at ('146.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 146.5)
+  J_MCU_L      ( 8 pads) at ('116.11', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 116.11 111.55)
+  J_MCU_R      ( 8 pads) at ('133.89', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 133.89 111.55)
+  J_BH1750     ( 5 pads) at ('142.75', '123.2', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "F.Cu") (at 142.75 123.2)
+  J_GPS        ( 5 pads) at ('107.41', '109.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "B.Cu") (at 107.41 109.5)
+  J1           ( 2 pads) at ('123.0', '146.5', None) layer=F.Cu | Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal" (layer "F.Cu") (at 123.0 146.5)
+  SW1          ( 3 pads) at ('116.0', '146.5', None) layer=F.Cu | Button_Switch_SMD:SW_SPDT_PCM12" (layer "F.Cu") (at 116.0 146.5)
+  R3           ( 2 pads) at ('122.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 122.0 142.0)
+  R4           ( 2 pads) at ('128.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 128.0 142.0)
+  J_SHT45      ( 5 pads) at ('113.25', '127.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "B.Cu") (at 113.25 127.5)
+  J_GY521      ( 8 pads) at ('138.42', '127.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Horizontal" (layer "B.Cu") (at 138.42 127.5)
+
+============================
+PCB: scratch\test_new_pinout.kicad_pcb
+  ?            ( 1 pads) at ('103.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu")
+  ?            ( 1 pads) at ('146.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu")
+  ?            ( 1 pads) at ('103.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu")
+  ?            ( 1 pads) at ('146.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu")
+  J_MCU_L      ( 8 pads) at ('116.11', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu")
+  J_MCU_R      ( 8 pads) at ('133.89', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu")
+  J_BH1750     ( 5 pads) at ('142.75', '123.2', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "F.Cu")
+  J_GPS        ( 5 pads) at ('107.41', '109.5', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "F.Cu")
+  J1           ( 2 pads) at ('123.0', '146.5', None) layer=F.Cu | Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal" (layer "F.Cu")
+  SW1          ( 3 pads) at ('116.0', '146.5', None) layer=F.Cu | Button_Switch_SMD:SW_SPDT_PCM12" (layer "F.Cu")
+  R3           ( 2 pads) at ('122.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu")
+  R4           ( 2 pads) at ('128.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu")
+  J_SHT45      ( 5 pads) at ('113.25', '127.5', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "F.Cu")
+  J_GY521      ( 8 pads) at ('138.42', '127.5', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Horizontal" (layer "F.Cu")
+
+============================
+PCB: scratch\test_routed.kicad_pcb
+  ?            ( 1 pads) at ('103.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 103.5)
+  ?            ( 1 pads) at ('146.5', '103.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 103.5)
+  ?            ( 1 pads) at ('103.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 103.5 146.5)
+  ?            ( 1 pads) at ('146.5', '146.5', None) layer=F.Cu | MountingHole:MountingHole_3.2mm_M3_Pad" (layer "F.Cu") (at 146.5 146.5)
+  J_MCU_L      ( 8 pads) at ('116.11', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 116.11 111.55)
+  J_MCU_R      ( 8 pads) at ('133.89', '111.55', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical" (layer "F.Cu") (at 133.89 111.55)
+  J_BH1750     ( 5 pads) at ('142.75', '123.2', None) layer=F.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "F.Cu") (at 142.75 123.2)
+  J_GPS        ( 5 pads) at ('107.41', '109.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "B.Cu") (at 107.41 109.5)
+  J1           ( 2 pads) at ('123.0', '146.5', None) layer=F.Cu | Connector_JST:JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal" (layer "F.Cu") (at 123.0 146.5)
+  SW1          ( 3 pads) at ('116.0', '146.5', None) layer=F.Cu | Button_Switch_SMD:SW_SPDT_PCM12" (layer "F.Cu") (at 116.0 146.5)
+  R3           ( 2 pads) at ('122.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 122.0 142.0)
+  R4           ( 2 pads) at ('128.0', '142.0', None) layer=F.Cu | Resistor_SMD:R_0603_1608Metric" (layer "F.Cu") (at 128.0 142.0)
+  J_SHT45      ( 5 pads) at ('113.25', '127.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Horizontal" (layer "B.Cu") (at 113.25 127.5)
+  J_GY521      ( 8 pads) at ('138.42', '127.5', None) layer=B.Cu | Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Horizontal" (layer "B.Cu") (at 138.42 127.5)

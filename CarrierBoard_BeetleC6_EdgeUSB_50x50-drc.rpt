@@ -1,0 +1,60 @@
+** Drc report for CarrierBoard_BeetleC6_EdgeUSB_50x50.kicad_pcb **
+** Created on 2026-09-30T19:32:37 **
+** Report includes: Errors, Warnings **
+
+** Found 14 DRC violations **
+[lib_footprint_mismatch]: 풋프린트 'MountingHole_3.2mm_M3_Pad'이(가) 라이브러리 'MountingHole'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(103.5000 mm, 103.5000 mm): Footprint <no reference designator>
+[lib_footprint_mismatch]: 풋프린트 'MountingHole_3.2mm_M3_Pad'이(가) 라이브러리 'MountingHole'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(146.5000 mm, 103.5000 mm): Footprint <no reference designator>
+[lib_footprint_mismatch]: 풋프린트 'MountingHole_3.2mm_M3_Pad'이(가) 라이브러리 'MountingHole'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(103.5000 mm, 146.5000 mm): Footprint <no reference designator>
+[lib_footprint_mismatch]: 풋프린트 'MountingHole_3.2mm_M3_Pad'이(가) 라이브러리 'MountingHole'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(146.5000 mm, 146.5000 mm): Footprint <no reference designator>
+[lib_footprint_mismatch]: 풋프린트 'PinHeader_1x08_P2.54mm_Vertical'이(가) 라이브러리 'Connector_PinHeader_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(116.1100 mm, 111.5500 mm): Footprint J_MCU_L
+[lib_footprint_mismatch]: 풋프린트 'PinHeader_1x08_P2.54mm_Vertical'이(가) 라이브러리 'Connector_PinHeader_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(133.8900 mm, 111.5500 mm): Footprint J_MCU_R
+[lib_footprint_mismatch]: 풋프린트 'PinHeader_1x05_P2.54mm_Horizontal'이(가) 라이브러리 'Connector_PinHeader_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(142.7500 mm, 123.2000 mm): Footprint J_BH1750
+[lib_footprint_mismatch]: 풋프린트 'PinHeader_1x05_P2.54mm_Horizontal'이(가) 라이브러리 'Connector_PinHeader_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(107.4100 mm, 109.5000 mm): Footprint J_GPS
+[lib_footprint_mismatch]: 풋프린트 'JST_PH_S2B-PH-K_1x02_P2.00mm_Horizontal'이(가) 라이브러리 'Connector_JST'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(123.0000 mm, 146.5000 mm): Footprint J1
+[lib_footprint_mismatch]: 풋프린트 'SW_SPDT_PCM12'이(가) 라이브러리 'Button_Switch_SMD'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(116.0000 mm, 146.5000 mm): Footprint SW1
+[lib_footprint_mismatch]: 풋프린트 'R_0603_1608Metric'이(가) 라이브러리 'Resistor_SMD'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(122.0000 mm, 142.0000 mm): Footprint R3
+[lib_footprint_mismatch]: 풋프린트 'R_0603_1608Metric'이(가) 라이브러리 'Resistor_SMD'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(128.0000 mm, 142.0000 mm): Footprint R4
+[lib_footprint_mismatch]: 풋프린트 'PinHeader_1x05_P2.54mm_Horizontal'이(가) 라이브러리 'Connector_PinHeader_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(113.2500 mm, 127.5000 mm): Footprint J_SHT45
+[lib_footprint_mismatch]: 풋프린트 'PinHeader_1x08_P2.54mm_Horizontal'이(가) 라이브러리 'Connector_PinHeader_2.54mm'의 사본과 일치하지 않습니다
+    Local override; warning
+    @(138.4200 mm, 127.5000 mm): Footprint J_GY521
+
+** Found 0 unconnected pads **
+
+** Found 0 Footprint errors **
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - Footprint component type doesn't match footprint pads
+
+** End of Report **
