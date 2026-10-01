@@ -9,6 +9,7 @@
 #include <WiFiMulti.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <LittleFS.h>
 #include <time.h>
 
 // ==========================================
@@ -67,6 +68,82 @@ unsigned long lastTxTime = 0;
 unsigned long lastSampleTime = 0;
 unsigned long lastShockTime = 0;
 unsigned long lastMqttAttempt = 0;
+
+// ==========================================
+// 3. LittleFS 블랙박스 & 오프라인 버퍼 관리
+// ==========================================
+const char* master_log_file = "/telemetry_log.jsonl";   // 항시 영구 기록 (블랙박스 마스터 로그)
+const char* offline_buffer_file = "/offline_buf.jsonl"; // 오프라인 시 임시 버퍼 (온라인 복구 시 전송)
+#define MAX_LOG_SIZE_BYTES (1024 * 1024)               // 최대 1MB
+bool littlefs_ready = false;
+bool has_offline_data = false;
+unsigned long totalSavedRecords = 0;
+
+void logToLittleFS(const char* jsonStr, bool isOffline) {
+  if (!littlefs_ready) return;
+
+  // 1) 항시 블랙박스 영구 저장 (/telemetry_log.jsonl)
+  File fMaster = LittleFS.open(master_log_file, FILE_APPEND);
+  if (fMaster) {
+    if (fMaster.size() < MAX_LOG_SIZE_BYTES) {
+      fMaster.println(jsonStr);
+      fMaster.flush();
+      totalSavedRecords++;
+      Serial.printf("  💾 [LittleFS 블랙박스] 저장 완료 (파일: %u B, 누적: %lu건)\n", (unsigned int)fMaster.size(), totalSavedRecords);
+    } else {
+      Serial.println("  ⚠️ [LittleFS 블랙박스] 1MB 용량 한도 도달");
+    }
+    fMaster.close();
+  } else {
+    Serial.println("  ❌ [LittleFS 블랙박스] 파일 열기 실패");
+  }
+
+  // 2) 오프라인 상태일 경우 재전송 버퍼에도 기록 (/offline_buf.jsonl)
+  if (isOffline) {
+    File fBuf = LittleFS.open(offline_buffer_file, FILE_APPEND);
+    if (fBuf) {
+      if (fBuf.size() < MAX_LOG_SIZE_BYTES) {
+        fBuf.println(jsonStr);
+        fBuf.flush();
+        has_offline_data = true;
+        Serial.printf("  📦 [LittleFS 오프라인 버퍼] 미전송 패킷 큐잉 (버퍼: %u B)\n", (unsigned int)fBuf.size());
+      }
+      fBuf.close();
+    }
+  }
+}
+
+// 오프라인 버퍼가 쌓여있다면 온라인 복구 시 MQTT로 순차 전송
+void flushOfflineBuffer() {
+  if (!littlefs_ready || !client.connected()) return;
+  if (!has_offline_data) return; // 미전송 데이터가 없을 때는 스킵하여 불필요한 VFS I/O 방지
+
+  File fBuf = LittleFS.open(offline_buffer_file, FILE_READ);
+  if (!fBuf) {
+    has_offline_data = false;
+    return;
+  }
+
+  Serial.println("\n📡 [LittleFS 오프라인 버퍼 동기화] 미전송 데이터 MQTT 브로커 전송 중...");
+  int sent = 0;
+  while (fBuf.available() && client.connected()) {
+    String line = fBuf.readStringUntil('\n');
+    line.trim();
+    if (line.length() == 0) continue;
+    if (client.publish(mqtt_topic, line.c_str())) {
+      sent++;
+      delay(40); // 네트워크 혼잡 방지
+    } else {
+      break;
+    }
+  }
+  fBuf.close();
+
+  // 정상 전송 후 오프라인 버퍼 삭제
+  LittleFS.remove(offline_buffer_file);
+  has_offline_data = false;
+  Serial.printf("✅ [LittleFS 오프라인 동기화 완료] 총 %d건 브로커 전송 및 버퍼 초기화!\n\n", sent);
+}
 
 // ==========================================
 // 3. NTP 시간 포맷 함수 (KST)
@@ -160,15 +237,22 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
   Serial.printf("  [GPS 상태] 수신바이트: %lu, 위성수: %d, Fix: %s (위도: %.6f, 경도: %.6f)\n",
                 chars_rx, sats, gps.location.isValid() ? "YES" : "NO", lat, lng);
 
-  if (client.connected()) {
+  // 4) LittleFS 블랙박스 항시 저장 및 오프라인 버퍼링
+  bool is_connected = client.connected();
+  logToLittleFS(jsonBuffer, !is_connected);
+
+  // 5) MQTT 네트워크 전송
+  if (is_connected) {
     bool pub_ok = client.publish(mqtt_topic, jsonBuffer);
     if (pub_ok) {
       Serial.println("  -> MQTT 발행 성공 (PASS)");
     } else {
       Serial.println("  -> MQTT 발행 실패 (Buffer/Net Error)");
     }
+    // 미전송 오프라인 데이터가 있다면 함께 동기화
+    flushOfflineBuffer();
   } else {
-    Serial.println("  -> [오프라인 모드] MQTT 미연결 상태");
+    Serial.println("  -> [오프라인 모드] 핫스팟/MQTT 미연결 (LittleFS에 안전 보존 중)");
   }
 }
 
@@ -224,34 +308,110 @@ void setup() {
   Serial1.begin(GPS_BAUDRATE, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
   Serial.println("OK");
 
-  // 5. Wi-Fi Multi 초기화
-  Serial.println("📡 [5] Wi-Fi Multi AP 등록 및 연결 시도...");
+  // 5. LittleFS 파일시스템 마운트
+  Serial.print("📦 [5] LittleFS 파일시스템 마운트... ");
+  if (LittleFS.begin(true)) {
+    littlefs_ready = true;
+    size_t total = LittleFS.totalBytes();
+    size_t used = LittleFS.usedBytes();
+    size_t log_size = 0;
+    if (LittleFS.exists(master_log_file)) {
+      File f = LittleFS.open(master_log_file, FILE_READ);
+      log_size = f.size();
+      while (f.available()) {
+        if (f.read() == '\n') totalSavedRecords++;
+      }
+      f.close();
+    }
+    Serial.printf("OK (사용량: %u / %u bytes, 기존 누적: %u bytes, %lu건)\n", 
+                  (unsigned int)used, (unsigned int)total, (unsigned int)log_size, totalSavedRecords);
+  } else {
+    Serial.println("Fail (LittleFS 마운트 실패)");
+  }
+
+  // 6. Wi-Fi Multi 초기화
+  Serial.println("📡 [6] Wi-Fi Multi AP 등록 및 연결 시도...");
   WiFi.mode(WIFI_STA);
   for (int i = 0; i < num_wifi_networks; i++) {
     wifiMulti.addAP(wifi_networks[i].ssid, wifi_networks[i].password);
     Serial.printf("   + AP 등록: %s\n", wifi_networks[i].ssid);
   }
 
-  // 6. MQTT 설정
+  // 7. MQTT 설정
   client.setServer(mqtt_server, mqtt_port);
   client.setBufferSize(512);
 
-  // 7. NTP 시간 동기화 (KST: UTC+9)
+  // 8. NTP 시간 동기화 (KST: UTC+9)
   configTime(9 * 3600, 0, "pool.ntp.org", "time.nist.gov");
 
   Serial.println("\n🚀 초기화 완료! 실시간 루프 시작...\n");
+  Serial.println("💡 [시리얼 명령어 가이드]");
+  Serial.println("   - dump 또는 read : LittleFS에 저장된 모든 데이터 출력");
+  Serial.println("   - info 또는 stat : 저장 용량 및 누적 건수 확인");
+  Serial.println("   - clear 또는 reset: 저장된 로그 초기화\n");
 }
 
 // ==========================================
-// 7. MAIN LOOP
+// 7. 시리얼 인터랙티브 명령어 처리
+// ==========================================
+void handleSerialCommands() {
+  while (Serial.available() > 0) {
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    if (cmd.length() == 0) continue;
+
+    if (cmd.equalsIgnoreCase("read") || cmd.equalsIgnoreCase("dump")) {
+      Serial.println("\n================ [LittleFS 블랙박스 덤프 시작] ================");
+      if (!littlefs_ready || !LittleFS.exists(master_log_file)) {
+        Serial.println("저장된 로그 파일이 없습니다.");
+      } else {
+        File f = LittleFS.open(master_log_file, FILE_READ);
+        unsigned long count = 0;
+        while (f.available()) {
+          String line = f.readStringUntil('\n');
+          Serial.println(line);
+          count++;
+        }
+        f.close();
+        Serial.printf("================ [덤프 종료: 총 %lu 건] ================\n\n", count);
+      }
+    } else if (cmd.equalsIgnoreCase("clear") || cmd.equalsIgnoreCase("reset")) {
+      if (LittleFS.exists(master_log_file)) {
+        LittleFS.remove(master_log_file);
+      }
+      if (LittleFS.exists(offline_buffer_file)) {
+        LittleFS.remove(offline_buffer_file);
+      }
+      totalSavedRecords = 0;
+      Serial.println("\n🗑️ [LittleFS] 블랙박스 및 오프라인 버퍼가 초기화되었습니다.\n");
+    } else if (cmd.equalsIgnoreCase("info") || cmd.equalsIgnoreCase("stat")) {
+      size_t total = LittleFS.totalBytes();
+      size_t used = LittleFS.usedBytes();
+      size_t fsize = 0;
+      if (LittleFS.exists(master_log_file)) {
+        File f = LittleFS.open(master_log_file, FILE_READ);
+        fsize = f.size();
+        f.close();
+      }
+      Serial.printf("\n📊 [LittleFS 현황] 전체: %u B, 사용: %u B, 마스터로그: %u B (총 %lu건 기록됨)\n\n",
+                    (unsigned int)total, (unsigned int)used, (unsigned int)fsize, totalSavedRecords);
+    }
+  }
+}
+
+// ==========================================
+// 8. MAIN LOOP
 // ==========================================
 void loop() {
-  // 1) GPS 백그라운드 NMEA 파싱
+  // 1) 시리얼 명령어 처리
+  handleSerialCommands();
+
+  // 2) GPS 백그라운드 NMEA 파싱
   while (Serial1.available() > 0) {
     gps.encode(Serial1.read());
   }
 
-  // 2) Wi-Fi 및 MQTT 연결 유지 (비블로킹)
+  // 3) Wi-Fi 및 MQTT 연결 유지 (비블로킹)
   bool wifi_connected = (wifiMulti.run() == WL_CONNECTED);
   if (wifi_connected) {
     if (!client.connected()) {
@@ -262,7 +422,7 @@ void loop() {
 
   unsigned long now = millis();
 
-  // 3) 고속 가속도 샘플링 (20ms 간격)
+  // 4) 고속 가속도 샘플링 (20ms 간격)
   if (mpu_ready && (now - lastSampleTime >= SAMPLE_INTERVAL_MS)) {
     lastSampleTime = now;
     sensors_event_t a, g, temp;
@@ -289,7 +449,7 @@ void loop() {
     }
   }
 
-  // 4) 주기적 텔레메트리 전송 (5초 간격)
+  // 5) 주기적 텔레메트리 전송 (5초 간격)
   if (now - lastTxTime >= TX_INTERVAL_MS) {
     lastTxTime = now;
     transmitTelemetry(max_g_force, "정상");
