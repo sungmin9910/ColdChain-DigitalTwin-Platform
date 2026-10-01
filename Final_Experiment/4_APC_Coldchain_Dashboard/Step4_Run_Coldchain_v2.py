@@ -21,10 +21,10 @@ LANG_DICT = {
     'KO': {
         'page_title': "프리미엄 콜드체인 통합 관제",
         'topic_running': "**실시간 수신 중...** (Topic: `{}`)",
-        'sidebar_title': "⚙️ 컨트롤 패널",
-        'sidebar_desc': "새로운 주행/테스트를 시작할 때 데이터를 초기화하세요.",
-        'sidebar_reset_btn': "🔄 새 테스트 시작 (모든 데이터 초기화)",
-        'reset_success': "데이터가 완전히 초기화되었습니다! 🚀",
+        'sidebar_title': "🎛️ APC 관제 & 실험 관리",
+        'sidebar_desc': "차량 실시간 수송 관제 및 주행 실험 모니터링",
+        'sidebar_reset_btn': "🚀 새 실험 세션 시작",
+        'reset_success': "새로운 실험 세션이 시작되었습니다! 🚀",
         'reset_failed': "DB 초기화 실패: {}",
         'metric_temp': "온도",
         'metric_humi': "습도",
@@ -48,10 +48,10 @@ LANG_DICT = {
     'EN': {
         'page_title': "Premium Cold Chain Integrated Monitoring",
         'topic_running': "**Receiving in Real-time...** (Topic: `{}`)",
-        'sidebar_title': "⚙️ Control Panel",
-        'sidebar_desc': "Reset data when starting a new driving test.",
-        'sidebar_reset_btn': "🔄 Start New Test (Reset All Data)",
-        'reset_success': "Data has been completely reset! 🚀",
+        'sidebar_title': "🎛️ APC Control & Experiment",
+        'sidebar_desc': "Vehicle real-time transport telemetry & test monitoring",
+        'sidebar_reset_btn': "🚀 Start New Test Session",
+        'reset_success': "New experiment session started! 🚀",
         'reset_failed': "Failed to reset DB: {}",
         'metric_temp': "Temperature",
         'metric_humi': "Humidity",
@@ -75,7 +75,7 @@ LANG_DICT = {
 }
 
 if 'lang' not in st.session_state:
-    st.session_state.lang = 'EN'
+    st.session_state.lang = 'KO'
 if 'run_id' not in st.session_state:
     st.session_state.run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
@@ -344,43 +344,63 @@ if conn:
         conn.close()
 
 with st.sidebar:
-    st.header(LANG_DICT[st.session_state.lang]['sidebar_title'])
-    st.markdown(LANG_DICT[st.session_state.lang]['sidebar_desc'])
+    st.markdown(f"### {LANG_DICT[st.session_state.lang]['sidebar_title']}")
+    st.caption(LANG_DICT[st.session_state.lang]['sidebar_desc'])
     
-    selected_run = st.selectbox("📂 주행 데이터 선택 (Run Select)", run_ids, index=0)
+    # [1] 실시간 통신 및 센서 상태 요약 카드 (플레이스홀더)
+    sidebar_status_box = st.empty()
+    sidebar_status_box.markdown("""
+    <div style="background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
+        <div style="font-size: 13px; font-weight: bold; color: #aaa; margin-bottom: 6px;">📡 실시간 데이터 대기 중...</div>
+        <div style="font-size: 12px; line-height: 1.6; color: #888;">
+            • 센서 노드(Beetle C6) 전원을 켜시면<br>
+            • 5초 주기로 데이터가 자동 갱신됩니다.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("---")
     
+    # [2] 실험 세션 및 주행 데이터 선택
+    selected_run = st.selectbox(
+        "📂 조회할 세션 선택" if st.session_state.lang == 'KO' else "📂 Select Session",
+        run_ids, 
+        index=0,
+        help="실시간 데이터를 보려면 '실시간 주행 (현재 실험)'을 선택하고, 과거 실험 데이터를 확인하려면 목록에서 선택하세요."
+    )
+    
     if selected_run == "실시간 주행 (현재 실험)":
-        st.markdown(f"**현재 활성 ID**: `{st.session_state.run_id}`")
-        new_run_input = st.text_input("새 실험 이름 입력", placeholder="예: run_korea_30km")
+        st.markdown(f"**🏷️ 현재 활성 세션 ID**  \n`{st.session_state.run_id}`")
+        new_run_input = st.text_input(
+            "새 세션 이름 (선택사항)" if st.session_state.lang == 'KO' else "New Session Name (Optional)",
+            placeholder="미입력 시 현재 시간으로 자동 생성" if st.session_state.lang == 'KO' else "Auto-generated if empty"
+        )
         
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("🚀 새 실험 시작", type="primary", width="stretch"):
-                if new_run_input.strip():
-                    st.session_state.run_id = new_run_input.strip()
-                else:
-                    st.session_state.run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                
-                # 메모리 비우기
-                data_history.clear()
-                with msg_queue.mutex:
-                    msg_queue.queue.clear()
-                st.success(f"새 실험 시작: {st.session_state.run_id}")
-                time.sleep(1)
-                st.rerun()
-        with col_btn2:
-            if st.button("🛑 실험 종료", width="stretch"):
+        # 버튼 텍스트 잘림 해결 (풀위드 1열 배치)
+        if st.button("🚀 새 실험 세션 시작 (화면 리셋)" if st.session_state.lang == 'KO' else "🚀 Start New Session", type="primary", use_container_width=True):
+            if new_run_input.strip():
+                st.session_state.run_id = new_run_input.strip()
+            else:
                 st.session_state.run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-                data_history.clear()
-                with msg_queue.mutex:
-                    msg_queue.queue.clear()
-                st.info("현재 실험이 종료되고 새 실시간 세션으로 초기화되었습니다.")
-                time.sleep(1)
-                st.rerun()
+            
+            # 메모리 비우기
+            data_history.clear()
+            with msg_queue.mutex:
+                msg_queue.queue.clear()
+            st.success(f"새 세션 시작: {st.session_state.run_id}")
+            time.sleep(0.8)
+            st.rerun()
+            
+        if st.button("🧹 화면 차트 비우기 (Clear Display)" if st.session_state.lang == 'KO' else "🧹 Clear Screen History", use_container_width=True):
+            data_history.clear()
+            with msg_queue.mutex:
+                msg_queue.queue.clear()
+            st.info("화면의 실시간 임시 데이터가 초기화되었습니다.")
+            time.sleep(0.5)
+            st.rerun()
     else:
-        st.info(f"📂 과거 실험 데이터 `{selected_run}`을 조회 중입니다. 이 모드에서는 실시간 데이터 수신이 대기 상태가 됩니다.")
+        st.info(f"📂 과거 실험 데이터 `{selected_run}`을 조회 중입니다.")
+        sidebar_download_box = st.empty()
 
 col_header, col_lang = st.columns([8.2, 1.8])
 with col_header:
@@ -475,6 +495,51 @@ while True:
         lux_metric.metric(LANG_DICT[st.session_state.lang]['metric_lux'], f"{latest.get('lux', 0):.0f} lx")
         gforce_metric.metric(LANG_DICT[st.session_state.lang]['metric_gforce'], f"{latest.get('g_force', 0):.2f} G")
         speed_metric.metric(LANG_DICT[st.session_state.lang]['metric_speed'], f"{latest.get('speed', 0):.1f} km/h")
+        
+        # 사이드바 실시간 상태 카드 업데이트
+        if selected_run == "실시간 주행 (현재 실험)":
+            gps_lat = latest.get('lat', 0.0)
+            gps_lng = latest.get('lng', 0.0)
+            gps_sats = latest.get('sats', 0)
+            if gps_lat != 0.0 and gps_lng != 0.0:
+                gps_badge = f"<span style='color:#00ff88; font-weight:bold;'>🟢 Fix 완료 (위성 {gps_sats}개)</span>"
+            else:
+                gps_badge = f"<span style='color:#ffaa00; font-weight:bold;'>🟡 위성 탐색 중 ({gps_sats}개)</span>" if gps_sats > 0 else "<span style='color:#ffaa00; font-weight:bold;'>🟡 위성 신호 탐색 중</span>"
+                
+            dev_id = latest.get('device', 'carrier-c6-01')
+            ts_str = latest.get('timestamp', '-')
+            
+            sidebar_status_box.markdown(f"""
+            <div style="background-color: rgba(0, 212, 255, 0.08); border: 1px solid rgba(0, 212, 255, 0.35); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
+                <div style="font-size: 13.5px; font-weight: bold; color: #00d4ff; margin-bottom: 6px;">📡 실시간 데이터 수신 상태</div>
+                <div style="font-size: 12px; line-height: 1.7; color: #e0e0e0;">
+                    • <b>수신 단말:</b> <code>{dev_id}</code><br>
+                    • <b>GPS 상태:</b> {gps_badge}<br>
+                    • <b>최근 패킷:</b> <code>{ts_str}</code><br>
+                    • <b>현재 세션 수집:</b> <b style="color:#00d4ff;">{len(display_history)}</b>건
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            sidebar_status_box.markdown(f"""
+            <div style="background-color: rgba(255, 165, 0, 0.08); border: 1px solid rgba(255, 165, 0, 0.35); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
+                <div style="font-size: 13.5px; font-weight: bold; color: #ffa500; margin-bottom: 6px;">📂 과거 실험 조회 모드</div>
+                <div style="font-size: 12px; line-height: 1.7; color: #e0e0e0;">
+                    • <b>선택 세션:</b> <code>{selected_run}</code><br>
+                    • <b>기록 데이터:</b> <b style="color:#ffa500;">{len(display_history)}</b>건
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if 'sidebar_download_box' in locals() and len(display_history) > 0:
+                df_export = pd.DataFrame(display_history)
+                sidebar_download_box.download_button(
+                    "📥 이 실험 데이터 CSV 다운로드" if st.session_state.lang == 'KO' else "📥 Download Session CSV",
+                    data=df_export.to_csv(index=False).encode('utf-8-sig'),
+                    file_name=f"{selected_run}.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    key="btn_csv_export"
+                )
         
         # ----------------------------------------------------------------
         # 5. 고도화된 지도 시각화 (Pydeck)
