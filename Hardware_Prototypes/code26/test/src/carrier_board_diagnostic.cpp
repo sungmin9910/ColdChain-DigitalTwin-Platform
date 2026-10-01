@@ -12,8 +12,8 @@
 #define I2C_SDA_PIN   19
 #define I2C_SCL_PIN   20
 
-#define GPS_RX_PIN    17  // ESP32 RX (GPIO 17) <- GPS TXD
-#define GPS_TX_PIN    16  // ESP32 TX (GPIO 16) -> GPS RXD
+#define GPS_RX_PIN    16  // ESP32 RX (GPIO 16) <- PCB Net GPS_TX (J_GPS Pad 3 / ATGM336H TXD)
+#define GPS_TX_PIN    17  // ESP32 TX (GPIO 17) -> PCB Net GPS_RX (J_GPS Pad 4 / ATGM336H RXD)
 #define GPS_BAUDRATE  9600
 
 // 센서 객체

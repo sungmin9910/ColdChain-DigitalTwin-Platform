@@ -17,8 +17,8 @@
 #define I2C_SDA_PIN   19
 #define I2C_SCL_PIN   20
 
-#define GPS_RX_PIN    17  // ESP32 RX <- GPS TXD
-#define GPS_TX_PIN    16  // ESP32 TX -> GPS RXD
+#define GPS_RX_PIN    16  // ESP32 RX (GPIO 16) <- PCB Net GPS_TX (J_GPS Pad 3 / ATGM336H TXD)
+#define GPS_TX_PIN    17  // ESP32 TX (GPIO 17) -> PCB Net GPS_RX (J_GPS Pad 4 / ATGM336H RXD)
 #define GPS_BAUDRATE  9600
 
 // MQTT 브로커 및 토픽
@@ -119,12 +119,22 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
     lux = lightMeter.readLightLevel();
   }
 
-  // 2) GPS 위치/속도
+  // 2) GPS 위치/속도 및 위성 상태
   float lat = 0.0, lng = 0.0, speed = 0.0;
+  int sats = gps.satellites.value();
+  unsigned long chars_rx = gps.charsProcessed();
+  String full_status = String(status_str);
   if (gps.location.isValid()) {
     lat = gps.location.lat();
     lng = gps.location.lng();
     speed = gps.speed.kmph();
+    full_status += ", GPS: Fix OK (" + String(sats) + " sats)";
+  } else {
+    if (chars_rx > 0) {
+      full_status += ", GPS: Searching (" + String(sats) + " sats)";
+    } else {
+      full_status += ", GPS: No Data (Check Baud/Pin)";
+    }
   }
 
   // 3) JSON 빌드
@@ -138,7 +148,8 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
   doc["lat"] = serialized(String(lat, 6));
   doc["lng"] = serialized(String(lng, 6));
   doc["speed"] = serialized(String(speed, 1));
-  doc["status"] = status_str;
+  doc["sats"] = sats;
+  doc["status"] = full_status;
 
   char jsonBuffer[512];
   serializeJson(doc, jsonBuffer);
@@ -146,6 +157,8 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
   Serial.println("------------------------------------------------------------------");
   Serial.printf("[MQTT 전송] 토픽: %s\n", mqtt_topic);
   Serial.printf("  페이로드: %s\n", jsonBuffer);
+  Serial.printf("  [GPS 상태] 수신바이트: %lu, 위성수: %d, Fix: %s (위도: %.6f, 경도: %.6f)\n",
+                chars_rx, sats, gps.location.isValid() ? "YES" : "NO", lat, lng);
 
   if (client.connected()) {
     bool pub_ok = client.publish(mqtt_topic, jsonBuffer);
@@ -207,7 +220,7 @@ void setup() {
   }
 
   // 4. GPS UART 초기화
-  Serial.print("📦 [4] GPS ATGM336H UART 포트 열기 (RX:17, TX:16)... ");
+  Serial.print("📦 [4] GPS ATGM336H UART 포트 열기 (RX:16, TX:17)... ");
   Serial1.begin(GPS_BAUDRATE, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
   Serial.println("OK");
 

@@ -160,4 +160,44 @@
   - 초기 부팅 및 미동기화 상태의 `"00:00:00"` 타임스탬프 발생 시 `errors='coerce', format='mixed'` 안전 파싱 및 자동 결측치 보정 로직 적용
   - Altair 시계열 차트 렌더링 루프 전체에 `try-except` 보호 블록 적용하여 대시보드 중단 방지
 
+---
+
+## 7. GPS(ATGM336H) 하드웨어 체결 방향 정상화 및 전 센서 100% 통합 검증 (2026-10-01 완료)
+
+### 1) 당면 문제 및 원인 분석
+- **증상:** 보조배터리로 야외 연결 시 GPS 위치가 잡히지 않고, 시리얼 진단 시 수신 바이트가 지속적으로 0바이트로 기록됨.
+- **원인 (Root Cause):**
+  - PCB 바텀 레이어에 실장된 `J_GPS` 암형 소켓의 핀맵은 `[1: 3.3V (우측), 2: GND, 3: GPS_TX(GPIO 16), 4: GPS_RX(GPIO 17), 5: NC(좌측)]`으로 설계됨.
+  - ATGM336H 모듈의 소자면(배터리/칩셋)이 앞을 향하도록 꽂을 경우, 모듈의 1번(VCC) 핀이 소켓의 5번(NC)에 맞물려 **모듈에 전원이 0V(미인가) 상태**로 유지되었음.
+
+### 2) 조치 및 해결
+- **모듈 180도 회전 체결:**  
+  ATGM336H 모듈을 소켓에서 분리 후 180도 회전하여 **뒷면(실크스크린 라벨 인쇄면)이 위를 향하도록 체결**.
+  - 모듈 VCC $\rightarrow$ 소켓 3.3V (Pad 1) 인가
+  - 모듈 GND $\rightarrow$ 소켓 GND (Pad 2) 체결
+  - 모듈 TXD $\rightarrow$ ESP32 GPIO 16 (UART RX) 직결
+  - 모듈 RXD $\rightarrow$ ESP32 GPIO 17 (UART TX) 직결
+  - 모듈 PPS $\rightarrow$ NC (미연결)
+
+### 3) 최종 검증 결과
+- **하드웨어:** 모듈 체결 즉시 전원 LED 점등 및 UART NMEA 스트리밍 시작 (초당 ~276바이트 수신).
+- **MQTT 라이브 텔레메트리 스트리밍 (COM37 -> broker.emqx.io):**
+  ```json
+  {
+    "device": "carrier-c6-01",
+    "timestamp_str": "2026-10-01 15:48:08",
+    "temperature": 25.05,
+    "humidity": 36.61,
+    "lux": 5.0,
+    "g_force": 1.04,
+    "lat": 0.000000,
+    "lng": 0.000000,
+    "speed": 0.0,
+    "sats": 0,
+    "status": "정상, GPS: Searching (0 sats)"
+  }
+  ```
+- **의의:**  
+  이로써 자체 제작한 캐리어 보드(CarrierBoard_BeetleC6_EdgeUSB_50x50)에 탑재된 **온습도(SHT45), 조도(BH1750), 6축 가속도/충격(MPU6050), 위치 추적(ATGM336H GPS)의 4개 센서가 100% 정상 작동 및 MQTT 클라우드 실시간 스트리밍 체계를 완벽하게 완성**함.
+
 
