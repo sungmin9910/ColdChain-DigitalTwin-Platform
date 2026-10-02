@@ -42,7 +42,7 @@ LANG_DICT = {
         'metric_gforce': "충격량",
         'metric_speed': "현재 속도",
         'map_title': "📍 차량 위치 및 이동 경로",
-        'chart_g_speed': "📉 충격량(G) 및 속도(km/h) 추이",
+        'chart_g_speed': "💥 과일 충격량(G-Force) & 차량 속도(km/h) 상관관계",
         'chart_lux': "💡 실시간 조도 변화 (Lux)",
         'chart_env': "🌡️ 온도/습도 변화",
         'log_title': "📋 실시간 로그",
@@ -69,7 +69,7 @@ LANG_DICT = {
         'metric_gforce': "Impact (G)",
         'metric_speed': "Current Speed",
         'map_title': "📍 Vehicle Location & Route",
-        'chart_g_speed': "📉 Impact (G) & Speed (km/h) Trend",
+        'chart_g_speed': "💥 Fruit Impact (G) & Speed (km/h) Correlation",
         'chart_lux': "💡 Real-time Illuminance (Lux)",
         'chart_env': "🌡️ Temperature & Humidity Changes",
         'log_title': "📋 Real-time Logs",
@@ -666,44 +666,82 @@ while True:
                 ).interactive(bind_y=False)
                 lux_chart.altair_chart(chart, width="stretch")
             
-        if 'g_force' in df_chart.columns and 'speed' in df_chart.columns:
+        # 3. 충격량 및 속도 이중 Y축 (Dual-Axis) 고도화 그래프
+        if 'g_force' in df_chart.columns:
             df_reset = df_chart.reset_index()
             df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'], errors='coerce', format='mixed')
             df_reset = df_reset.dropna(subset=['timestamp'])
             if not df_reset.empty:
-                df_long = df_reset.melt(id_vars=['timestamp'], value_vars=['g_force', 'speed'], var_name='Metric', value_name='Value')
-                chart = alt.Chart(df_long).mark_line().encode(
-                    x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
-                    y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title=None),
-                    color=alt.Color('Metric:N', legend=alt.Legend(orient='bottom', title=None))
-                ).properties(
+                is_ko = (st.session_state.lang == 'KO')
+                
+                # 1) 충격량 메인 라인 (왼쪽 Y축 - 주인공)
+                y_g_title = '충격량 (G-Force)' if is_ko else 'Impact (G-Force)'
+                gforce_line = alt.Chart(df_reset).mark_line(
+                    color='#E74C3C', strokeWidth=2.2
+                ).encode(
+                    x=alt.X('timestamp:T', axis=alt.Axis(labels=False, ticks=False), title=None),
+                    y=alt.Y('g_force:Q', axis=alt.Axis(title=y_g_title, titleColor='#E74C3C', grid=True), scale=alt.Scale(zero=False))
+                )
+                
+                # 2) 2.0G 이상 충격 피크 포인트 강조 (빨간 점)
+                shock_pts_df = df_reset[df_reset['g_force'] >= 2.0]
+                if not shock_pts_df.empty:
+                    shock_points = alt.Chart(shock_pts_df).mark_circle(
+                        size=60, color='#E74C3C'
+                    ).encode(
+                        x=alt.X('timestamp:T'),
+                        y=alt.Y('g_force:Q'),
+                        tooltip=[
+                            alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time'),
+                            alt.Tooltip('g_force:Q', title='충격량(G)' if is_ko else 'Impact(G)', format='.2f'),
+                            alt.Tooltip('speed:Q', title='당시속도(km/h)' if is_ko else 'Speed(km/h)', format='.1f')
+                        ]
+                    )
+                else:
+                    shock_points = alt.Chart(df_reset.head(0)).mark_circle()
+
+                # 3) 과일 손상 위험 기준선 (2.0G 주의선, 3.0G 위험선)
+                lbl_2g = '2.0G 과일 손상 주의 (요철)' if is_ko else '2.0G Fruit Damage Warning'
+                lbl_3g = '3.0G 과일 압상 위험 (Critical)' if is_ko else '3.0G Critical Impact'
+                thresh_df = pd.DataFrame([
+                    {'level': 2.0, 'label': lbl_2g},
+                    {'level': 3.0, 'label': lbl_3g}
+                ])
+                rules = alt.Chart(thresh_df).mark_rule(
+                    strokeDash=[4, 4], strokeWidth=1.5, opacity=0.85
+                ).encode(
+                    y=alt.Y('level:Q'),
+                    color=alt.Color('label:N', 
+                                    scale=alt.Scale(domain=[lbl_2g, lbl_3g], range=['#FFA500', '#FF0000']), 
+                                    legend=alt.Legend(orient='bottom', title=None))
+                )
+                
+                gforce_group = alt.layer(gforce_line, shock_points, rules)
+
+                # 4) 차량 속도 보조 라인 (오른쪽 Y축 - 배경)
+                if 'speed' in df_reset.columns:
+                    y_spd_title = '차량 속도 (km/h)' if is_ko else 'Speed (km/h)'
+                    speed_layer = alt.Chart(df_reset).mark_line(
+                        color='#2ECC71', strokeWidth=1.4, opacity=0.6
+                    ).encode(
+                        x=alt.X('timestamp:T', axis=alt.Axis(labels=False, ticks=False), title=None),
+                        y=alt.Y('speed:Q', axis=alt.Axis(title=y_spd_title, titleColor='#2ECC71', grid=False), scale=alt.Scale(zero=True))
+                    )
+                    combined_chart = alt.layer(speed_layer, gforce_group).resolve_scale(y='independent')
+                else:
+                    combined_chart = gforce_group
+
+                final_g_chart = combined_chart.properties(
                     height=400
+                ).configure_axis(
+                    labelFontSize=12,
+                    titleFontSize=14
+                ).configure_legend(
+                    labelFontSize=12,
+                    titleFontSize=14
                 ).interactive(bind_y=False)
-                gforce_chart.altair_chart(chart, width="stretch")
-        elif 'g_force' in df_chart.columns:
-            df_reset = df_chart.reset_index()
-            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'], errors='coerce', format='mixed')
-            df_reset = df_reset.dropna(subset=['timestamp'])
-            if not df_reset.empty:
-                chart = alt.Chart(df_reset).mark_line().encode(
-                    x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
-                    y=alt.Y('g_force:Q', scale=alt.Scale(zero=False), title=None)
-                ).properties(
-                    height=400
-                ).interactive(bind_y=False)
-                gforce_chart.altair_chart(chart, width="stretch")
-        elif 'speed' in df_chart.columns:
-            df_reset = df_chart.reset_index()
-            df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'], errors='coerce', format='mixed')
-            df_reset = df_reset.dropna(subset=['timestamp'])
-            if not df_reset.empty:
-                chart = alt.Chart(df_reset).mark_line().encode(
-                    x=alt.X('timestamp:T', axis=alt.Axis(labelAngle=0, format='%Y-%m-%d %H:%M:%S'), title=None),
-                    y=alt.Y('speed:Q', scale=alt.Scale(zero=False), title=None)
-                ).properties(
-                    height=400
-                ).interactive(bind_y=False)
-                gforce_chart.altair_chart(chart, width="stretch")
+                
+                gforce_chart.altair_chart(final_g_chart, width="stretch")
  
         # 로그
         log_container.dataframe(df.iloc[::-1].head(10), width="stretch")
