@@ -71,6 +71,9 @@ flowchart TD
 * `04_ColdChain_FDT_Process.md`: 전체 농가-APC-소비자 FDT 유통 프로세스 규격서.
 * `05_Scanner_Comparison.md`: ESP32 자작 스캐너 vs Jetson+MQ160W 비교 분석서.
 * **`06_Master_Thesis_Research_Roadmap.md`**: **석사 학위 논문 본심사 및 SCIE 저널 게재를 위한 연구 고도화 처방전 로드맵**.
+* `07_CarrierBoard_Assembly_and_Diagnostic_Log.md`: CarrierBoard 조립 및 하드웨어 진단 가이드.
+* `08_Vehicle_Experiment_Handover_Guide.md`: 차량 주행 실험 인계 가이드 & 텔레메트리 파이프라인 분석.
+* **`09_Vehicle_Experiment_Data_Recovery_and_Dashboard_Optimization.md`**: **실제 차량 주행(전주-대전 174km) 데이터 복구 및 과일 충격량(G-Force) 중심 관제 대시보드 고도화 보고서**.
 
 ---
 
