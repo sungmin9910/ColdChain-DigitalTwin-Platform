@@ -169,37 +169,8 @@ def get_msg_queue():
 
 @st.cache_resource
 def get_data_history():
-    history = []
-    # 앱 시작 시 DB에서 최근 데이터 불러오기
-    conn = get_mysql_connection()
-    if conn:
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT * FROM sensor_data ORDER BY id DESC LIMIT 100")
-                items = cursor.fetchall()
-            
-            for item in reversed(items):
-                # DB 결과를 원래 JSON 형태로 매핑
-                parsed_item = {
-                    "device": item.get("device"),
-                    "timestamp": item.get("timestamp_str"),
-                    "temperature": item.get("temperature", 0.0),
-                    "humidity": item.get("humidity", 0.0),
-                    "lux": item.get("lux", 0.0),
-                    "g_force": item.get("g_force", 0.0),
-                    "speed": item.get("speed", 0.0),
-                    "lat": item.get("lat", 0.0),
-                    "lng": item.get("lng", 0.0),
-                    "status": item.get("status"),
-                    "run_id": item.get("run_id")
-                }
-                history.append(parsed_item)
-            print(f"MySQL에서 {len(history)}개의 과거 데이터를 불러왔습니다.")
-        except Exception as e:
-            print(f"MySQL 데이터 로드 실패: {e}")
-        finally:
-            conn.close()
-    return history
+    # 실시간 모드는 깨끗한 빈 상태로 시작 (과거 데이터는 드롭다운에서 선택하여 조회)
+    return []
 
 def load_run_data(run_id):
     history = []
