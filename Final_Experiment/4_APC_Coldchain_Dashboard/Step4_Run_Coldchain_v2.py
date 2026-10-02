@@ -3,11 +3,20 @@ import paho.mqtt.client as mqtt
 import json
 import pandas as pd
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import queue
 import pydeck as pdk
 import pymysql
 import altair as alt
+
+# 한국 표준시 (KST, UTC+9) 설정
+KST = timezone(timedelta(hours=9))
+
+def get_kst_now():
+    return datetime.now(KST)
+
+def generate_run_id():
+    return f"run_{get_kst_now().strftime('%Y%m%d_%H%M%S')}"
 
 # ----------------------------------------------------------------
 # 1. 설정 및 공유 자원 초기화
@@ -77,7 +86,7 @@ LANG_DICT = {
 if 'lang' not in st.session_state:
     st.session_state.lang = 'KO'
 if 'run_id' not in st.session_state:
-    st.session_state.run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    st.session_state.run_id = generate_run_id()
 
 st.set_page_config(
     page_title=LANG_DICT[st.session_state.lang]['page_title'],
@@ -293,7 +302,7 @@ def on_message(client, userdata, msg):
         if ts_val and ts_val != "00:00:00" and not str(ts_val).startswith("00:00"):
             payload['timestamp'] = str(ts_val)
         else:
-            payload['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            payload['timestamp'] = get_kst_now().strftime("%Y-%m-%d %H:%M:%S")
         
         # 데이터가 문자열로 올 경우를 대비해 숫자로 변환
         for key in ['temperature', 'humidity', 'lux', 'g_force', 'speed', 'lat', 'lng']:
@@ -332,7 +341,15 @@ conn = get_mysql_connection()
 if conn:
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT DISTINCT run_id FROM sensor_data WHERE run_id IS NOT NULL ORDER BY id DESC")
+            # 10건 이상 유효한 주행 세션만 최신순으로 가져오기
+            cursor.execute("""
+                SELECT run_id 
+                FROM sensor_data 
+                WHERE run_id IS NOT NULL 
+                GROUP BY run_id 
+                HAVING COUNT(*) >= 10 
+                ORDER BY MAX(id) DESC
+            """)
             rows = cursor.fetchall()
             for r in rows:
                 val = r["run_id"]
@@ -370,6 +387,17 @@ with st.sidebar:
     )
     
     if selected_run == "실시간 주행 (현재 실험)":
+        # 🔴 DB 실시간 저장 제어 토글 스위치 (기본값: OFF - 연구실 모니터링 전용)
+        enable_db_record = st.toggle(
+            "🔴 DB 실시간 저장 활성화" if st.session_state.lang == 'KO' else "🔴 Enable DB Recording",
+            value=False,
+            help="OFF(기본값): 연구실/PC 연결 시 화면 모니터링만 수행 (DB 저장 차단)\nON: 실제 차량 주행 실험 시 AWS RDS에 실시간 저장"
+        )
+        if enable_db_record:
+            st.success("🔴 **[DB 기록 중]** 실시간 데이터가 AWS RDS에 저장됩니다.")
+        else:
+            st.info("⚪ **[모니터링 전용]** DB 저장이 꺼져 있습니다 (연구실 모드).")
+
         st.markdown(f"**🏷️ 현재 활성 세션 ID**  \n`{st.session_state.run_id}`")
         new_run_input = st.text_input(
             "새 세션 이름 (선택사항)" if st.session_state.lang == 'KO' else "New Session Name (Optional)",
@@ -381,7 +409,7 @@ with st.sidebar:
             if new_run_input.strip():
                 st.session_state.run_id = new_run_input.strip()
             else:
-                st.session_state.run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                st.session_state.run_id = generate_run_id()
             
             # 메모리 비우기
             data_history.clear()
@@ -399,6 +427,7 @@ with st.sidebar:
             time.sleep(0.5)
             st.rerun()
     else:
+        enable_db_record = False
         st.info(f"📂 과거 실험 데이터 `{selected_run}`을 조회 중입니다.")
         sidebar_download_box = st.empty()
 
@@ -467,9 +496,9 @@ while True:
             msg['run_id'] = st.session_state.run_id
             data_history.append(msg)
             
-            # 최적화: 10초에 한 번씩만 DB에 저장 (또는 강한 충격 발생 시 즉시 저장)
+            # 최적화: 사용자가 토글 스위치를 켰을 때만 DB에 저장 (10초 주기 또는 강한 충격)
             current_time = time.time()
-            if (current_time - last_db_save_time >= 10) or (msg.get('g_force', 0) > 1.8):
+            if enable_db_record and ((current_time - last_db_save_time >= 10) or (msg.get('g_force', 0) > 1.8)):
                 save_to_mysql(msg, st.session_state.run_id)  
                 last_db_save_time = current_time
             if len(data_history) > 3600:

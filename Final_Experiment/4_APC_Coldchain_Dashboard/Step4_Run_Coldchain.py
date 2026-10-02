@@ -3,11 +3,20 @@ import paho.mqtt.client as mqtt
 import json
 import pandas as pd
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import queue
 import pydeck as pdk
 import pymysql
 import altair as alt
+
+# 한국 표준시 (KST, UTC+9) 설정
+KST = timezone(timedelta(hours=9))
+
+def get_kst_now():
+    return datetime.now(KST)
+
+def generate_run_id():
+    return f"run_{get_kst_now().strftime('%Y%m%d_%H%M%S')}"
 
 # ----------------------------------------------------------------
 # 1. 설정 및 공유 자원 초기화
@@ -77,7 +86,7 @@ LANG_DICT = {
 if 'lang' not in st.session_state:
     st.session_state.lang = 'EN'
 if 'run_id' not in st.session_state:
-    st.session_state.run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    st.session_state.run_id = generate_run_id()
 
 st.set_page_config(
     page_title=LANG_DICT[st.session_state.lang]['page_title'],
@@ -316,7 +325,14 @@ conn = get_mysql_connection()
 if conn:
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT DISTINCT run_id FROM sensor_data WHERE run_id IS NOT NULL ORDER BY id DESC")
+            cursor.execute("""
+                SELECT run_id 
+                FROM sensor_data 
+                WHERE run_id IS NOT NULL 
+                GROUP BY run_id 
+                HAVING COUNT(*) >= 10 
+                ORDER BY MAX(id) DESC
+            """)
             rows = cursor.fetchall()
             for r in rows:
                 val = r["run_id"]
@@ -336,6 +352,17 @@ with st.sidebar:
     st.markdown("---")
     
     if selected_run == "실시간 주행 (현재 실험)":
+        # 🔴 DB 실시간 저장 제어 토글 스위치 (기본값: OFF - 연구실 모니터링 전용)
+        enable_db_record = st.toggle(
+            "🔴 DB 실시간 저장 활성화" if st.session_state.lang == 'KO' else "🔴 Enable DB Recording",
+            value=False,
+            help="OFF(기본값): 연구실/PC 연결 시 화면 모니터링만 수행 (DB 저장 차단)\nON: 실제 차량 주행 실험 시 AWS RDS에 실시간 저장"
+        )
+        if enable_db_record:
+            st.success("🔴 **[DB 기록 중]** 실시간 데이터가 AWS RDS에 저장됩니다.")
+        else:
+            st.info("⚪ **[모니터링 전용]** DB 저장이 꺼져 있습니다 (연구실 모드).")
+
         st.markdown(f"**현재 활성 ID**: `{st.session_state.run_id}`")
         new_run_input = st.text_input("새 실험 이름 입력", placeholder="예: run_korea_30km")
         
@@ -345,7 +372,7 @@ with st.sidebar:
                 if new_run_input.strip():
                     st.session_state.run_id = new_run_input.strip()
                 else:
-                    st.session_state.run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                    st.session_state.run_id = generate_run_id()
                 
                 # 메모리 비우기
                 data_history.clear()
@@ -356,7 +383,7 @@ with st.sidebar:
                 st.rerun()
         with col_btn2:
             if st.button("🛑 실험 종료", width="stretch"):
-                st.session_state.run_id = f"run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                st.session_state.run_id = generate_run_id()
                 data_history.clear()
                 with msg_queue.mutex:
                     msg_queue.queue.clear()
@@ -364,6 +391,7 @@ with st.sidebar:
                 time.sleep(1)
                 st.rerun()
     else:
+        enable_db_record = False
         st.info(f"📂 과거 실험 데이터 `{selected_run}`을 조회 중입니다. 이 모드에서는 실시간 데이터 수신이 대기 상태가 됩니다.")
 
 col_header, col_lang = st.columns([8.2, 1.8])
@@ -431,9 +459,9 @@ while True:
             msg['run_id'] = st.session_state.run_id
             data_history.append(msg)
             
-            # 최적화: 10초에 한 번씩만 DB에 저장 (또는 강한 충격 발생 시 즉시 저장)
+            # 최적화: 사용자가 토글 스위치를 켰을 때만 DB에 저장 (10초 주기 또는 강한 충격)
             current_time = time.time()
-            if (current_time - last_db_save_time >= 10) or (msg.get('g_force', 0) > 1.8):
+            if enable_db_record and ((current_time - last_db_save_time >= 10) or (msg.get('g_force', 0) > 1.8)):
                 save_to_mysql(msg, st.session_state.run_id)  
                 last_db_save_time = current_time
             if len(data_history) > 3600:
