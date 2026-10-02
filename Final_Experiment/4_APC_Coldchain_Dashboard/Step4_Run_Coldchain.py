@@ -173,6 +173,7 @@ def get_data_history():
     # 실시간 모드는 깨끗한 빈 상태로 시작 (과거 데이터는 드롭다운에서 선택하여 조회)
     return []
 
+@st.cache_data(ttl=300)
 def load_run_data(run_id):
     history = []
     conn = get_mysql_connection()
@@ -378,7 +379,18 @@ with st.sidebar:
                 st.rerun()
     else:
         enable_db_record = False
-        st.info(f"📂 과거 실험 데이터 `{selected_run}`을 조회 중입니다. 이 모드에서는 실시간 데이터 수신이 대기 상태가 됩니다.")
+        static_history = load_run_data(selected_run)
+        st.info(f"📂 과거 실험 데이터 `{selected_run}`을 조회 중입니다. ({len(static_history)}건)")
+        if len(static_history) > 0:
+            df_export = pd.DataFrame(static_history)
+            st.download_button(
+                "📥 이 실험 데이터 CSV 다운로드" if st.session_state.lang == 'KO' else "📥 Download Session CSV",
+                data=df_export.to_csv(index=False).encode('utf-8-sig'),
+                file_name=f"{selected_run}.csv",
+                mime="text/csv",
+                width="stretch",
+                key=f"btn_csv_export_{selected_run}"
+            )
 
 col_header, col_lang = st.columns([8.2, 1.8])
 with col_header:
@@ -435,8 +447,6 @@ log_container = st.empty()
 # 4. 실시간 루프
 # ----------------------------------------------------------------
 last_db_save_time = 0
-loaded_run = None
-static_history = []
 
 while True:
     if selected_run == "실시간 주행 (현재 실험)":
@@ -454,12 +464,7 @@ while True:
                 data_history.pop(0)
         display_history = data_history
     else:
-        # 과거 데이터 조회 모드
-        if loaded_run != selected_run:
-            static_history = load_run_data(selected_run)
-            loaded_run = selected_run
-            
-        # 백그라운드 수신 큐 비워서 메모리 누수 방지
+        # 과거 데이터 조회 모드: 백그라운드 수신 큐 비워서 메모리 누수 방지
         while not msg_queue.empty():
             msg_queue.get()
         display_history = static_history
@@ -746,5 +751,9 @@ while True:
         # 로그
         log_container.dataframe(df.iloc[::-1].head(10), width="stretch")
  
+    if selected_run != "실시간 주행 (현재 실험)":
+        # 과거 실험 데이터는 정적 데이터이므로 한 번 렌더링 후 루프 종료 (클라우드 CPU 절약 및 UI 안정화)
+        break
+
     # 최적화: 1초 -> 2초 딜레이로 변경하여 클라우드 서버 부하 감소
     time.sleep(2)

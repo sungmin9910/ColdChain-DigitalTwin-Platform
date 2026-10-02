@@ -180,6 +180,7 @@ def get_data_history():
     # 실시간 모드는 깨끗한 빈 상태로 시작 (과거 데이터는 드롭다운에서 선택하여 조회)
     return []
 
+@st.cache_data(ttl=300)
 def load_run_data(run_id):
     history = []
     conn = get_mysql_connection()
@@ -370,6 +371,7 @@ with st.sidebar:
         help="실시간 데이터를 보려면 '실시간 주행 (현재 실험)'을 선택하고, 과거 실험 데이터를 확인하려면 목록에서 선택하세요."
     )
     
+    static_history = []
     if selected_run == "실시간 주행 (현재 실험)":
         # 🔴 DB 실시간 저장 제어 토글 스위치 (기본값: OFF - 연구실 모니터링 전용)
         enable_db_record = st.toggle(
@@ -412,8 +414,30 @@ with st.sidebar:
             st.rerun()
     else:
         enable_db_record = False
+        static_history = load_run_data(selected_run)
+        
+        sidebar_status_box.markdown(f"""
+        <div style="background-color: rgba(255, 165, 0, 0.08); border: 1px solid rgba(255, 165, 0, 0.35); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
+            <div style="font-size: 13.5px; font-weight: bold; color: #ffa500; margin-bottom: 6px;">📂 과거 실험 조회 모드</div>
+            <div style="font-size: 12px; line-height: 1.7; color: #e0e0e0;">
+                • <b>선택 세션:</b> <code>{selected_run}</code><br>
+                • <b>기록 데이터:</b> <b style="color:#ffa500;">{len(static_history)}</b>건
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.info(f"📂 과거 실험 데이터 `{selected_run}`을 조회 중입니다.")
-        sidebar_download_box = st.empty()
+        
+        if len(static_history) > 0:
+            df_export = pd.DataFrame(static_history)
+            st.download_button(
+                "📥 이 실험 데이터 CSV 다운로드" if st.session_state.lang == 'KO' else "📥 Download Session CSV",
+                data=df_export.to_csv(index=False).encode('utf-8-sig'),
+                file_name=f"{selected_run}.csv",
+                mime="text/csv",
+                use_container_width=True,
+                key=f"btn_csv_export_{selected_run}"
+            )
 
 col_header, col_lang = st.columns([8.2, 1.8])
 with col_header:
@@ -470,8 +494,6 @@ log_container = st.empty()
 # 4. 실시간 루프
 # ----------------------------------------------------------------
 last_db_save_time = 0
-loaded_run = None
-static_history = []
 
 while True:
     if selected_run == "실시간 주행 (현재 실험)":
@@ -489,12 +511,7 @@ while True:
                 data_history.pop(0)
         display_history = data_history
     else:
-        # 과거 데이터 조회 모드
-        if loaded_run != selected_run:
-            static_history = load_run_data(selected_run)
-            loaded_run = selected_run
-            
-        # 백그라운드 수신 큐 비워서 메모리 누수 방지
+        # 과거 데이터 조회 모드: 백그라운드 수신 큐 비워서 메모리 누수 방지
         while not msg_queue.empty():
             msg_queue.get()
         display_history = static_history
@@ -509,7 +526,7 @@ while True:
         gforce_metric.metric(LANG_DICT[st.session_state.lang]['metric_gforce'], f"{latest.get('g_force', 0):.2f} G")
         speed_metric.metric(LANG_DICT[st.session_state.lang]['metric_speed'], f"{latest.get('speed', 0):.1f} km/h")
         
-        # 사이드바 실시간 상태 카드 업데이트
+        # 사이드바 실시간 상태 카드 업데이트 (실시간 모드일 때만 동적 갱신)
         if selected_run == "실시간 주행 (현재 실험)":
             gps_lat = latest.get('lat', 0.0)
             gps_lng = latest.get('lng', 0.0)
@@ -533,26 +550,6 @@ while True:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-        else:
-            sidebar_status_box.markdown(f"""
-            <div style="background-color: rgba(255, 165, 0, 0.08); border: 1px solid rgba(255, 165, 0, 0.35); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
-                <div style="font-size: 13.5px; font-weight: bold; color: #ffa500; margin-bottom: 6px;">📂 과거 실험 조회 모드</div>
-                <div style="font-size: 12px; line-height: 1.7; color: #e0e0e0;">
-                    • <b>선택 세션:</b> <code>{selected_run}</code><br>
-                    • <b>기록 데이터:</b> <b style="color:#ffa500;">{len(display_history)}</b>건
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            if 'sidebar_download_box' in locals() and len(display_history) > 0:
-                df_export = pd.DataFrame(display_history)
-                sidebar_download_box.download_button(
-                    "📥 이 실험 데이터 CSV 다운로드" if st.session_state.lang == 'KO' else "📥 Download Session CSV",
-                    data=df_export.to_csv(index=False).encode('utf-8-sig'),
-                    file_name=f"{selected_run}.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                    key="btn_csv_export"
-                )
         
         # ----------------------------------------------------------------
         # 5. 고도화된 지도 시각화 (Pydeck)
@@ -841,5 +838,9 @@ while True:
         except Exception as chart_err:
             print(f"Chart render warning: {chart_err}")
  
+    if selected_run != "실시간 주행 (현재 실험)":
+        # 과거 실험 데이터는 정적 데이터이므로 한 번 렌더링 후 루프 종료 (클라우드 CPU 절약 및 UI 안정화)
+        break
+
     # 최적화: 1초 -> 2초 딜레이로 변경하여 클라우드 서버 부하 감소
     time.sleep(2)
