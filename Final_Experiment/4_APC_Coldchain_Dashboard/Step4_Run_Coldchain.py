@@ -184,9 +184,16 @@ def load_run_data(run_id):
                 items = cursor.fetchall()
             
             for item in items:
+                ts = item.get("timestamp_str")
+                if not ts or ts == "00:00:00" or str(ts).startswith("00:00") or str(ts).startswith("2026-10-01 00:00"):
+                    created_at = item.get("created_at")
+                    if created_at:
+                        ts = (created_at + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 parsed_item = {
                     "device": item.get("device"),
-                    "timestamp": item.get("timestamp_str"),
+                    "timestamp": ts,
                     "temperature": item.get("temperature", 0.0),
                     "humidity": item.get("humidity", 0.0),
                     "lux": item.get("lux", 0.0),
@@ -440,7 +447,20 @@ with col2_row2:
     env_chart = st.empty()
 
 st.markdown("---")
-st.markdown(f"<h3 style='text-align: left; font-size: 28px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['log_title']}</h3>", unsafe_allow_html=True)
+col_log_h1, col_log_h2 = st.columns([7.5, 2.5])
+with col_log_h1:
+    st.markdown(f"<h3 style='text-align: left; font-size: 28px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['log_title']}</h3>", unsafe_allow_html=True)
+with col_log_h2:
+    if selected_run != "실시간 주행 (현재 실험)" and len(static_history) > 0:
+        df_full_log = pd.DataFrame(static_history)
+        st.download_button(
+            f"📥 전체 CSV 다운로드 ({len(static_history)}건)" if st.session_state.lang == 'KO' else f"📥 Download Full CSV ({len(static_history)})",
+            data=df_full_log.to_csv(index=False).encode('utf-8-sig'),
+            file_name=f"{selected_run}.csv",
+            mime="text/csv",
+            width="stretch",
+            key=f"btn_log_header_dl_{selected_run}"
+        )
 log_container = st.empty()
 
 # ----------------------------------------------------------------
@@ -748,8 +768,8 @@ while True:
                 
                 gforce_chart.altair_chart(final_g_chart, width="stretch")
  
-        # 로그
-        log_container.dataframe(df.iloc[::-1].head(10), width="stretch")
+        # 로그 (전체 데이터를 최신순으로 표시, 스크롤 가능하며 표 우측 상단 'Download as CSV' 클릭 시 전량 다운로드)
+        log_container.dataframe(df.iloc[::-1], height=350, width="stretch")
  
     if selected_run != "실시간 주행 (현재 실험)":
         # 과거 실험 데이터는 정적 데이터이므로 한 번 렌더링 후 루프 종료 (클라우드 CPU 절약 및 UI 안정화)
