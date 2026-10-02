@@ -16,7 +16,8 @@ def get_kst_now():
     return datetime.now(KST)
 
 def generate_run_id():
-    return f"run_{get_kst_now().strftime('%Y%m%d_%H%M%S')}"
+    now_kst = get_kst_now()
+    return f"주행_{now_kst.strftime('%Y-%m-%d_%H시%M분')}"
 
 # ----------------------------------------------------------------
 # 1. 설정 및 공유 자원 초기화
@@ -318,7 +319,21 @@ with st.sidebar:
     st.header(LANG_DICT[st.session_state.lang]['sidebar_title'])
     st.markdown(LANG_DICT[st.session_state.lang]['sidebar_desc'])
     
-    selected_run = st.selectbox("📂 주행 데이터 선택 (Run Select)", run_ids, index=0)
+    def format_session_label(session_id):
+        if session_id == "실시간 주행 (현재 실험)":
+            return "🟢 실시간 주행 (현재 실험)"
+        elif "departure" in session_id:
+            return "🚗 1. [오늘 갈 때] 전주 ➔ 대전 (89km, 1,356건)"
+        elif "return" in session_id:
+            return "🚗 2. [오늘 올 때] 대전 ➔ 전주 (85km, 478건)"
+        elif "065739" in session_id:
+            return "🧪 3. [어제 야외] 전북대 캠퍼스 GPS 검증 (157건)"
+        elif "30km" in session_id:
+            return "📦 4. [과거 7월] 30km 시뮬레이션 주행 (181건)"
+        else:
+            return f"📂 {session_id}"
+
+    selected_run = st.selectbox("📂 주행 데이터 선택 (Run Select)", run_ids, index=0, format_func=format_session_label)
     
     st.markdown("---")
     
