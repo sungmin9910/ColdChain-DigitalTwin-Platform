@@ -158,7 +158,7 @@ def init_mysql_table():
                     speed FLOAT,
                     lat FLOAT,
                     lng FLOAT,
-                    status VARCHAR(50),
+                    status VARCHAR(255),
                     run_id VARCHAR(100) DEFAULT 'default_run',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -530,118 +530,118 @@ last_db_save_time = 0
 last_db_packet_epoch = 0
 
 while True:
-    if selected_run == "실시간 주행 (현재 실험)":
-        while not msg_queue.empty():
-            msg = msg_queue.get()
-            msg['run_id'] = st.session_state.run_id
-            
-            # --- 다중 복합 이벤트 감지 (충격, 조도 급변, 온도 급변) ---
-            g_force = float(msg.get('g_force', 1.0))
-            lux = float(msg.get('lux', 0.0))
-            temp = float(msg.get('temperature', 0.0))
-            
-            # 직전 수신 데이터 대비 변화량(Delta) 계산
-            lux_diff = 0.0
-            temp_diff = 0.0
-            if len(data_history) > 0:
-                prev_msg = data_history[-1]
-                lux_diff = lux - float(prev_msg.get('lux', lux))
-                temp_diff = temp - float(prev_msg.get('temperature', temp))
-            
-            detected_events = []
-            if g_force >= 1.8:
-                detected_events.append(f"🚨 충격({g_force:.2f}G)")
-            if abs(lux_diff) >= 300.0:
-                detected_events.append(f"💡 조도급변({lux_diff:+.0f}lx)")
-            if abs(temp_diff) >= 2.0:
-                detected_events.append(f"🌡️ 온도급변({temp_diff:+.1f}°C)")
-            
-            # 보드 원본 status에서 GPS 위성 정보 보존
-            orig_status = str(msg.get('status', ''))
-            gps_info = ""
-            if "GPS:" in orig_status:
-                gps_info = orig_status[orig_status.find("GPS:"):].strip()
-            
-            is_anomaly = len(detected_events) > 0
+    # 1) 실시간 패킷 항시 처리 (과거 세션 조회 중에도 실시간 데이터 유실 방지)
+    while not msg_queue.empty():
+        msg = msg_queue.get()
+        msg['run_id'] = st.session_state.run_id
+        
+        # --- 다중 복합 이벤트 감지 (충격, 조도 급변, 온도 급변) ---
+        g_force = float(msg.get('g_force', 1.0))
+        lux = float(msg.get('lux', 0.0))
+        temp = float(msg.get('temperature', 0.0))
+        
+        # 직전 수신 데이터 대비 변화량(Delta) 계산
+        lux_diff = 0.0
+        temp_diff = 0.0
+        if len(data_history) > 0:
+            prev_msg = data_history[-1]
+            lux_diff = lux - float(prev_msg.get('lux', lux))
+            temp_diff = temp - float(prev_msg.get('temperature', temp))
+        
+        detected_events = []
+        if g_force >= 1.8:
+            detected_events.append(f"🚨 충격({g_force:.2f}G)")
+        if abs(lux_diff) >= 300.0:
+            detected_events.append(f"💡 조도급변({lux_diff:+.0f}lx)")
+        if abs(temp_diff) >= 2.0:
+            detected_events.append(f"🌡️ 온도급변({temp_diff:+.1f}°C)")
+        
+        # 보드 원본 status에서 GPS 위성 정보 보존
+        orig_status = str(msg.get('status', ''))
+        gps_info = ""
+        if "GPS:" in orig_status:
+            gps_info = orig_status[orig_status.find("GPS:"):].strip()
+        
+        is_anomaly = len(detected_events) > 0
+        if is_anomaly:
+            evt_text = " | ".join(detected_events)
+            msg['status'] = f"{evt_text}, {gps_info}" if gps_info else evt_text
+        else:
+            msg['status'] = f"정상, {gps_info}" if gps_info else "정상"
+        
+        data_history.append(msg)
+        
+        # 최적화: 스마트 주행 감지 래치 (Smart Trip Latch & Last Known GPS)
+        if 'trip_started' not in st.session_state:
+            st.session_state.trip_started = False
+        if 'last_valid_gps' not in st.session_state:
+            st.session_state.last_valid_gps = (0.0, 0.0)
+
+        gps_lat_val = float(msg.get("lat", 0.0))
+        gps_lng_val = float(msg.get("lng", 0.0))
+        gps_speed_val = float(msg.get("speed", 0.0))
+        gps_is_valid = (gps_lat_val != 0.0 and gps_lng_val != 0.0)
+
+        if gps_is_valid:
+            st.session_state.trip_started = True
+            st.session_state.last_valid_gps = (gps_lat_val, gps_lng_val)
+        elif gps_speed_val > 2.5:
+            st.session_state.trip_started = True
+
+        # 터널/음영구간 통과 중일 때: 직전 유효 좌표 보정 (0,0으로 튀는 현상 방지)
+        if not gps_is_valid and st.session_state.trip_started and st.session_state.last_valid_gps != (0.0, 0.0):
+            msg['lat'] = st.session_state.last_valid_gps[0]
+            msg['lng'] = st.session_state.last_valid_gps[1]
+            if "터널" not in msg['status'] and "음영" not in msg['status']:
+                msg['status'] = f"{msg['status']} [터널/음영구간-직전좌표유지]"
+
+        # 패킷 내 실제 측정 시각 파싱 (버퍼 일괄 수신 시 시계열 보존)
+        packet_epoch = None
+        ts_str_val = str(msg.get('timestamp') or msg.get('timestamp_str') or '')
+        if len(ts_str_val) >= 19 and not ts_str_val.startswith('2026-10-01 00:00'):
+            try:
+                dt = datetime.strptime(ts_str_val[:19], "%Y-%m-%d %H:%M:%S")
+                packet_epoch = dt.timestamp()
+            except Exception:
+                packet_epoch = None
+
+        current_time = time.time()
+        time_interval_met = False
+        if packet_epoch is not None and last_db_packet_epoch > 0:
+            # 패킷 측정 시각 기준 9초 이상 경과 시
+            if abs(packet_epoch - last_db_packet_epoch) >= 9.0:
+                time_interval_met = True
+        else:
+            # 실시간 수신 또는 시간 파싱 불가 시 PC 시각 기준 10초
+            if (current_time - last_db_save_time >= 10):
+                time_interval_met = True
+
+        should_save_to_db = False
+        if "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
+            # 1. 충격/급변 이상 징후는 터널/실내 무관하게 무조건 즉시 DB 저장!
             if is_anomaly:
-                evt_text = " | ".join(detected_events)
-                msg['status'] = f"{evt_text}, {gps_info}" if gps_info else evt_text
-            else:
-                msg['status'] = f"정상, {gps_info}" if gps_info else "정상"
-            
-            data_history.append(msg)
-            
-            # 최적화: 스마트 주행 감지 래치 (Smart Trip Latch & Last Known GPS)
-            if 'trip_started' not in st.session_state:
-                st.session_state.trip_started = False
-            if 'last_valid_gps' not in st.session_state:
-                st.session_state.last_valid_gps = (0.0, 0.0)
-
-            gps_lat_val = float(msg.get("lat", 0.0))
-            gps_lng_val = float(msg.get("lng", 0.0))
-            gps_speed_val = float(msg.get("speed", 0.0))
-            gps_is_valid = (gps_lat_val != 0.0 and gps_lng_val != 0.0)
-
-            if gps_is_valid:
-                st.session_state.trip_started = True
-                st.session_state.last_valid_gps = (gps_lat_val, gps_lng_val)
-            elif gps_speed_val > 2.5:
-                st.session_state.trip_started = True
-
-            # 터널/음영구간 통과 중일 때: 직전 유효 좌표 보정 (0,0으로 튀는 현상 방지)
-            if not gps_is_valid and st.session_state.trip_started and st.session_state.last_valid_gps != (0.0, 0.0):
-                msg['lat'] = st.session_state.last_valid_gps[0]
-                msg['lng'] = st.session_state.last_valid_gps[1]
-                if "터널" not in msg['status'] and "음영" not in msg['status']:
-                    msg['status'] = f"{msg['status']} [터널/음영구간-직전좌표유지]"
-
-            # 패킷 내 실제 측정 시각 파싱 (버퍼 일괄 수신 시 시계열 보존)
-            packet_epoch = None
-            ts_str_val = str(msg.get('timestamp') or msg.get('timestamp_str') or '')
-            if len(ts_str_val) >= 19 and not ts_str_val.startswith('2026-10-01 00:00'):
-                try:
-                    dt = datetime.strptime(ts_str_val[:19], "%Y-%m-%d %H:%M:%S")
-                    packet_epoch = dt.timestamp()
-                except Exception:
-                    packet_epoch = None
-
-            current_time = time.time()
-            time_interval_met = False
-            if packet_epoch is not None and last_db_packet_epoch > 0:
-                # 패킷 측정 시각 기준 9초 이상 경과 시
-                if abs(packet_epoch - last_db_packet_epoch) >= 9.0:
-                    time_interval_met = True
-            else:
-                # 실시간 수신 또는 시간 파싱 불가 시 PC 시각 기준 10초
-                if (current_time - last_db_save_time >= 10):
-                    time_interval_met = True
-
+                should_save_to_db = True
+            # 2. 주기적 저장: GPS Fix 중이거나, 이미 주행이 시작된 상태(터널/지하차도 포함)일 때 100% 저장!
+            elif (gps_is_valid or st.session_state.trip_started) and time_interval_met:
+                should_save_to_db = True
+        elif "항상 저장" in db_record_mode or "Always Save" in db_record_mode:
+            if time_interval_met or is_anomaly:
+                should_save_to_db = True
+        else:
             should_save_to_db = False
-            if "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
-                # 1. 충격/급변 이상 징후는 터널/실내 무관하게 무조건 즉시 DB 저장!
-                if is_anomaly:
-                    should_save_to_db = True
-                # 2. 주기적 저장: GPS Fix 중이거나, 이미 주행이 시작된 상태(터널/지하차도 포함)일 때 100% 저장!
-                elif (gps_is_valid or st.session_state.trip_started) and time_interval_met:
-                    should_save_to_db = True
-            elif "항상 저장" in db_record_mode or "Always Save" in db_record_mode:
-                if time_interval_met or is_anomaly:
-                    should_save_to_db = True
-            else:
-                should_save_to_db = False
 
-            if should_save_to_db:
-                save_to_mysql(msg, st.session_state.run_id)  
-                last_db_save_time = current_time
-                if packet_epoch is not None:
-                    last_db_packet_epoch = packet_epoch
-            if len(data_history) > 3600:
-                data_history.pop(0)
+        if should_save_to_db:
+            save_to_mysql(msg, st.session_state.run_id)  
+            last_db_save_time = current_time
+            if packet_epoch is not None:
+                last_db_packet_epoch = packet_epoch
+        if len(data_history) > 3600:
+            data_history.pop(0)
+
+    # 2) 화면에 표시할 데이터 선택
+    if selected_run == "실시간 주행 (현재 실험)":
         display_history = data_history
     else:
-        # 과거 데이터 조회 모드: 백그라운드 수신 큐 비워서 메모리 누수 방지
-        while not msg_queue.empty():
-            msg_queue.get()
         display_history = static_history
 
     if len(display_history) > 0:

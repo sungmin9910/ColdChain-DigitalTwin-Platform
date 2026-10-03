@@ -590,16 +590,21 @@ void loop() {
   }
   syncTimeFromGPS();
 
-  // 3) Wi-Fi 및 MQTT 연결 유지 (비블로킹)
-  bool wifi_connected = (wifiMulti.run() == WL_CONNECTED);
+  unsigned long now = millis();
+
+  // 3) Wi-Fi 및 MQTT 연결 유지 (비블로킹 & 고속 IMU 샘플링 보호)
+  static unsigned long lastWifiScanTime = 0;
+  bool wifi_connected = (WiFi.status() == WL_CONNECTED);
+  if (!wifi_connected && (now - lastWifiScanTime >= 6000)) {
+    lastWifiScanTime = now;
+    wifi_connected = (wifiMulti.run() == WL_CONNECTED);
+  }
   if (wifi_connected) {
     if (!client.connected()) {
       reconnectMQTT();
     }
     client.loop();
   }
-
-  unsigned long now = millis();
 
   // 4) 고속 가속도 샘플링 (20ms 간격)
   if (mpu_ready && (now - lastSampleTime >= SAMPLE_INTERVAL_MS)) {
