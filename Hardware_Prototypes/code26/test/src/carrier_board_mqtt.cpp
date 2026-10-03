@@ -275,7 +275,8 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
   float lat = 0.0, lng = 0.0, speed = 0.0;
   int sats = gps.satellites.value();
   unsigned long chars_rx = gps.charsProcessed();
-  String full_status = String(status_str);
+  String base_evt = String(status_str);
+  String full_status = "";
 
   bool gps_fix_ok = (gps.location.isValid() && gps.location.lat() != 0.0);
   if (gps_fix_ok) {
@@ -285,7 +286,7 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
     last_valid_lat = lat;
     last_valid_lng = lng;
     trip_active = true; // 야외 GPS Fix 성공 -> 주행 활성 래치 ON
-    full_status += ", GPS: Fix OK (" + String(sats) + " sats)";
+    full_status = base_evt + " [GPS " + String(sats) + "]";
   } else {
     // 이동 속도 감지 (2.5 km/h 이상) 또는 충격 시 주행 시작으로 판정
     if (gps.speed.isValid() && gps.speed.kmph() > 2.5) {
@@ -297,17 +298,13 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
     }
 
     if (trip_active && last_valid_lat != 0.0) {
-      // 🚗 터널, 지하차도, 도심 음영 지역 통과 중: 직전 유효 위치(LKP) 유지
+      // 터널, 지하차도, 도심 음영 지역 통과 중: 직전 유효 위치(LKP) 유지
       lat = last_valid_lat;
       lng = last_valid_lng;
-      full_status += ", GPS: 터널/음영구간 (직전 위치 유지, " + String(sats) + " sats)";
+      full_status = base_evt + " [터널]";
     } else {
-      // 💤 아직 출발 전 실내/책상 위 대기 상태
-      if (chars_rx > 0) {
-        full_status += ", GPS: 실내 탐색 중 (" + String(sats) + " sats) [대기]";
-      } else {
-        full_status += ", GPS: No Data (Check Baud/Pin)";
-      }
+      // 아직 출발 전 실내/책상 위 대기 상태
+      full_status = "대기 [실내]";
     }
   }
 
@@ -627,7 +624,7 @@ void loop() {
       if (now - lastShockTime >= SHOCK_DEBOUNCE_MS) {
         lastShockTime = now;
         Serial.printf("\n🚨 [충격 감지!] 충격량: %.2f G\n", g_force);
-        transmitTelemetry(g_force, "충격 발생");
+        transmitTelemetry(g_force, "충격");
         max_g_force = 1.0;
       }
     }

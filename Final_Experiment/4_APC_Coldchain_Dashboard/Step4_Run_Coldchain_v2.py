@@ -158,7 +158,7 @@ def init_mysql_table():
                     speed FLOAT,
                     lat FLOAT,
                     lng FLOAT,
-                    status VARCHAR(255),
+                    status VARCHAR(50),
                     run_id VARCHAR(100) DEFAULT 'default_run',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -550,27 +550,13 @@ while True:
         
         detected_events = []
         if g_force >= 1.8:
-            detected_events.append(f"🚨 충격({g_force:.2f}G)")
+            detected_events.append(f"충격({g_force:.1f}G)")
         if abs(lux_diff) >= 300.0:
-            detected_events.append(f"💡 조도급변({lux_diff:+.0f}lx)")
+            detected_events.append("조도급변")
         if abs(temp_diff) >= 2.0:
-            detected_events.append(f"🌡️ 온도급변({temp_diff:+.1f}°C)")
-        
-        # 보드 원본 status에서 GPS 위성 정보 보존
-        orig_status = str(msg.get('status', ''))
-        gps_info = ""
-        if "GPS:" in orig_status:
-            gps_info = orig_status[orig_status.find("GPS:"):].strip()
-        
+            detected_events.append("온도급변")
         is_anomaly = len(detected_events) > 0
-        if is_anomaly:
-            evt_text = " | ".join(detected_events)
-            msg['status'] = f"{evt_text}, {gps_info}" if gps_info else evt_text
-        else:
-            msg['status'] = f"정상, {gps_info}" if gps_info else "정상"
-        
-        data_history.append(msg)
-        
+
         # 최적화: 스마트 주행 감지 래치 (Smart Trip Latch & Last Known GPS)
         if 'trip_started' not in st.session_state:
             st.session_state.trip_started = False
@@ -580,6 +566,7 @@ while True:
         gps_lat_val = float(msg.get("lat", 0.0))
         gps_lng_val = float(msg.get("lng", 0.0))
         gps_speed_val = float(msg.get("speed", 0.0))
+        gps_sats_val = int(msg.get("sats", 0))
         gps_is_valid = (gps_lat_val != 0.0 and gps_lng_val != 0.0)
 
         if gps_is_valid:
@@ -589,11 +576,29 @@ while True:
             st.session_state.trip_started = True
 
         # 터널/음영구간 통과 중일 때: 직전 유효 좌표 보정 (0,0으로 튀는 현상 방지)
+        is_in_tunnel = False
         if not gps_is_valid and st.session_state.trip_started and st.session_state.last_valid_gps != (0.0, 0.0):
             msg['lat'] = st.session_state.last_valid_gps[0]
             msg['lng'] = st.session_state.last_valid_gps[1]
-            if "터널" not in msg['status'] and "음영" not in msg['status']:
-                msg['status'] = f"{msg['status']} [터널/음영구간-직전좌표유지]"
+            is_in_tunnel = True
+
+        # 간결하고 명확한 status 요약 생성 (이모지 제거, 50자 이내 완전 보장)
+        if is_in_tunnel:
+            loc_tag = "[터널]"
+        elif gps_is_valid:
+            loc_tag = f"[GPS {gps_sats_val}]"
+        elif st.session_state.trip_started:
+            loc_tag = "[음영]"
+        else:
+            loc_tag = "[대기]"
+
+        if is_anomaly:
+            evt_summary = "/".join(detected_events)
+            msg['status'] = f"{evt_summary} {loc_tag}"[:48]
+        else:
+            msg['status'] = f"정상 {loc_tag}"[:48]
+
+        data_history.append(msg)
 
         # 패킷 내 실제 측정 시각 파싱 (버퍼 일괄 수신 시 시계열 보존)
         packet_epoch = None
