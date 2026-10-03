@@ -36,7 +36,7 @@ struct WiFiNetwork {
 };
 
 const WiFiNetwork wifi_networks[] = {
-  {"225", "123698745"},
+  {"ㅅㅁㅇㅂ", ""},
   {"lab225", "123698745"},
   {"hani", "12345687"}
 };
@@ -457,8 +457,20 @@ void setup() {
   Serial.println("📡 [6] Wi-Fi Multi AP 등록 및 연결 시도...");
   WiFi.mode(WIFI_STA);
   for (int i = 0; i < num_wifi_networks; i++) {
-    wifiMulti.addAP(wifi_networks[i].ssid, wifi_networks[i].password);
-    Serial.printf("   + AP 등록: %s\n", wifi_networks[i].ssid);
+    if (wifi_networks[i].password == NULL || strlen(wifi_networks[i].password) == 0) {
+      wifiMulti.addAP(wifi_networks[i].ssid);
+      Serial.printf("   + AP 등록 (개방형): %s\n", wifi_networks[i].ssid);
+    } else {
+      wifiMulti.addAP(wifi_networks[i].ssid, wifi_networks[i].password);
+      Serial.printf("   + AP 등록: %s\n", wifi_networks[i].ssid);
+    }
+  }
+
+  // 부팅 시 최초 1회 즉시 연결 시도
+  if (wifiMulti.run() == WL_CONNECTED) {
+    Serial.printf("   ✅ Wi-Fi 연결 성공! (SSID: %s, IP: %s)\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println("   ⏳ Wi-Fi 백그라운드 자동 탐색 예정");
   }
 
   // 7. MQTT 설정
