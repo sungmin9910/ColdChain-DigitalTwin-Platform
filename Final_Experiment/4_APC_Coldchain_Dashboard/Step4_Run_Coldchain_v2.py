@@ -521,6 +521,12 @@ with col_log_h2:
             use_container_width=True,
             key=f"btn_log_header_dl_{selected_run}"
         )
+    elif selected_run == "실시간 주행 (현재 실험)":
+        if st.button("🧹 실시간 로그 비우기" if st.session_state.lang == 'KO' else "🧹 Clear Live Log", key="btn_clear_live_log", use_container_width=True):
+            data_history.clear()
+            with msg_queue.mutex:
+                msg_queue.queue.clear()
+            st.rerun()
 log_container = st.empty()
 
 # ----------------------------------------------------------------
