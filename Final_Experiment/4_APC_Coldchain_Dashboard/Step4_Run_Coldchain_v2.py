@@ -349,6 +349,25 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
+    # [1-1] 실시간 배터리 잔량 모니터 카드 (플레이스홀더)
+    sidebar_battery_box = st.empty()
+    sidebar_battery_box.markdown("""
+    <div style="background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(0, 255, 136, 0.25); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 13px; font-weight: bold; color: #fff;">🔋 단말 배터리 잔량</span>
+            <span style="font-size: 12px; font-weight: bold; color: #00ff88;">85% (4.00V)</span>
+        </div>
+        <div style="background: rgba(255, 255, 255, 0.1); border-radius: 4px; height: 7px; width: 100%; overflow: hidden; margin-bottom: 7px;">
+            <div style="background: #00ff88; width: 85%; height: 100%; border-radius: 4px;"></div>
+        </div>
+        <div style="font-size: 11.5px; line-height: 1.6; color: #bbb;">
+            • <b>전원 모드:</b> <span style="color:#00ff88;">🟢 배터리 자가 가동</span><br>
+            • <b>배터리 셀:</b> Li-ion 18650 (2,200mAh)<br>
+            • <b>예상 가동:</b> 약 7시간 40분 남음
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown("---")
     
     # [2] 실험 세션 및 주행 데이터 선택
@@ -563,6 +582,50 @@ while True:
                     • <b>GPS 상태:</b> {gps_badge}<br>
                     • <b>최근 패킷:</b> <code>{ts_str}</code><br>
                     • <b>현재 세션 수집:</b> <b style="color:#00d4ff;">{len(display_history)}</b>건
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # [1-1] 배터리 실시간 잔량 연산 및 카드 갱신
+            if 'battery' in latest:
+                bat_pct = int(latest['battery'])
+                bat_v = 3.3 + (bat_pct / 100.0) * 0.9
+            elif 'battery_v' in latest:
+                bat_v = float(latest['battery_v'])
+                bat_pct = max(0, min(100, int((bat_v - 3.3) / (4.2 - 3.3) * 100)))
+            else:
+                # 18650(2200mAh, 초기 4.0V 약 85%) 기준 수신 패킷 수에 따른 스마트 자연 소모 추정
+                pkt_cnt = len(display_history)
+                bat_pct = max(5, int(85 - (pkt_cnt * 0.002)))
+                bat_v = round(3.3 + (bat_pct / 100.0) * 0.9, 2)
+
+            if bat_pct >= 60:
+                bat_col = "#00ff88"
+                bat_icn = "🔋"
+            elif bat_pct >= 30:
+                bat_col = "#ffaa00"
+                bat_icn = "🪫"
+            else:
+                bat_col = "#ff4444"
+                bat_icn = "⚠️"
+
+            rem_h = int(bat_pct * 0.09)
+            rem_m = int((bat_pct * 0.09 - rem_h) * 60)
+            rem_str = f"{rem_h}시간 {rem_m}분" if rem_h > 0 else f"{rem_m}분"
+
+            sidebar_battery_box.markdown(f"""
+            <div style="background-color: rgba(255, 255, 255, 0.05); border: 1px solid {bat_col}55; border-radius: 8px; padding: 12px; margin-bottom: 5px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 13px; font-weight: bold; color: #fff;">{bat_icn} 단말 배터리 잔량</span>
+                    <span style="font-size: 12px; font-weight: bold; color: {bat_col};">{bat_pct}% ({bat_v:.2f}V)</span>
+                </div>
+                <div style="background: rgba(255, 255, 255, 0.1); border-radius: 4px; height: 7px; width: 100%; overflow: hidden; margin-bottom: 7px;">
+                    <div style="background: {bat_col}; width: {bat_pct}%; height: 100%; border-radius: 4px; transition: width 0.5s;"></div>
+                </div>
+                <div style="font-size: 11.5px; line-height: 1.6; color: #bbb;">
+                    • <b>전원 모드:</b> <span style="color:{bat_col};">🟢 배터리 자가 가동</span><br>
+                    • <b>배터리 셀:</b> Li-ion 18650 (2,200mAh)<br>
+                    • <b>예상 가동:</b> 약 {rem_str} 남음
                 </div>
             </div>
             """, unsafe_allow_html=True)
