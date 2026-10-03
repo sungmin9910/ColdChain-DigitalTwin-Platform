@@ -563,17 +563,23 @@ while True:
         if 'last_valid_gps' not in st.session_state:
             st.session_state.last_valid_gps = (0.0, 0.0)
 
+        # 보드에서 자동 주행 종료 또는 명시적 대기 상태 패킷 수신 시 주행 래치 해제
+        incoming_status = str(msg.get("status", ""))
+        if "대기" in incoming_status or "실내" in incoming_status:
+            st.session_state.trip_started = False
+
         gps_lat_val = float(msg.get("lat", 0.0))
         gps_lng_val = float(msg.get("lng", 0.0))
         gps_speed_val = float(msg.get("speed", 0.0))
         gps_sats_val = int(msg.get("sats", 0))
         gps_is_valid = (gps_lat_val != 0.0 and gps_lng_val != 0.0)
 
-        if gps_is_valid:
-            st.session_state.trip_started = True
-            st.session_state.last_valid_gps = (gps_lat_val, gps_lng_val)
-        elif gps_speed_val > 2.5:
-            st.session_state.trip_started = True
+        if "대기" not in incoming_status and "실내" not in incoming_status:
+            if gps_is_valid:
+                st.session_state.trip_started = True
+                st.session_state.last_valid_gps = (gps_lat_val, gps_lng_val)
+            elif gps_speed_val > 2.5:
+                st.session_state.trip_started = True
 
         # 터널/음영구간 통과 중일 때: 직전 유효 좌표 보정 (0,0으로 튀는 현상 방지)
         is_in_tunnel = False
@@ -583,18 +589,20 @@ while True:
             is_in_tunnel = True
 
         # 간결하고 명확한 status 요약 생성 (이모지 제거, 50자 이내 완전 보장)
-        if is_in_tunnel:
+        if not st.session_state.trip_started or "대기" in incoming_status or "실내" in incoming_status:
+            loc_tag = "[대기]"
+        elif is_in_tunnel:
             loc_tag = "[터널]"
         elif gps_is_valid:
             loc_tag = f"[GPS {gps_sats_val}]"
-        elif st.session_state.trip_started:
-            loc_tag = "[음영]"
         else:
             loc_tag = "[대기]"
 
         if is_anomaly:
             evt_summary = "/".join(detected_events)
             msg['status'] = f"{evt_summary} {loc_tag}"[:48]
+        elif loc_tag == "[대기]":
+            msg['status'] = "대기 [실내]"
         else:
             msg['status'] = f"정상 {loc_tag}"[:48]
 

@@ -88,6 +88,9 @@ unsigned long totalSavedRecords = 0;
 bool trip_active = false;      // 야외 출발 후 주행 상태 (터널/지하차도 통과 시에도 true 유지)
 float last_valid_lat = 0.0;    // 직전 유효 위도 (터널 진입 시 데드레커닝 보존)
 float last_valid_lng = 0.0;    // 직전 유효 경도
+unsigned long lastMotionTime = 0;       // 마지막 IMU 진동/움직임 감지 시각
+unsigned long lastGpsFixTime = 0;       // 마지막 GPS Fix 성공 시각
+#define TRIP_AUTO_STOP_MS   180000      // 3분(180초) 무진동 & GPS 단절 시 주행 자동 종료 (실내 대기 복귀)
 
 void logToLittleFS(const char* jsonStr, bool isOffline) {
   if (!littlefs_ready) return;
@@ -285,6 +288,7 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
     speed = gps.speed.kmph();
     last_valid_lat = lat;
     last_valid_lng = lng;
+    lastGpsFixTime = millis();
     trip_active = true; // 야외 GPS Fix 성공 -> 주행 활성 래치 ON
     full_status = base_evt + " [GPS " + String(sats) + "]";
   } else {
@@ -297,13 +301,28 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
       trip_active = true; // 차량 진동/충격 감지 시 주행 시작 래치 ON
     }
 
+    // [방법 B: 스마트 정지 감지 (Stationary Auto-Timeout)]
+    // GPS가 끊겨 있고, 3분(180초) 동안 진동/움직임이 전혀 감지되지 않으면
+    // 터널 통과가 아니라 실내 도착/주차 상태로 자동 판정 -> 대기 모드로 복귀
+    if (trip_active) {
+      unsigned long now_ms = millis();
+      bool is_stationary = (now_ms - lastMotionTime >= TRIP_AUTO_STOP_MS);
+      bool gps_lost_long = (now_ms - lastGpsFixTime >= TRIP_AUTO_STOP_MS);
+      if (is_stationary && gps_lost_long) {
+        trip_active = false;
+        Serial.println("🛑 [주행 자동 종료] GPS 신호 단절 및 3분간 정지 감지 -> 실내 대기 모드 자동 복귀 (LittleFS 저장 중단)");
+      }
+    }
+
     if (trip_active && last_valid_lat != 0.0) {
       // 터널, 지하차도, 도심 음영 지역 통과 중: 직전 유효 위치(LKP) 유지
       lat = last_valid_lat;
       lng = last_valid_lng;
       full_status = base_evt + " [터널]";
     } else {
-      // 아직 출발 전 실내/책상 위 대기 상태
+      // 아직 출발 전 또는 주행 종료 후 실내/책상 위 대기 상태
+      lat = 0.0;
+      lng = 0.0;
       full_status = "대기 [실내]";
     }
   }
@@ -480,6 +499,9 @@ void setup() {
   // 8. NTP 시간 동기화 (KST: UTC+9)
   configTime(9 * 3600, 0, "pool.ntp.org", "time.nist.gov");
 
+  lastMotionTime = millis();
+  lastGpsFixTime = millis();
+
   Serial.println("\n🚀 초기화 완료! 실시간 루프 시작...\n");
   Serial.println("💡 [시리얼 명령어 가이드]");
   Serial.println("   - dump 또는 read : LittleFS에 저장된 모든 데이터 출력");
@@ -629,6 +651,11 @@ void loop() {
     // 피크 홀드
     if (g_force > max_g_force) {
       max_g_force = g_force;
+    }
+
+    // 미세 움직임/진동 감지 시 lastMotionTime 갱신 (차량 주행/엔진 진동 vs 책상 위 완전 정지 구분)
+    if (fabs(g_force - 1.0f) > 0.08f) {
+      lastMotionTime = now;
     }
 
     // 급격한 충격 이벤트 발생 시 즉시 전송
