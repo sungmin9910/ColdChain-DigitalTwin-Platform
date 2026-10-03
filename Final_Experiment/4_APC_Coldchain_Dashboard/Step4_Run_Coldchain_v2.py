@@ -376,16 +376,24 @@ with st.sidebar:
     
     static_history = []
     if selected_run == "실시간 주행 (현재 실험)":
-        # 🔴 DB 실시간 저장 제어 토글 스위치 (기본값: OFF - 연구실 모니터링 전용)
-        enable_db_record = st.toggle(
-            "🔴 DB 실시간 저장 활성화" if st.session_state.lang == 'KO' else "🔴 Enable DB Recording",
-            value=False,
-            help="OFF(기본값): 연구실/PC 연결 시 화면 모니터링만 수행 (DB 저장 차단)\nON: 실제 차량 주행 실험 시 AWS RDS에 실시간 저장"
+        # 🔴 DB 실시간 저장 제어 (기본값: 스마트 자동 - GPS Fix 수신 시 자동 저장)
+        db_mode_options = [
+            "🤖 스마트 자동 (GPS 수신 시 자동 저장)" if st.session_state.lang == 'KO' else "🤖 Smart Auto (Save on GPS Fix)",
+            "🔴 항상 저장 (수동 강제 저장)" if st.session_state.lang == 'KO' else "🔴 Always Save (Force ON)",
+            "⚪ 저장 안함 (연구실 모니터링)" if st.session_state.lang == 'KO' else "⚪ Do Not Save (Lab Monitoring)"
+        ]
+        db_record_mode = st.radio(
+            "💾 DB 저장 모드 설정" if st.session_state.lang == 'KO' else "💾 DB Recording Mode",
+            db_mode_options,
+            index=0,
+            help="• 스마트 자동 (기본값): 야외/차량에서 GPS가 수신(Fix)될 때만 자동으로 DB에 저장합니다. 연구실 실내에서는 충격이나 온도 변화를 실험해도 DB에 기록되지 않아 안전합니다.\n• 항상 저장: GPS 수신 여부와 관계없이 실시간으로 DB에 저장합니다.\n• 저장 안함: DB 저장을 완전히 차단하고 화면 모니터링만 수행합니다."
         )
-        if enable_db_record:
-            st.success("🔴 **[DB 기록 중]** 실시간 데이터가 AWS RDS에 저장됩니다.")
+        if "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
+            st.caption("✨ **GPS 위성 수신 감지 시 자동 저장** (실내/실험실은 저장 차단)")
+        elif "항상 저장" in db_record_mode or "Always Save" in db_record_mode:
+            st.caption("🔴 **[수동 강제 ON]** 모든 데이터를 즉시 DB에 저장합니다.")
         else:
-            st.info("⚪ **[모니터링 전용]** DB 저장이 꺼져 있습니다 (연구실 모드).")
+            st.caption("⚪ **[연구실 모드]** DB 저장이 차단된 모니터링 전용 상태입니다.")
 
         st.markdown(f"**🏷️ 현재 활성 세션 ID**  \n`{st.session_state.run_id}`")
         new_run_input = st.text_input(
@@ -416,7 +424,7 @@ with st.sidebar:
             time.sleep(0.5)
             st.rerun()
     else:
-        enable_db_record = False
+        db_record_mode = "⚪ 저장 안함"
         static_history = load_run_data(selected_run)
         
         sidebar_status_box.markdown(f"""
@@ -553,9 +561,26 @@ while True:
             
             data_history.append(msg)
             
-            # 최적화: 사용자가 토글 스위치를 켰을 때만 DB에 저장 (10초 주기 또는 복합 이상 이벤트 발생 시 즉시 저장)
+            # 최적화: 스마트 자동 모드(GPS Fix 수신 시 자동 저장) / 상시 저장 / 저장 안함
+            gps_lat_val = float(msg.get("lat", 0.0))
+            gps_lng_val = float(msg.get("lng", 0.0))
+            gps_is_valid = (gps_lat_val != 0.0 and gps_lng_val != 0.0)
+
             current_time = time.time()
-            if enable_db_record and ((current_time - last_db_save_time >= 10) or is_anomaly):
+            should_save_to_db = False
+
+            if "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
+                # 사용자의 핵심 요청: 실내 실험실(GPS 미수신)에서는 충격/온도 실험을 해도 DB에 저장되지 않고,
+                # 야외/차량으로 나가서 GPS가 잡혔을 때만 10초 주기 또는 복합 이상 이벤트 시 자동으로 DB 저장!
+                if gps_is_valid and ((current_time - last_db_save_time >= 10) or is_anomaly):
+                    should_save_to_db = True
+            elif "항상 저장" in db_record_mode or "Always Save" in db_record_mode:
+                if (current_time - last_db_save_time >= 10) or is_anomaly:
+                    should_save_to_db = True
+            else:
+                should_save_to_db = False
+
+            if should_save_to_db:
                 save_to_mysql(msg, st.session_state.run_id)  
                 last_db_save_time = current_time
             if len(data_history) > 3600:
@@ -587,6 +612,17 @@ while True:
             else:
                 gps_badge = f"<span style='color:#ffaa00; font-weight:bold;'>🟡 위성 탐색 중 ({gps_sats}개)</span>" if gps_sats > 0 else "<span style='color:#ffaa00; font-weight:bold;'>🟡 위성 신호 탐색 중</span>"
                 
+            # DB 저장 상태 뱃지 판정
+            if "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
+                if gps_lat != 0.0 and gps_lng != 0.0:
+                    db_badge = "<span style='color:#00ff88; font-weight:bold;'>🔴 스마트 자동 기록 중 (GPS Fix)</span>"
+                else:
+                    db_badge = "<span style='color:#888888; font-weight:bold;'>⚪ 자동 대기 (실내/GPS 미수신)</span>"
+            elif "항상 저장" in db_record_mode or "Always Save" in db_record_mode:
+                db_badge = "<span style='color:#ff4444; font-weight:bold;'>🔴 상시 강제 기록 중</span>"
+            else:
+                db_badge = "<span style='color:#888888; font-weight:bold;'>⚪ 기록 차단됨 (모니터링)</span>"
+
             dev_id = latest.get('device', 'carrier-c6-01')
             ts_str = latest.get('timestamp', '-')
             
@@ -596,6 +632,7 @@ while True:
                 <div style="font-size: 12px; line-height: 1.7; color: #e0e0e0;">
                     • <b>수신 단말:</b> <code>{dev_id}</code><br>
                     • <b>GPS 상태:</b> {gps_badge}<br>
+                    • <b>DB 상태:</b> {db_badge}<br>
                     • <b>최근 패킷:</b> <code>{ts_str}</code><br>
                     • <b>현재 세션 수집:</b> <b style="color:#00d4ff;">{len(display_history)}</b>건
                 </div>
