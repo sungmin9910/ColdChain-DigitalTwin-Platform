@@ -381,9 +381,9 @@ with st.sidebar:
     
     static_history = []
     if selected_run == "실시간 주행 (현재 실험)":
-        # 🔴 DB 실시간 저장 제어 (기본값: 스마트 자동 - GPS Fix 수신 시 자동 저장)
+        # 🔴 DB 실시간 저장 제어 (기본값: 스마트 자동 - 주행/터널/충격 시 자동 기록)
         db_mode_options = [
-            "🤖 스마트 자동 (GPS 수신 시 자동 저장)" if st.session_state.lang == 'KO' else "🤖 Smart Auto (Save on GPS Fix)",
+            "🤖 스마트 자동 (주행/터널/충격 시 자동 기록)" if st.session_state.lang == 'KO' else "🤖 Smart Auto (Save on Trip & Shock)",
             "🔴 항상 저장 (수동 강제 저장)" if st.session_state.lang == 'KO' else "🔴 Always Save (Force ON)",
             "⚪ 저장 안함 (연구실 모니터링)" if st.session_state.lang == 'KO' else "⚪ Do Not Save (Lab Monitoring)"
         ]
@@ -391,10 +391,10 @@ with st.sidebar:
             "💾 DB 저장 모드 설정" if st.session_state.lang == 'KO' else "💾 DB Recording Mode",
             db_mode_options,
             index=0,
-            help="• 스마트 자동 (기본값): 야외/차량에서 GPS가 수신(Fix)될 때만 자동으로 DB에 저장합니다. 연구실 실내에서는 충격이나 온도 변화를 실험해도 DB에 기록되지 않아 안전합니다.\n• 항상 저장: GPS 수신 여부와 관계없이 실시간으로 DB에 저장합니다.\n• 저장 안함: DB 저장을 완전히 차단하고 화면 모니터링만 수행합니다."
+            help="• 스마트 자동 (기본값): 야외 출발 시(GPS Fix/속도 발생) 자동으로 기록을 시작하며, 터널/지하차도에 진입하여 일시적으로 GPS가 끊기더라도 직전 위치를 유지하며 연속 기록합니다. 충격/급변 발생 시 실내외 무관하게 100% 즉시 저장됩니다.\n• 항상 저장: GPS 수신 여부와 관계없이 실시간으로 DB에 저장합니다.\n• 저장 안함: DB 저장을 완전히 차단하고 화면 모니터링만 수행합니다."
         )
         if "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
-            st.caption("✨ **GPS 위성 수신 감지 시 자동 저장** (실내/실험실은 저장 차단)")
+            st.caption("✨ **주행 감지 시 자동 기록** (터널 통과 연속 보존, 실내 대기 저장 차단)")
         elif "항상 저장" in db_record_mode or "Always Save" in db_record_mode:
             st.caption("🔴 **[수동 강제 ON]** 모든 데이터를 즉시 DB에 저장합니다.")
         else:
@@ -412,6 +412,10 @@ with st.sidebar:
                 st.session_state.run_id = new_run_input.strip()
             else:
                 st.session_state.run_id = generate_run_id()
+            
+            # 주행 세션 및 GPS 보정 리셋
+            st.session_state.trip_started = False
+            st.session_state.last_valid_gps = (0.0, 0.0)
             
             # 메모리 비우기
             data_history.clear()
@@ -567,10 +571,29 @@ while True:
             
             data_history.append(msg)
             
-            # 최적화: 스마트 자동 모드(GPS Fix 수신 시 자동 저장) / 상시 저장 / 저장 안함
+            # 최적화: 스마트 주행 감지 래치 (Smart Trip Latch & Last Known GPS)
+            if 'trip_started' not in st.session_state:
+                st.session_state.trip_started = False
+            if 'last_valid_gps' not in st.session_state:
+                st.session_state.last_valid_gps = (0.0, 0.0)
+
             gps_lat_val = float(msg.get("lat", 0.0))
             gps_lng_val = float(msg.get("lng", 0.0))
+            gps_speed_val = float(msg.get("speed", 0.0))
             gps_is_valid = (gps_lat_val != 0.0 and gps_lng_val != 0.0)
+
+            if gps_is_valid:
+                st.session_state.trip_started = True
+                st.session_state.last_valid_gps = (gps_lat_val, gps_lng_val)
+            elif gps_speed_val > 2.5:
+                st.session_state.trip_started = True
+
+            # 터널/음영구간 통과 중일 때: 직전 유효 좌표 보정 (0,0으로 튀는 현상 방지)
+            if not gps_is_valid and st.session_state.trip_started and st.session_state.last_valid_gps != (0.0, 0.0):
+                msg['lat'] = st.session_state.last_valid_gps[0]
+                msg['lng'] = st.session_state.last_valid_gps[1]
+                if "터널" not in msg['status'] and "음영" not in msg['status']:
+                    msg['status'] = f"{msg['status']} [터널/음영구간-직전좌표유지]"
 
             # 패킷 내 실제 측정 시각 파싱 (버퍼 일괄 수신 시 시계열 보존)
             packet_epoch = None
@@ -595,7 +618,11 @@ while True:
 
             should_save_to_db = False
             if "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
-                if gps_is_valid and (time_interval_met or is_anomaly):
+                # 1. 충격/급변 이상 징후는 터널/실내 무관하게 무조건 즉시 DB 저장!
+                if is_anomaly:
+                    should_save_to_db = True
+                # 2. 주기적 저장: GPS Fix 중이거나, 이미 주행이 시작된 상태(터널/지하차도 포함)일 때 100% 저장!
+                elif (gps_is_valid or st.session_state.trip_started) and time_interval_met:
                     should_save_to_db = True
             elif "항상 저장" in db_record_mode or "Always Save" in db_record_mode:
                 if time_interval_met or is_anomaly:
@@ -641,8 +668,10 @@ while True:
             if "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
                 if gps_lat != 0.0 and gps_lng != 0.0:
                     db_badge = "<span style='color:#00ff88; font-weight:bold;'>🔴 스마트 자동 기록 중 (GPS Fix)</span>"
+                elif st.session_state.get('trip_started', False):
+                    db_badge = "<span style='color:#00e5ff; font-weight:bold;'>🔵 스마트 주행 기록 중 (터널/음영구간)</span>"
                 else:
-                    db_badge = "<span style='color:#888888; font-weight:bold;'>⚪ 자동 대기 (실내/GPS 미수신)</span>"
+                    db_badge = "<span style='color:#888888; font-weight:bold;'>⚪ 자동 대기 (실내/출발전)</span>"
             elif "항상 저장" in db_record_mode or "Always Save" in db_record_mode:
                 db_badge = "<span style='color:#ff4444; font-weight:bold;'>🔴 상시 강제 기록 중</span>"
             else:

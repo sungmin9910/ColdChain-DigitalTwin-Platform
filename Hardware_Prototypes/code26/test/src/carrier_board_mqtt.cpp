@@ -84,6 +84,11 @@ bool littlefs_ready = false;
 bool has_offline_data = false;
 unsigned long totalSavedRecords = 0;
 
+// 스마트 주행 감지 래치 (Smart Trip Latch & LKP)
+bool trip_active = false;      // 야외 출발 후 주행 상태 (터널/지하차도 통과 시에도 true 유지)
+float last_valid_lat = 0.0;    // 직전 유효 위도 (터널 진입 시 데드레커닝 보존)
+float last_valid_lng = 0.0;    // 직전 유효 경도
+
 void logToLittleFS(const char* jsonStr, bool isOffline) {
   if (!littlefs_ready) return;
 
@@ -271,16 +276,38 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
   int sats = gps.satellites.value();
   unsigned long chars_rx = gps.charsProcessed();
   String full_status = String(status_str);
-  if (gps.location.isValid()) {
+
+  bool gps_fix_ok = (gps.location.isValid() && gps.location.lat() != 0.0);
+  if (gps_fix_ok) {
     lat = gps.location.lat();
     lng = gps.location.lng();
     speed = gps.speed.kmph();
+    last_valid_lat = lat;
+    last_valid_lng = lng;
+    trip_active = true; // 야외 GPS Fix 성공 -> 주행 활성 래치 ON
     full_status += ", GPS: Fix OK (" + String(sats) + " sats)";
   } else {
-    if (chars_rx > 0) {
-      full_status += ", GPS: Searching (" + String(sats) + " sats)";
+    // 이동 속도 감지 (2.5 km/h 이상) 또는 충격 시 주행 시작으로 판정
+    if (gps.speed.isValid() && gps.speed.kmph() > 2.5) {
+      trip_active = true;
+      speed = gps.speed.kmph();
+    }
+    if (g_force_val >= 1.5) {
+      trip_active = true; // 차량 진동/충격 감지 시 주행 시작 래치 ON
+    }
+
+    if (trip_active && last_valid_lat != 0.0) {
+      // 🚗 터널, 지하차도, 도심 음영 지역 통과 중: 직전 유효 위치(LKP) 유지
+      lat = last_valid_lat;
+      lng = last_valid_lng;
+      full_status += ", GPS: 터널/음영구간 (직전 위치 유지, " + String(sats) + " sats)";
     } else {
-      full_status += ", GPS: No Data (Check Baud/Pin)";
+      // 💤 아직 출발 전 실내/책상 위 대기 상태
+      if (chars_rx > 0) {
+        full_status += ", GPS: 실내 탐색 중 (" + String(sats) + " sats) [대기]";
+      } else {
+        full_status += ", GPS: No Data (Check Baud/Pin)";
+      }
     }
   }
 
@@ -304,12 +331,21 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
   Serial.println("------------------------------------------------------------------");
   Serial.printf("[MQTT 전송] 토픽: %s\n", mqtt_topic);
   Serial.printf("  페이로드: %s\n", jsonBuffer);
-  Serial.printf("  [GPS 상태] 수신바이트: %lu, 위성수: %d, Fix: %s (위도: %.6f, 경도: %.6f)\n",
-                chars_rx, sats, gps.location.isValid() ? "YES" : "NO", lat, lng);
+  Serial.printf("  [GPS 상태] 수신바이트: %lu, 위성수: %d, Fix: %s (위도: %.6f, 경도: %.6f, 상태: %s)\n",
+                chars_rx, sats, gps_fix_ok ? "YES" : "NO", lat, lng,
+                trip_active ? "🚗주행중(터널연속기록)" : "💤실내대기(저장보류)");
 
-  // 4) LittleFS 블랙박스 항시 저장 및 오프라인 버퍼링
+  // 4) LittleFS 블랙박스 스마트 저장 판정
+  // - 주행 중(trip_active): 터널/음영지역 통과 중이라도 100% 5초마다 연속 저장!
+  // - 비주행(실내/책상 위): 충격 이벤트(g_force >= 1.8G) 발생 시에만 긴급 저장, 평소엔 대기(메모리 보존)
+  bool should_save_fs = trip_active || (g_force_val >= SHOCK_THRESHOLD_G);
   bool is_connected = client.connected();
-  logToLittleFS(jsonBuffer, !is_connected);
+
+  if (should_save_fs) {
+    logToLittleFS(jsonBuffer, !is_connected);
+  } else {
+    Serial.println("  💤 [실내 대기 모드] 주행 출발 전 - LittleFS 저장 보류 (메모리 보호)");
+  }
 
   // 5) MQTT 네트워크 전송
   if (is_connected) {
@@ -439,7 +475,8 @@ void setup() {
   Serial.println("💡 [시리얼 명령어 가이드]");
   Serial.println("   - dump 또는 read : LittleFS에 저장된 모든 데이터 출력");
   Serial.println("   - info 또는 stat : 저장 용량 및 누적 건수 확인");
-  Serial.println("   - clear 또는 reset: 저장된 로그 초기화\n");
+  Serial.println("   - clear 또는 reset: 저장된 로그 초기화");
+  Serial.println("   - start / stop  : 주행 기록 강제 시작 / 대기 전환\n");
 }
 
 // ==========================================
@@ -486,6 +523,12 @@ void handleSerialCommands() {
         }
         Serial.printf("================ [덤프 종료: 총 %lu 건] ================\n\n", count);
       }
+    } else if (cmd.equalsIgnoreCase("start")) {
+      trip_active = true;
+      Serial.println("\n🚗 [주행 모드 강제 시작] LittleFS 연속 저장을 시작합니다.\n");
+    } else if (cmd.equalsIgnoreCase("stop")) {
+      trip_active = false;
+      Serial.println("\n💤 [대기 모드 전환] LittleFS 저장을 일시 정지합니다.\n");
     } else if (cmd.equalsIgnoreCase("clear") || cmd.equalsIgnoreCase("reset")) {
       if (LittleFS.exists(master_log_curr)) {
         LittleFS.remove(master_log_curr);
@@ -497,7 +540,10 @@ void handleSerialCommands() {
         LittleFS.remove(offline_buffer_file);
       }
       totalSavedRecords = 0;
-      Serial.println("\n🗑️ [LittleFS] 블랙박스 링버퍼 및 오프라인 버퍼가 0건으로 초기화되었습니다.\n");
+      trip_active = false;
+      last_valid_lat = 0.0;
+      last_valid_lng = 0.0;
+      Serial.println("\n🗑️ [LittleFS] 블랙박스 링버퍼 및 오프라인 버퍼가 0건으로 초기화되었습니다. (대기 모드 전환)\n");
     } else if (cmd.equalsIgnoreCase("info") || cmd.equalsIgnoreCase("stat")) {
       size_t total = LittleFS.totalBytes();
       size_t used = LittleFS.usedBytes();
@@ -524,8 +570,9 @@ void handleSerialCommands() {
           fBuf.close();
         }
       }
-      Serial.printf("\n📊 [LittleFS 링버퍼 현황] 전체: %u B, 사용: %u B | 블랙박스(최신1MB 유지): %u B (%lu건), 오프라인버퍼: %u B\n\n",
-                    (unsigned int)total, (unsigned int)used, (unsigned int)fsize, totalSavedRecords, (unsigned int)obuf_size);
+      Serial.printf("\n📊 [LittleFS 링버퍼 현황] 전체: %u B, 사용: %u B | 블랙박스(최신1MB 유지): %u B (%lu건), 오프라인: %u B | 상태: %s\n\n",
+                    (unsigned int)total, (unsigned int)used, (unsigned int)fsize, totalSavedRecords, (unsigned int)obuf_size,
+                    trip_active ? "🚗 주행 기록 중" : "💤 실내 대기 중");
     }
   }
 }
