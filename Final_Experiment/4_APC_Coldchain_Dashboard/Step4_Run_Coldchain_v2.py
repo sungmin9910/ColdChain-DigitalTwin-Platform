@@ -132,6 +132,7 @@ def get_mysql_connection():
                 user=st.secrets["MySQL"]["MYSQL_USER"],
                 password=st.secrets["MySQL"]["MYSQL_PASSWORD"],
                 database=st.secrets["MySQL"]["MYSQL_DATABASE"],
+                charset='utf8mb4',
                 cursorclass=pymysql.cursors.DictCursor
             )
             return conn
@@ -314,13 +315,13 @@ conn = get_mysql_connection()
 if conn:
     try:
         with conn.cursor() as cursor:
-            # 10건 이상 유효한 주행 세션만 최신순으로 가져오기
+            # 1건 이상 기록된 모든 주행 세션을 최신순으로 가져오기
             cursor.execute("""
                 SELECT run_id 
                 FROM sensor_data 
                 WHERE run_id IS NOT NULL 
                 GROUP BY run_id 
-                HAVING COUNT(*) >= 10 
+                HAVING COUNT(*) >= 1 
                 ORDER BY MAX(id) DESC
             """)
             rows = cursor.fetchall()
@@ -355,14 +356,18 @@ with st.sidebar:
     def format_session_label(session_id):
         if session_id == "실시간 주행 (현재 실험)":
             return "🟢 실시간 주행 (현재 실험)"
+        elif "20261003" in session_id or "2026-10-03" in session_id:
+            if "1834" in session_id or "18" in session_id:
+                return f"🚗 [10-03 저녁 주행] {session_id}"
+            return f"🚗 [10-03 실험] {session_id}"
         elif "departure" in session_id:
-            return "🚗 1. [오늘 갈 때] 전주 ➔ 대전 (89km, 1,356건)"
+            return "🚗 [10-02 출발] 전주 ➔ 대전 (89km, 1,356건)"
         elif "return" in session_id:
-            return "🚗 2. [오늘 올 때] 대전 ➔ 전주 (85km, 478건)"
+            return "🚗 [10-02 복귀] 대전 ➔ 전주 (85km, 478건)"
         elif "065739" in session_id:
-            return "🧪 3. [어제 야외] 전북대 캠퍼스 GPS 검증 (157건)"
+            return "🧪 [10-01 야외] 전북대 캠퍼스 GPS 검증 (157건)"
         elif "30km" in session_id:
-            return "📦 4. [과거 7월] 30km 시뮬레이션 주행 (181건)"
+            return "📦 [07-15 모의] 30km 시뮬레이션 주행 (181건)"
         else:
             return f"📂 {session_id}"
 
@@ -518,6 +523,7 @@ log_container = st.empty()
 # 4. 실시간 루프
 # ----------------------------------------------------------------
 last_db_save_time = 0
+last_db_packet_epoch = 0
 
 while True:
     if selected_run == "실시간 주행 (현재 실험)":
@@ -566,16 +572,33 @@ while True:
             gps_lng_val = float(msg.get("lng", 0.0))
             gps_is_valid = (gps_lat_val != 0.0 and gps_lng_val != 0.0)
 
-            current_time = time.time()
-            should_save_to_db = False
+            # 패킷 내 실제 측정 시각 파싱 (버퍼 일괄 수신 시 시계열 보존)
+            packet_epoch = None
+            ts_str_val = str(msg.get('timestamp') or msg.get('timestamp_str') or '')
+            if len(ts_str_val) >= 19 and not ts_str_val.startswith('2026-10-01 00:00'):
+                try:
+                    dt = datetime.strptime(ts_str_val[:19], "%Y-%m-%d %H:%M:%S")
+                    packet_epoch = dt.timestamp()
+                except Exception:
+                    packet_epoch = None
 
+            current_time = time.time()
+            time_interval_met = False
+            if packet_epoch is not None and last_db_packet_epoch > 0:
+                # 패킷 측정 시각 기준 9초 이상 경과 시
+                if abs(packet_epoch - last_db_packet_epoch) >= 9.0:
+                    time_interval_met = True
+            else:
+                # 실시간 수신 또는 시간 파싱 불가 시 PC 시각 기준 10초
+                if (current_time - last_db_save_time >= 10):
+                    time_interval_met = True
+
+            should_save_to_db = False
             if "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
-                # 사용자의 핵심 요청: 실내 실험실(GPS 미수신)에서는 충격/온도 실험을 해도 DB에 저장되지 않고,
-                # 야외/차량으로 나가서 GPS가 잡혔을 때만 10초 주기 또는 복합 이상 이벤트 시 자동으로 DB 저장!
-                if gps_is_valid and ((current_time - last_db_save_time >= 10) or is_anomaly):
+                if gps_is_valid and (time_interval_met or is_anomaly):
                     should_save_to_db = True
             elif "항상 저장" in db_record_mode or "Always Save" in db_record_mode:
-                if (current_time - last_db_save_time >= 10) or is_anomaly:
+                if time_interval_met or is_anomaly:
                     should_save_to_db = True
             else:
                 should_save_to_db = False
@@ -583,6 +606,8 @@ while True:
             if should_save_to_db:
                 save_to_mysql(msg, st.session_state.run_id)  
                 last_db_save_time = current_time
+                if packet_epoch is not None:
+                    last_db_packet_epoch = packet_epoch
             if len(data_history) > 3600:
                 data_history.pop(0)
         display_history = data_history
