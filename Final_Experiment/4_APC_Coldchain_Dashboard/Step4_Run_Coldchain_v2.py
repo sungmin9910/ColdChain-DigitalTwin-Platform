@@ -349,25 +349,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
-    # [1-1] 실시간 배터리 잔량 모니터 카드 (플레이스홀더)
-    sidebar_battery_box = st.empty()
-    sidebar_battery_box.markdown("""
-    <div style="background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(0, 255, 136, 0.25); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span style="font-size: 13px; font-weight: bold; color: #fff;">🔋 단말 배터리 잔량</span>
-            <span style="font-size: 12px; font-weight: bold; color: #00ff88;">85% (4.00V)</span>
-        </div>
-        <div style="background: rgba(255, 255, 255, 0.1); border-radius: 4px; height: 7px; width: 100%; overflow: hidden; margin-bottom: 7px;">
-            <div style="background: #00ff88; width: 85%; height: 100%; border-radius: 4px;"></div>
-        </div>
-        <div style="font-size: 11.5px; line-height: 1.6; color: #bbb;">
-            • <b>전원 모드:</b> <span style="color:#00ff88;">🟢 배터리 자가 가동</span><br>
-            • <b>배터리 셀:</b> Li-ion 18650 (2,200mAh)<br>
-            • <b>예상 가동:</b> 약 7시간 40분 남음
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
     st.markdown("---")
     
     # [2] 실험 세션 및 주행 데이터 선택
@@ -535,11 +516,46 @@ while True:
         while not msg_queue.empty():
             msg = msg_queue.get()
             msg['run_id'] = st.session_state.run_id
+            
+            # --- 다중 복합 이벤트 감지 (충격, 조도 급변, 온도 급변) ---
+            g_force = float(msg.get('g_force', 1.0))
+            lux = float(msg.get('lux', 0.0))
+            temp = float(msg.get('temperature', 0.0))
+            
+            # 직전 수신 데이터 대비 변화량(Delta) 계산
+            lux_diff = 0.0
+            temp_diff = 0.0
+            if len(data_history) > 0:
+                prev_msg = data_history[-1]
+                lux_diff = lux - float(prev_msg.get('lux', lux))
+                temp_diff = temp - float(prev_msg.get('temperature', temp))
+            
+            detected_events = []
+            if g_force >= 1.8:
+                detected_events.append(f"🚨 충격({g_force:.2f}G)")
+            if abs(lux_diff) >= 300.0:
+                detected_events.append(f"💡 조도급변({lux_diff:+.0f}lx)")
+            if abs(temp_diff) >= 2.0:
+                detected_events.append(f"🌡️ 온도급변({temp_diff:+.1f}°C)")
+            
+            # 보드 원본 status에서 GPS 위성 정보 보존
+            orig_status = str(msg.get('status', ''))
+            gps_info = ""
+            if "GPS:" in orig_status:
+                gps_info = orig_status[orig_status.find("GPS:"):].strip()
+            
+            is_anomaly = len(detected_events) > 0
+            if is_anomaly:
+                evt_text = " | ".join(detected_events)
+                msg['status'] = f"{evt_text}, {gps_info}" if gps_info else evt_text
+            else:
+                msg['status'] = f"정상, {gps_info}" if gps_info else "정상"
+            
             data_history.append(msg)
             
-            # 최적화: 사용자가 토글 스위치를 켰을 때만 DB에 저장 (10초 주기 또는 강한 충격)
+            # 최적화: 사용자가 토글 스위치를 켰을 때만 DB에 저장 (10초 주기 또는 복합 이상 이벤트 발생 시 즉시 저장)
             current_time = time.time()
-            if enable_db_record and ((current_time - last_db_save_time >= 10) or (msg.get('g_force', 0) > 1.8)):
+            if enable_db_record and ((current_time - last_db_save_time >= 10) or is_anomaly):
                 save_to_mysql(msg, st.session_state.run_id)  
                 last_db_save_time = current_time
             if len(data_history) > 3600:
@@ -582,50 +598,6 @@ while True:
                     • <b>GPS 상태:</b> {gps_badge}<br>
                     • <b>최근 패킷:</b> <code>{ts_str}</code><br>
                     • <b>현재 세션 수집:</b> <b style="color:#00d4ff;">{len(display_history)}</b>건
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # [1-1] 배터리 실시간 잔량 연산 및 카드 갱신
-            if 'battery' in latest:
-                bat_pct = int(latest['battery'])
-                bat_v = 3.3 + (bat_pct / 100.0) * 0.9
-            elif 'battery_v' in latest:
-                bat_v = float(latest['battery_v'])
-                bat_pct = max(0, min(100, int((bat_v - 3.3) / (4.2 - 3.3) * 100)))
-            else:
-                # 18650(2200mAh, 초기 4.0V 약 85%) 기준 수신 패킷 수에 따른 스마트 자연 소모 추정
-                pkt_cnt = len(display_history)
-                bat_pct = max(5, int(85 - (pkt_cnt * 0.002)))
-                bat_v = round(3.3 + (bat_pct / 100.0) * 0.9, 2)
-
-            if bat_pct >= 60:
-                bat_col = "#00ff88"
-                bat_icn = "🔋"
-            elif bat_pct >= 30:
-                bat_col = "#ffaa00"
-                bat_icn = "🪫"
-            else:
-                bat_col = "#ff4444"
-                bat_icn = "⚠️"
-
-            rem_h = int(bat_pct * 0.09)
-            rem_m = int((bat_pct * 0.09 - rem_h) * 60)
-            rem_str = f"{rem_h}시간 {rem_m}분" if rem_h > 0 else f"{rem_m}분"
-
-            sidebar_battery_box.markdown(f"""
-            <div style="background-color: rgba(255, 255, 255, 0.05); border: 1px solid {bat_col}55; border-radius: 8px; padding: 12px; margin-bottom: 5px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <span style="font-size: 13px; font-weight: bold; color: #fff;">{bat_icn} 단말 배터리 잔량</span>
-                    <span style="font-size: 12px; font-weight: bold; color: {bat_col};">{bat_pct}% ({bat_v:.2f}V)</span>
-                </div>
-                <div style="background: rgba(255, 255, 255, 0.1); border-radius: 4px; height: 7px; width: 100%; overflow: hidden; margin-bottom: 7px;">
-                    <div style="background: {bat_col}; width: {bat_pct}%; height: 100%; border-radius: 4px; transition: width 0.5s;"></div>
-                </div>
-                <div style="font-size: 11.5px; line-height: 1.6; color: #bbb;">
-                    • <b>전원 모드:</b> <span style="color:{bat_col};">🟢 배터리 자가 가동</span><br>
-                    • <b>배터리 셀:</b> Li-ion 18650 (2,200mAh)<br>
-                    • <b>예상 가동:</b> 약 {rem_str} 남음
                 </div>
             </div>
             """, unsafe_allow_html=True)
