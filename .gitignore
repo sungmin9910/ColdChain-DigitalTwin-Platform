@@ -40,3 +40,5 @@ scratch/*report*.json
 scratch/*drc*.json
 scratch/target_drc_check.json
 scratch/gerber_test/
+scratch/*.bin
+scratch/*.jsonl
