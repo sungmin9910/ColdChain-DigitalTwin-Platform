@@ -97,8 +97,13 @@ def main():
         print("❌ 연결된 시리얼(COM) 포트를 찾을 수 없습니다. USB 케이블 연결을 확인하세요.")
         return
 
-    # 기본 포트 자동 선택 (COM17이 목록에 있으면 우선 선택)
-    default_port = "COM17" if "COM17" in available_ports else available_ports[0]
+    # 기본 포트 자동 선택 (COM7 또는 COM17이 목록에 있으면 우선 선택)
+    if "COM7" in available_ports:
+        default_port = "COM7"
+    elif "COM17" in available_ports:
+        default_port = "COM17"
+    else:
+        default_port = available_ports[0]
     print(f"감지된 COM 포트: {', '.join(available_ports)}")
     selected_port = input(f"연결할 포트를 입력하세요 [기본값: {default_port}]: ").strip()
     if not selected_port:
@@ -107,8 +112,8 @@ def main():
     baud = 115200
     try:
         ser = serial.Serial(selected_port, baud, timeout=2)
-        ser.dtr = True
-        ser.rts = True
+        ser.dtr = False
+        ser.rts = False
         time.sleep(1.0)
     except Exception as e:
         print(f"❌ {selected_port} 포트를 열 수 없습니다: {e}")

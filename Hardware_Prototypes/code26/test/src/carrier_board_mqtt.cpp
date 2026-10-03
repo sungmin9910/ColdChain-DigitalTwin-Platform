@@ -11,6 +11,7 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <time.h>
+#include <sys/time.h>
 
 // ==========================================
 // 1. 하드웨어 핀 및 통신 파라미터 정의
@@ -70,11 +71,15 @@ unsigned long lastShockTime = 0;
 unsigned long lastMqttAttempt = 0;
 
 // ==========================================
-// 3. LittleFS 블랙박스 & 오프라인 버퍼 관리
+// 3. LittleFS 블랙박스 링버퍼 & 오프라인 버퍼 관리
 // ==========================================
-const char* master_log_file = "/telemetry_log.jsonl";   // 항시 영구 기록 (블랙박스 마스터 로그)
-const char* offline_buffer_file = "/offline_buf.jsonl"; // 오프라인 시 임시 버퍼 (온라인 복구 시 전송)
-#define MAX_LOG_SIZE_BYTES (1024 * 1024)               // 최대 1MB
+const char* master_log_curr = "/telemetry_log.jsonl";      // 현재 기록 세그먼트 (최대 512KB)
+const char* master_log_old  = "/telemetry_log_old.jsonl";  // 직전 기록 세그먼트 (최대 512KB)
+const char* offline_buffer_file = "/offline_buf.jsonl";    // 오프라인 시 임시 버퍼 (온라인 복구 시 전송)
+
+#define SEGMENT_MAX_BYTES     (512 * 1024)                 // 세그먼트 당 512KB (총 1.0MB 항시 유지)
+#define OFFLINE_BUF_MAX_BYTES (300 * 1024)                 // 오프라인 버퍼 최대 300KB
+
 bool littlefs_ready = false;
 bool has_offline_data = false;
 unsigned long totalSavedRecords = 0;
@@ -82,31 +87,46 @@ unsigned long totalSavedRecords = 0;
 void logToLittleFS(const char* jsonStr, bool isOffline) {
   if (!littlefs_ready) return;
 
-  // 1) 항시 블랙박스 영구 저장 (/telemetry_log.jsonl)
-  File fMaster = LittleFS.open(master_log_file, FILE_APPEND);
-  if (fMaster) {
-    if (fMaster.size() < MAX_LOG_SIZE_BYTES) {
-      fMaster.println(jsonStr);
-      fMaster.flush();
-      totalSavedRecords++;
-      Serial.printf("  💾 [LittleFS 블랙박스] 저장 완료 (파일: %u B, 누적: %lu건)\n", (unsigned int)fMaster.size(), totalSavedRecords);
-    } else {
-      Serial.println("  ⚠️ [LittleFS 블랙박스] 1MB 용량 한도 도달");
+  // 1) 링버퍼(순환 기록): 현재 활성 파일이 512KB 이상이면 직전 세그먼트로 회전(Rotate)하여 항시 최신 1MB 보존
+  if (LittleFS.exists(master_log_curr)) {
+    File fCheck = LittleFS.open(master_log_curr, FILE_READ);
+    if (fCheck) {
+      size_t cur_sz = fCheck.size();
+      fCheck.close();
+      if (cur_sz >= SEGMENT_MAX_BYTES) {
+        if (LittleFS.exists(master_log_old)) {
+          LittleFS.remove(master_log_old);
+        }
+        LittleFS.rename(master_log_curr, master_log_old);
+        Serial.printf("  🔄 [LittleFS 링버퍼 회전] %u B 도달 -> 이전 세그먼트 회전 (최신 1MB 항시 유지)\n", (unsigned int)cur_sz);
+      }
     }
-    fMaster.close();
-  } else {
-    Serial.println("  ❌ [LittleFS 블랙박스] 파일 열기 실패");
   }
 
-  // 2) 오프라인 상태일 경우 재전송 버퍼에도 기록 (/offline_buf.jsonl)
+  // 활성 세그먼트에 새 데이터 추가 (Append)
+  File fMaster = LittleFS.open(master_log_curr, FILE_APPEND);
+  if (fMaster) {
+    fMaster.println(jsonStr);
+    fMaster.flush();
+    totalSavedRecords++;
+    Serial.printf("  💾 [LittleFS 링버퍼] 저장 완료 (현재 세그먼트: %u B, 누적: %lu건)\n", 
+                  (unsigned int)fMaster.size(), totalSavedRecords);
+    fMaster.close();
+  } else {
+    Serial.println("  ❌ [LittleFS 링버퍼] 파일 열기 실패");
+  }
+
+  // 2) 오프라인 상태일 경우 재전송 버퍼에도 큐잉 (/offline_buf.jsonl)
   if (isOffline) {
     File fBuf = LittleFS.open(offline_buffer_file, FILE_APPEND);
     if (fBuf) {
-      if (fBuf.size() < MAX_LOG_SIZE_BYTES) {
+      if (fBuf.size() < OFFLINE_BUF_MAX_BYTES) {
         fBuf.println(jsonStr);
         fBuf.flush();
         has_offline_data = true;
         Serial.printf("  📦 [LittleFS 오프라인 버퍼] 미전송 패킷 큐잉 (버퍼: %u B)\n", (unsigned int)fBuf.size());
+      } else {
+        Serial.println("  ⚠️ [LittleFS 오프라인 버퍼] 300KB 한도 도달");
       }
       fBuf.close();
     }
@@ -146,16 +166,66 @@ void flushOfflineBuffer() {
 }
 
 // ==========================================
-// 3. NTP 시간 포맷 함수 (KST)
+// 4. GPS 위성 & NTP 시각 자동 동기화 (KST)
 // ==========================================
+bool gps_time_synced = false;
+
+// UTC 날짜/시간을 표준 Unix Epoch(초)로 고속 변환하는 경량 함수
+time_t utcToEpoch(int y, int m, int d, int h, int min, int s) {
+  int a = (14 - m) / 12;
+  int yr = y + 4800 - a;
+  int mn = m + 12 * a - 3;
+  long jdn = d + (153 * mn + 2) / 5 + 365 * yr + yr / 4 - yr / 100 + yr / 400 - 32045;
+  long days = jdn - 2440588; // 1970-01-01 JDN
+  return (time_t)(days * 86400LL + h * 3600 + min * 60 + s);
+}
+
+// 핫스팟/인터넷(NTP) 없이도 GPS 위성 신호가 잡히면 RTC 시스템 시각을 자동으로 UTC로 설정
+void syncTimeFromGPS() {
+  if (gps.date.isValid() && gps.time.isValid() && gps.date.year() >= 2024) {
+    static unsigned long lastGpsSync = 0;
+    if (!gps_time_synced || (millis() - lastGpsSync > 30000)) {
+      lastGpsSync = millis();
+
+      time_t utc_epoch = utcToEpoch(gps.date.year(), gps.date.month(), gps.date.day(),
+                                    gps.time.hour(), gps.time.minute(), gps.time.second());
+      if (utc_epoch > 1700000000) { // 2023년 이후 유효성 검증
+        struct timeval tv = { .tv_sec = utc_epoch, .tv_usec = 0 };
+        settimeofday(&tv, NULL);
+        gps_time_synced = true;
+        Serial.printf("  ⏰ [GPS 위성 시각 동기화 완료] %04d-%02d-%02d %02d:%02d:%02d UTC (KST 자동 적용)\n",
+                      gps.date.year(), gps.date.month(), gps.date.day(),
+                      gps.time.hour(), gps.time.minute(), gps.time.second());
+      }
+    }
+  }
+}
+
 String getFormattedTime() {
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo, 100)) {
-    return "2026-10-01 00:00:00";
+  // 1순위: ESP32 시스템 RTC 시각 (NTP 또는 GPS settimeofday로 동기화된 시간, KST 자동 반영)
+  if (getLocalTime(&timeinfo, 30)) {
+    if (timeinfo.tm_year + 1900 >= 2024) {
+      char timeStr[32];
+      strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
+      return String(timeStr);
+    }
   }
-  char timeStr[32];
-  strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
-  return String(timeStr);
+
+  // 2순위: 시스템 RTC가 아직 안 맞춰졌어도 GPS 위성 시각이 유효하다면 직접 KST(UTC+9) 계산
+  if (gps.date.isValid() && gps.time.isValid() && gps.date.year() >= 2024) {
+    time_t kst_epoch = utcToEpoch(gps.date.year(), gps.date.month(), gps.date.day(),
+                                  gps.time.hour(), gps.time.minute(), gps.time.second()) + (9 * 3600);
+    struct tm *kst_tm = gmtime(&kst_epoch);
+    if (kst_tm) {
+      char timeStr[32];
+      strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", kst_tm);
+      return String(timeStr);
+    }
+  }
+
+  // 3순위: GPS 위성도 없고 NTP도 아직 연결되지 않은 초기 상태
+  return "2026-10-01 00:00:00";
 }
 
 // ==========================================
@@ -315,13 +385,34 @@ void setup() {
     size_t total = LittleFS.totalBytes();
     size_t used = LittleFS.usedBytes();
     size_t log_size = 0;
-    if (LittleFS.exists(master_log_file)) {
-      File f = LittleFS.open(master_log_file, FILE_READ);
-      log_size = f.size();
-      while (f.available()) {
-        if (f.read() == '\n') totalSavedRecords++;
+    
+    // 고속 버퍼(512B)로 누적 레코드 카운트 (부팅 0.05초 완료)
+    uint8_t count_buf[512];
+    if (LittleFS.exists(master_log_old)) {
+      File fOld = LittleFS.open(master_log_old, FILE_READ);
+      if (fOld) {
+        log_size += fOld.size();
+        while (fOld.available()) {
+          int n = fOld.read(count_buf, sizeof(count_buf));
+          for (int i = 0; i < n; i++) {
+            if (count_buf[i] == '\n') totalSavedRecords++;
+          }
+        }
+        fOld.close();
       }
-      f.close();
+    }
+    if (LittleFS.exists(master_log_curr)) {
+      File fCurr = LittleFS.open(master_log_curr, FILE_READ);
+      if (fCurr) {
+        log_size += fCurr.size();
+        while (fCurr.available()) {
+          int n = fCurr.read(count_buf, sizeof(count_buf));
+          for (int i = 0; i < n; i++) {
+            if (count_buf[i] == '\n') totalSavedRecords++;
+          }
+        }
+        fCurr.close();
+      }
     }
     Serial.printf("OK (사용량: %u / %u bytes, 기존 누적: %u bytes, %lu건)\n", 
                   (unsigned int)used, (unsigned int)total, (unsigned int)log_size, totalSavedRecords);
@@ -362,39 +453,79 @@ void handleSerialCommands() {
 
     if (cmd.equalsIgnoreCase("read") || cmd.equalsIgnoreCase("dump")) {
       Serial.println("\n================ [LittleFS 블랙박스 덤프 시작] ================");
-      if (!littlefs_ready || !LittleFS.exists(master_log_file)) {
-        Serial.println("저장된 로그 파일이 없습니다.");
+      if (!littlefs_ready) {
+        Serial.println("LittleFS가 마운트되지 않았습니다.");
       } else {
-        File f = LittleFS.open(master_log_file, FILE_READ);
         unsigned long count = 0;
-        while (f.available()) {
-          String line = f.readStringUntil('\n');
-          Serial.println(line);
-          count++;
+        // 1) 이전 세그먼트가 있으면 먼저 덤프
+        if (LittleFS.exists(master_log_old)) {
+          File fOld = LittleFS.open(master_log_old, FILE_READ);
+          if (fOld) {
+            while (fOld.available()) {
+              String line = fOld.readStringUntil('\n');
+              Serial.println(line);
+              count++;
+            }
+            fOld.close();
+          }
         }
-        f.close();
+        // 2) 현재 활성 세그먼트 덤프
+        if (LittleFS.exists(master_log_curr)) {
+          File fCurr = LittleFS.open(master_log_curr, FILE_READ);
+          if (fCurr) {
+            while (fCurr.available()) {
+              String line = fCurr.readStringUntil('\n');
+              Serial.println(line);
+              count++;
+            }
+            fCurr.close();
+          }
+        }
+        if (count == 0) {
+          Serial.println("저장된 로그 파일이 없습니다.");
+        }
         Serial.printf("================ [덤프 종료: 총 %lu 건] ================\n\n", count);
       }
     } else if (cmd.equalsIgnoreCase("clear") || cmd.equalsIgnoreCase("reset")) {
-      if (LittleFS.exists(master_log_file)) {
-        LittleFS.remove(master_log_file);
+      if (LittleFS.exists(master_log_curr)) {
+        LittleFS.remove(master_log_curr);
+      }
+      if (LittleFS.exists(master_log_old)) {
+        LittleFS.remove(master_log_old);
       }
       if (LittleFS.exists(offline_buffer_file)) {
         LittleFS.remove(offline_buffer_file);
       }
       totalSavedRecords = 0;
-      Serial.println("\n🗑️ [LittleFS] 블랙박스 및 오프라인 버퍼가 초기화되었습니다.\n");
+      Serial.println("\n🗑️ [LittleFS] 블랙박스 링버퍼 및 오프라인 버퍼가 0건으로 초기화되었습니다.\n");
     } else if (cmd.equalsIgnoreCase("info") || cmd.equalsIgnoreCase("stat")) {
       size_t total = LittleFS.totalBytes();
       size_t used = LittleFS.usedBytes();
       size_t fsize = 0;
-      if (LittleFS.exists(master_log_file)) {
-        File f = LittleFS.open(master_log_file, FILE_READ);
-        fsize = f.size();
-        f.close();
+      if (LittleFS.exists(master_log_curr)) {
+        File fCurr = LittleFS.open(master_log_curr, FILE_READ);
+        if (fCurr) {
+          fsize += fCurr.size();
+          fCurr.close();
+        }
       }
-      Serial.printf("\n📊 [LittleFS 현황] 전체: %u B, 사용: %u B, 마스터로그: %u B (총 %lu건 기록됨)\n\n",
-                    (unsigned int)total, (unsigned int)used, (unsigned int)fsize, totalSavedRecords);
+      if (LittleFS.exists(master_log_old)) {
+        File fOld = LittleFS.open(master_log_old, FILE_READ);
+        if (fOld) {
+          fsize += fOld.size();
+          fOld.close();
+        }
+      }
+      size_t obuf_size = 0;
+      if (LittleFS.exists(offline_buffer_file)) {
+        File fBuf = LittleFS.open(offline_buffer_file, FILE_READ);
+        if (fBuf) {
+          obuf_size = fBuf.size();
+          fBuf.close();
+        }
+      }
+      Serial.printf("\n📊 [LittleFS 링버퍼 현황] 전체: %u B, 사용: %u B | 블랙박스(최신1MB 유지): %u B (%lu건), 오프라인버퍼: %u B\n\n",
+                    (unsigned int)total, (unsigned int)used, (unsigned int)fsize, totalSavedRecords, (unsigned int)obuf_size);
     }
   }
 }
@@ -406,10 +537,11 @@ void loop() {
   // 1) 시리얼 명령어 처리
   handleSerialCommands();
 
-  // 2) GPS 백그라운드 NMEA 파싱
+  // 2) GPS 백그라운드 NMEA 파싱 및 시각 자동 동기화
   while (Serial1.available() > 0) {
     gps.encode(Serial1.read());
   }
+  syncTimeFromGPS();
 
   // 3) Wi-Fi 및 MQTT 연결 유지 (비블로킹)
   bool wifi_connected = (wifiMulti.run() == WL_CONNECTED);
