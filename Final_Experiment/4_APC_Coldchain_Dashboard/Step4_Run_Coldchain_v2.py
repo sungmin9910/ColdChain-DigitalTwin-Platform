@@ -581,11 +581,30 @@ while True:
         gps_is_valid = (gps_lat_val != 0.0 and gps_lng_val != 0.0)
 
         if "대기" not in incoming_status and "실내" not in incoming_status:
-            if gps_is_valid:
+            was_stopped = not st.session_state.trip_started
+            now_driving = gps_is_valid or (gps_speed_val > 2.5)
+
+            if was_stopped and now_driving:
+                # 🚗 대기 상태에서 신규 주행 시작 감지 -> 새 세션 자동 생성 및 이전 화면 흔적 자동 리셋!
+                ts_val_str = str(msg.get("timestamp") or msg.get("timestamp_str") or "")
+                if len(ts_val_str) >= 16 and not ts_val_str.startswith("2026-10-01 00:00"):
+                    dt_part = ts_val_str[:16].replace(" ", "_").replace(":", "시") + "분"
+                    st.session_state.run_id = f"주행_{dt_part}"
+                else:
+                    st.session_state.run_id = generate_run_id()
+                
+                # 이전 대기/테스트 화면 데이터 자동 비우기
+                data_history.clear()
                 st.session_state.trip_started = True
-                st.session_state.last_valid_gps = (gps_lat_val, gps_lng_val)
-            elif gps_speed_val > 2.5:
+                if gps_is_valid:
+                    st.session_state.last_valid_gps = (gps_lat_val, gps_lng_val)
+                print(f"🚀 [스마트 자동 세션 개시] 신규 주행 감지 -> 새 세션 '{st.session_state.run_id}' 자동 개시 및 화면 초기화 완료!")
+            elif now_driving:
                 st.session_state.trip_started = True
+                if gps_is_valid:
+                    st.session_state.last_valid_gps = (gps_lat_val, gps_lng_val)
+
+        msg['run_id'] = st.session_state.run_id
 
         # 터널/음영구간 통과 중일 때: 직전 유효 좌표 보정 (0,0으로 튀는 현상 방지)
         is_in_tunnel = False
