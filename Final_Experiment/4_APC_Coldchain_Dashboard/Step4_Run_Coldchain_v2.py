@@ -921,12 +921,29 @@ while True:
                     
                     df_long['Metric'] = df_long['Metric'].map(metric_labels)
                     
+                    axis_x_compact = alt.Axis(
+                        format='%H:%M',
+                        labelAngle=0,
+                        tickCount=6,
+                        title=None,
+                        labelFontSize=11,
+                        labelColor='#888888',
+                        grid=True,
+                        gridDash=[2, 4],
+                        gridOpacity=0.25
+                    )
+                    
                     chart = alt.Chart(df_long).mark_line().encode(
-                        x=alt.X('timestamp:T', axis=alt.Axis(labels=False, ticks=False), title=None),
+                        x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
                         y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title=y_title),
                         color=alt.Color('Metric:N', 
                                         scale=alt.Scale(domain=domain_list, range=['#FF5733', '#33A2FF']),
-                                        legend=alt.Legend(orient='bottom', title=None))
+                                        legend=alt.Legend(orient='bottom', title=None)),
+                        tooltip=[
+                            alt.Tooltip('timestamp:T', title='시간' if st.session_state.lang == 'KO' else 'Time', format='%H:%M:%S'),
+                            alt.Tooltip('Metric:N', title='항목' if st.session_state.lang == 'KO' else 'Metric'),
+                            alt.Tooltip('Value:Q', title='수치' if st.session_state.lang == 'KO' else 'Value', format='.2f')
+                        ]
                     ).properties(
                         height=400
                     ).configure_axis(
@@ -949,12 +966,28 @@ while True:
                     df_reset['Metric'] = metric_label
                     y_title = '조도 (Lux)' if st.session_state.lang == 'KO' else 'Lux'
                     
+                    axis_x_lux = alt.Axis(
+                        format='%H:%M',
+                        labelAngle=0,
+                        tickCount=6,
+                        title=None,
+                        labelFontSize=11,
+                        labelColor='#888888',
+                        grid=True,
+                        gridDash=[2, 4],
+                        gridOpacity=0.25
+                    )
+                    
                     chart = alt.Chart(df_reset).mark_area().encode(
-                        x=alt.X('timestamp:T', axis=alt.Axis(labels=False, ticks=False), title=None),
+                        x=alt.X('timestamp:T', axis=axis_x_lux, title=None),
                         y=alt.Y('lux:Q', scale=alt.Scale(zero=False), title=y_title),
                         color=alt.Color('Metric:N', 
                                         scale=alt.Scale(domain=[metric_label], range=['#FFD700']), 
-                                        legend=alt.Legend(orient='bottom', title=None))
+                                        legend=alt.Legend(orient='bottom', title=None)),
+                        tooltip=[
+                            alt.Tooltip('timestamp:T', title='시간' if st.session_state.lang == 'KO' else 'Time', format='%H:%M:%S'),
+                            alt.Tooltip('lux:Q', title='조도(Lux)' if st.session_state.lang == 'KO' else 'Lux', format='.1f')
+                        ]
                     ).properties(
                         height=400
                     ).configure_axis(
@@ -976,11 +1009,28 @@ while True:
                     
                     # 1) 충격량 메인 라인 (왼쪽 Y축 - 주인공)
                     y_g_title = '충격량 (G-Force)' if is_ko else 'Impact (G-Force)'
+                    axis_x_gforce = alt.Axis(
+                        format='%H:%M',
+                        labelAngle=0,
+                        tickCount=6,
+                        title=None,
+                        labelFontSize=11,
+                        labelColor='#888888',
+                        grid=True,
+                        gridDash=[2, 4],
+                        gridOpacity=0.25
+                    )
+                    
                     gforce_line = alt.Chart(df_reset).mark_line(
                         color='#E74C3C', strokeWidth=2.2
                     ).encode(
-                        x=alt.X('timestamp:T', axis=alt.Axis(labels=False, ticks=False), title=None),
-                        y=alt.Y('g_force:Q', axis=alt.Axis(title=y_g_title, titleColor='#E74C3C', grid=True), scale=alt.Scale(zero=False))
+                        x=alt.X('timestamp:T', axis=axis_x_gforce, title=None),
+                        y=alt.Y('g_force:Q', axis=alt.Axis(title=y_g_title, titleColor='#E74C3C', grid=True), scale=alt.Scale(zero=False)),
+                        tooltip=[
+                            alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time', format='%H:%M:%S'),
+                            alt.Tooltip('g_force:Q', title='충격량(G)' if is_ko else 'Impact(G)', format='.2f'),
+                            alt.Tooltip('speed:Q', title='속도(km/h)' if is_ko else 'Speed(km/h)', format='.1f')
+                        ]
                     )
                     
                     # 2) 2.0G 이상 충격 피크 포인트 강조 (빨간 점)
@@ -992,7 +1042,7 @@ while True:
                             x=alt.X('timestamp:T'),
                             y=alt.Y('g_force:Q'),
                             tooltip=[
-                                alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time'),
+                                alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time', format='%H:%M:%S'),
                                 alt.Tooltip('g_force:Q', title='충격량(G)' if is_ko else 'Impact(G)', format='.2f'),
                                 alt.Tooltip('speed:Q', title='당시속도(km/h)' if is_ko else 'Speed(km/h)', format='.1f')
                             ]
@@ -1024,8 +1074,12 @@ while True:
                         speed_layer = alt.Chart(df_reset).mark_line(
                             color='#2ECC71', strokeWidth=1.4, opacity=0.6
                         ).encode(
-                            x=alt.X('timestamp:T', axis=alt.Axis(labels=False, ticks=False), title=None),
-                            y=alt.Y('speed:Q', axis=alt.Axis(title=y_spd_title, titleColor='#2ECC71', grid=False), scale=alt.Scale(zero=True))
+                            x=alt.X('timestamp:T', axis=axis_x_gforce, title=None),
+                            y=alt.Y('speed:Q', axis=alt.Axis(title=y_spd_title, titleColor='#2ECC71', grid=False), scale=alt.Scale(zero=True)),
+                            tooltip=[
+                                alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time', format='%H:%M:%S'),
+                                alt.Tooltip('speed:Q', title='속도(km/h)' if is_ko else 'Speed(km/h)', format='.1f')
+                            ]
                         )
                         combined_chart = alt.layer(speed_layer, gforce_group).resolve_scale(y='independent')
                     else:
