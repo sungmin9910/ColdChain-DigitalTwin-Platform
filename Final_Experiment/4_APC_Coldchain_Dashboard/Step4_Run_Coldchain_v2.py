@@ -88,6 +88,8 @@ if 'lang' not in st.session_state:
     st.session_state.lang = 'KO'
 if 'run_id' not in st.session_state:
     st.session_state.run_id = generate_run_id()
+if 'session_user_locked' not in st.session_state:
+    st.session_state.session_user_locked = True
 
 st.set_page_config(
     page_title=LANG_DICT[st.session_state.lang]['page_title'],
@@ -309,15 +311,23 @@ mqtt_client = start_mqtt_client()
 # 3. UI 구성
 # ----------------------------------------------------------------
 
-# DB에서 고유 run_id 목록 가져오기
+# DB에서 고유 run_id 목록 및 메타데이터 가져오기
 run_ids = ["실시간 주행 (현재 실험)"]
+session_meta_dict = {}
+
 conn = get_mysql_connection()
 if conn:
     try:
         with conn.cursor() as cursor:
-            # 1건 이상 기록된 모든 주행 세션을 최신순으로 가져오기
+            # 3건 이상 기록된 정상 세션의 요약 메타데이터(시작/종료, 건수, 최고속도, 온습도) 조회
             cursor.execute("""
-                SELECT run_id 
+                SELECT run_id, 
+                       COUNT(*) as cnt, 
+                       MIN(timestamp_str) as start_ts, 
+                       MAX(timestamp_str) as end_ts,
+                       MAX(speed) as max_spd,
+                       MIN(temperature) as min_temp,
+                       MAX(temperature) as max_temp
                 FROM sensor_data 
                 WHERE run_id IS NOT NULL 
                 GROUP BY run_id 
@@ -329,6 +339,7 @@ if conn:
                 val = r["run_id"]
                 if val not in run_ids:
                     run_ids.append(val)
+                session_meta_dict[val] = r
     except Exception as e:
         print(f"run_ids 로드 에러: {e}")
     finally:
@@ -352,32 +363,48 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # [2] 실험 세션 및 주행 데이터 선택
+    # [2] 지능형 동적 세션 라벨 생성기 (중복 원천 방지 & 미래 세션 100% 자동 지원)
     def format_session_label(session_id):
         if session_id == "실시간 주행 (현재 실험)":
             return "🟢 실시간 주행 (현재 실험)"
-        elif "fridge" in session_id or "냉장고" in session_id:
-            return "❄️ [10-06 급랭실험] 냉장고 스텝인풋 (185건, 27°C ➔ 5.6°C)"
-        elif session_id == "run_20261006_204402_evening" or "1006_evening" in session_id:
-            return "🚗 [10-06 저녁주행] 전북대 ➔ 자택 (179건, 최고 83km/h)"
-        elif "15시36분" in session_id or "20261004_15" in session_id:
-            return "🚗 [10-04 오후주행] 전주 시내 테스트 (300건)"
-        elif "124656" in session_id or "12시" in session_id or "20261004_12" in session_id:
-            return "🚗 [10-04 낮주행] 전북대 ➔ 전주 시내 (283건)"
-        elif "20261003_1834" in session_id:
-            return "🚗 [10-03 저녁주행] 야간 주행 벤치마크 (7건)"
-        elif "20261003_1800" in session_id:
-            return "🧪 [10-03 센서검증] 통신 및 센서 기본점검 (3건)"
-        elif "departure" in session_id:
-            return "🚗 [10-02 편도출발] 전주 ➔ 대전 (89km, 1,356건)"
-        elif "return" in session_id:
-            return "🚗 [10-02 편도복귀] 대전 ➔ 전주 (85km, 478건)"
-        elif "065739" in session_id:
-            return "🧪 [10-01 야외검증] 캠퍼스 GPS 텔레메트리 (157건)"
-        elif "30km" in session_id:
-            return "📦 [07-15 모의주행] 30km 표준 시뮬레이션 (181건)"
-        else:
-            return f"📂 {session_id}"
+        
+        meta = session_meta_dict.get(session_id)
+        if meta:
+            cnt = meta.get('cnt', 0)
+            start_ts = str(meta.get('start_ts', ''))
+            max_spd = float(meta.get('max_spd') or 0.0)
+            min_temp = float(meta.get('min_temp') or 0.0)
+            max_temp = float(meta.get('max_temp') or 0.0)
+            
+            # 날짜 및 시각 태그 생성 (MM-DD HH:MM)
+            dt_tag = f"[{start_ts[5:10]} {start_ts[11:16]}]" if len(start_ts) >= 16 else ""
+
+            # 1) 유명 핵심 기준 세션 매핑
+            if "departure" in session_id:
+                return f"🚗 [10-02 편도출발] 전주 ➔ 대전 (89km, {cnt:,}건)"
+            elif "return" in session_id:
+                return f"🚗 [10-02 편도복귀] 대전 ➔ 전주 (85km, {cnt:,}건)"
+            elif "30km" in session_id:
+                return f"📦 [07-15 모의주행] 30km 표준 시뮬레이션 ({cnt}건)"
+            elif "065739" in session_id:
+                return f"🧪 [10-01 야외검증] 캠퍼스 GPS 텔레메트리 ({cnt}건)"
+
+            # 2) 지능형 자동 분류 (주행 vs 급랭/챔버 vs 정적실험)
+            clean_name = session_id
+            for pfx in ["run_", "주행_"]:
+                if clean_name.startswith(pfx):
+                    clean_name = clean_name[len(pfx):]
+            if len(clean_name) > 20:
+                clean_name = clean_name[:18] + ".."
+
+            if "fridge" in session_id or "냉장고" in session_id or (max_temp - min_temp >= 4.0 and max_spd < 5.0):
+                return f"❄️ {dt_tag} {clean_name} ({cnt}건, {max_temp:.1f}°C➔{min_temp:.1f}°C)"
+            elif max_spd >= 15.0 or "주행" in session_id or "driving" in session_id:
+                return f"🚗 {dt_tag} {clean_name} ({cnt}건, 최고 {max_spd:.0f}km/h)"
+            else:
+                return f"🧪 {dt_tag} {clean_name} ({cnt}건, {min_temp:.1f}°C)"
+
+        return f"📂 {session_id}"
 
     selected_run = st.selectbox(
         "📂 조회할 세션 선택" if st.session_state.lang == 'KO' else "📂 Select Session",
@@ -414,10 +441,18 @@ with st.sidebar:
             placeholder="미입력 시 현재 시간으로 자동 생성" if st.session_state.lang == 'KO' else "Auto-generated if empty"
         )
         
+        lock_session = st.checkbox(
+            "🔒 세션 ID 고정 (정차/신호대기 시 분할 방지)" if st.session_state.lang == 'KO' else "🔒 Lock Session ID (Prevent Split)",
+            value=st.session_state.get('session_user_locked', True),
+            help="체크 시 3분 이상 정차하거나 터널/음영구간을 통과해도 세션 ID가 자동으로 새로 생성되지 않고 단일 세션으로 계속 유지됩니다."
+        )
+        st.session_state.session_user_locked = lock_session
+        
         # 버튼 텍스트 잘림 해결 (풀위드 1열 배치)
         if st.button("🚀 새 실험 세션 시작 (화면 리셋)" if st.session_state.lang == 'KO' else "🚀 Start New Session", type="primary", use_container_width=True):
             if new_run_input.strip():
                 st.session_state.run_id = new_run_input.strip()
+                st.session_state.session_user_locked = True
             else:
                 st.session_state.run_id = generate_run_id()
             
@@ -616,8 +651,9 @@ while True:
         if "대기" not in incoming_status and "실내" not in incoming_status:
             if was_stopped and now_driving:
                 # 🚗 실내/대기에서 완전 신규 주행 시작 감지
-                # 단, 직전 주행 종료 후 5분 이내라면 기존 세션을 유지하여 분할 방지
-                should_create_new_session = (now_ts - st.session_state.last_driving_time > 300) or not st.session_state.run_id or st.session_state.run_id.startswith("run_")
+                # 세션 락(session_user_locked)이 켜져있으면 세션을 절대 임의로 쪼개지 않음
+                user_locked = st.session_state.get('session_user_locked', True)
+                should_create_new_session = (not user_locked) and ((now_ts - st.session_state.last_driving_time > 300) or not st.session_state.run_id)
                 
                 if should_create_new_session:
                     if len(ts_val_str) >= 16 and not ts_val_str.startswith("2026-10-01 00:00"):
