@@ -75,6 +75,7 @@ flowchart TD
 * `08_Vehicle_Experiment_Handover_Guide.md`: 차량 주행 실험 인계 가이드 & 텔레메트리 파이프라인 분석.
 * **`09_Vehicle_Experiment_Data_Recovery_and_Dashboard_Optimization.md`**: **실제 차량 주행(전주-대전 174km) 데이터 복구 및 과일 충격량(G-Force) 중심 관제 대시보드 고도화 보고서**.
 * **`10_CarrierBoard_Power_Battery_Assembly_and_Telemetry_Guide.md`**: **CarrierBoard 전원 시스템, 배터리 결선, 멀티미터 진단 및 대시보드 텔레메트리 연동 가이드**.
+* **`11_Jetson_Field_Monitoring_Setup_and_SupplyChain_Protocol.md`**: **젯슨 나노 현장 관제 키오스크 설정 및 콜드체인 실증 프로토콜 (A00~A15 연동)**.
 
 ---
 
