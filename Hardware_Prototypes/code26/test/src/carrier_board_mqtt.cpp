@@ -86,6 +86,7 @@ unsigned long totalSavedRecords = 0;
 
 // 스마트 주행 감지 래치 (Smart Trip Latch & LKP)
 bool trip_active = false;      // 야외 출발 후 주행 상태 (터널/지하차도 통과 시에도 true 유지)
+bool manual_force_trip = false;// start 명령어로 시작된 수동 강제 실험 모드 (냉장고/정적 테스트용 3분 타임아웃 해제)
 float last_valid_lat = 0.0;    // 직전 유효 위도 (터널 진입 시 데드레커닝 보존)
 float last_valid_lng = 0.0;    // 직전 유효 경도
 unsigned long lastMotionTime = 0;       // 마지막 IMU 진동/움직임 감지 시각
@@ -356,8 +357,8 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
 
     // [방법 B: 스마트 정지 감지 (Stationary Auto-Timeout)]
     // GPS가 끊겨 있고, 3분(180초) 동안 진동/움직임이 전혀 감지되지 않으면
-    // 터널 통과가 아니라 실내 도착/주차 상태로 자동 판정 -> 대기 모드로 복귀
-    if (trip_active) {
+    // 터널 통과가 아니라 실내 도착/주차 상태로 자동 판정 -> 대기 모드로 복귀 (수동 강제 모드 제외)
+    if (trip_active && !manual_force_trip) {
       unsigned long now_ms = millis();
       bool is_stationary = (now_ms - lastMotionTime >= TRIP_AUTO_STOP_MS);
       bool gps_lost_long = (now_ms - lastGpsFixTime >= TRIP_AUTO_STOP_MS);
@@ -609,9 +610,11 @@ void handleSerialCommands() {
       }
     } else if (cmd.equalsIgnoreCase("start")) {
       trip_active = true;
-      Serial.println("\n🚗 [주행 모드 강제 시작] LittleFS 연속 저장을 시작합니다.\n");
+      manual_force_trip = true;
+      Serial.println("\n🚗 [실험/주행 모드 수동 시작] LittleFS 연속 저장을 시작합니다. (정지 타임아웃 해제, 100% 연속 기록)\n");
     } else if (cmd.equalsIgnoreCase("stop")) {
       trip_active = false;
+      manual_force_trip = false;
       Serial.println("\n💤 [대기 모드 전환] LittleFS 저장을 일시 정지합니다.\n");
     } else if (cmd.equalsIgnoreCase("clear") || cmd.equalsIgnoreCase("reset")) {
       if (LittleFS.exists(master_log_curr)) {
@@ -625,6 +628,7 @@ void handleSerialCommands() {
       }
       totalSavedRecords = 0;
       trip_active = false;
+      manual_force_trip = false;
       last_valid_lat = 0.0;
       last_valid_lng = 0.0;
       Serial.println("\n🗑️ [LittleFS] 블랙박스 링버퍼 및 오프라인 버퍼가 0건으로 초기화되었습니다. (대기 모드 전환)\n");
