@@ -356,6 +356,8 @@ with st.sidebar:
     def format_session_label(session_id):
         if session_id == "실시간 주행 (현재 실험)":
             return "🟢 실시간 주행 (현재 실험)"
+        elif "20261006" in session_id or "2026-10-06" in session_id:
+            return f"🚗 [10-06 저녁 주행] 전북대 ➔ 자택 (179건, 최고 83km/h)"
         elif "20261003" in session_id or "2026-10-03" in session_id:
             if "1834" in session_id or "18" in session_id:
                 return f"🚗 [10-03 저녁 주행] {session_id}"
@@ -563,44 +565,72 @@ while True:
             detected_events.append("온도급변")
         is_anomaly = len(detected_events) > 0
 
-        # 최적화: 스마트 주행 감지 래치 (Smart Trip Latch & Last Known GPS)
+        # 최적화: 스마트 주행 감지 래치 (Smart Trip Latch & Anti-Fragmentation Debounce)
         if 'trip_started' not in st.session_state:
             st.session_state.trip_started = False
         if 'last_valid_gps' not in st.session_state:
             st.session_state.last_valid_gps = (0.0, 0.0)
+        if 'last_driving_time' not in st.session_state:
+            st.session_state.last_driving_time = 0.0
+        if 'standby_packet_count' not in st.session_state:
+            st.session_state.standby_packet_count = 0
 
-        # 보드에서 자동 주행 종료 또는 명시적 대기 상태 패킷 수신 시 주행 래치 해제
         incoming_status = str(msg.get("status", ""))
-        if "대기" in incoming_status or "실내" in incoming_status:
-            st.session_state.trip_started = False
-
         gps_lat_val = float(msg.get("lat", 0.0))
         gps_lng_val = float(msg.get("lng", 0.0))
         gps_speed_val = float(msg.get("speed", 0.0))
         gps_sats_val = int(msg.get("sats", 0))
         gps_is_valid = (gps_lat_val != 0.0 and gps_lng_val != 0.0)
 
-        if "대기" not in incoming_status and "실내" not in incoming_status:
-            was_stopped = not st.session_state.trip_started
-            now_driving = gps_is_valid or (gps_speed_val > 2.5)
+        # 주행 상태 판정 (GPS 유효 좌표 또는 2.5km/h 이상 속도 감지)
+        is_actively_moving = (gps_speed_val > 2.5) or (gps_is_valid and gps_speed_val > 1.0)
+        
+        now_ts = time.time()
+        # 패킷 타임스탬프가 유효하면 타임스탬프 기준 시간도 고려
+        ts_val_str = str(msg.get("timestamp") or msg.get("timestamp_str") or "")
 
+        if is_actively_moving or (gps_is_valid and "대기" not in incoming_status):
+            st.session_state.last_driving_time = now_ts
+            st.session_state.standby_packet_count = 0
+            if gps_is_valid:
+                st.session_state.last_valid_gps = (gps_lat_val, gps_lng_val)
+        else:
+            st.session_state.standby_packet_count += 1
+
+        # 주행 종료 디바운스: 연속 36개 패킷(약 3분) 이상 완전 대기 & 속도 0km/h일 때만 종료 판정
+        if st.session_state.trip_started:
+            if st.session_state.standby_packet_count >= 36 and (now_ts - st.session_state.last_driving_time > 180):
+                st.session_state.trip_started = False
+                print(f"🛑 [주행 종료] 3분 이상 정지 감지 -> 대기 모드 복귀 (세션: {st.session_state.run_id})")
+
+        # 신규 주행 시작 감지 (세션 분할 방지 락 적용)
+        was_stopped = not st.session_state.trip_started
+        now_driving = gps_is_valid or (gps_speed_val > 2.5)
+
+        if "대기" not in incoming_status and "실내" not in incoming_status:
             if was_stopped and now_driving:
-                # 🚗 대기 상태에서 신규 주행 시작 감지 -> 새 세션 자동 생성 및 이전 화면 흔적 자동 리셋!
-                ts_val_str = str(msg.get("timestamp") or msg.get("timestamp_str") or "")
-                if len(ts_val_str) >= 16 and not ts_val_str.startswith("2026-10-01 00:00"):
-                    dt_part = ts_val_str[:16].replace(" ", "_").replace(":", "시") + "분"
-                    st.session_state.run_id = f"주행_{dt_part}"
-                else:
-                    st.session_state.run_id = generate_run_id()
+                # 🚗 실내/대기에서 완전 신규 주행 시작 감지
+                # 단, 직전 주행 종료 후 5분 이내라면 기존 세션을 유지하여 분할 방지
+                should_create_new_session = (now_ts - st.session_state.last_driving_time > 300) or not st.session_state.run_id or st.session_state.run_id.startswith("run_")
                 
-                # 이전 대기/테스트 화면 데이터 자동 비우기
-                data_history.clear()
+                if should_create_new_session:
+                    if len(ts_val_str) >= 16 and not ts_val_str.startswith("2026-10-01 00:00"):
+                        dt_part = ts_val_str[:16].replace(" ", "_").replace(":", "시") + "분"
+                        st.session_state.run_id = f"주행_{dt_part}"
+                    else:
+                        st.session_state.run_id = generate_run_id()
+                    
+                    # 이전 대기 화면 흔적만 안전하게 비우기
+                    data_history.clear()
+                    print(f"🚀 [신규 주행 세션 개시] 새 세션 '{st.session_state.run_id}' 자동 개시!")
+                
                 st.session_state.trip_started = True
+                st.session_state.last_driving_time = now_ts
                 if gps_is_valid:
                     st.session_state.last_valid_gps = (gps_lat_val, gps_lng_val)
-                print(f"🚀 [스마트 자동 세션 개시] 신규 주행 감지 -> 새 세션 '{st.session_state.run_id}' 자동 개시 및 화면 초기화 완료!")
             elif now_driving:
                 st.session_state.trip_started = True
+                st.session_state.last_driving_time = now_ts
                 if gps_is_valid:
                     st.session_state.last_valid_gps = (gps_lat_val, gps_lng_val)
 

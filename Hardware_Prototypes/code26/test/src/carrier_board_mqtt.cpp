@@ -141,10 +141,13 @@ void logToLittleFS(const char* jsonStr, bool isOffline) {
   }
 }
 
-// 오프라인 버퍼가 쌓여있다면 온라인 복구 시 MQTT로 순차 전송
+// 오프라인 버퍼가 쌓여있다면 온라인 복구 시 MQTT로 순차 전송 (안전 무손실 재전송)
 void flushOfflineBuffer() {
   if (!littlefs_ready || !client.connected()) return;
-  if (!has_offline_data) return; // 미전송 데이터가 없을 때는 스킵하여 불필요한 VFS I/O 방지
+  if (!LittleFS.exists(offline_buffer_file)) {
+    has_offline_data = false;
+    return;
+  }
 
   File fBuf = LittleFS.open(offline_buffer_file, FILE_READ);
   if (!fBuf) {
@@ -154,23 +157,73 @@ void flushOfflineBuffer() {
 
   Serial.println("\n📡 [LittleFS 오프라인 버퍼 동기화] 미전송 데이터 MQTT 브로커 전송 중...");
   int sent = 0;
-  while (fBuf.available() && client.connected()) {
+  bool all_sent = true;
+  const char* temp_buf_file = "/offline_tmp.jsonl";
+
+  // 잔여 데이터를 안전하게 보존하기 위한 임시 파일 핸들
+  File fTmp;
+
+  while (fBuf.available()) {
+    if (!client.connected()) {
+      all_sent = false;
+      break;
+    }
+
     String line = fBuf.readStringUntil('\n');
     line.trim();
     if (line.length() == 0) continue;
+
     if (client.publish(mqtt_topic, line.c_str())) {
       sent++;
-      delay(40); // 네트워크 혼잡 방지
+      delay(45); // 네트워크 혼잡 방지
     } else {
+      // 전송 실패 시 이 라인부터 잔여 라인을 fTmp에 보존
+      all_sent = false;
+      if (!fTmp) {
+        fTmp = LittleFS.open(temp_buf_file, FILE_WRITE);
+      }
+      if (fTmp) {
+        fTmp.println(line);
+      }
       break;
     }
   }
+
+  // 중단되었을 경우 나머지 라인들도 fTmp에 보존
+  if (!all_sent) {
+    if (!fTmp) {
+      fTmp = LittleFS.open(temp_buf_file, FILE_WRITE);
+    }
+    while (fBuf.available() && fTmp) {
+      String rem_line = fBuf.readStringUntil('\n');
+      rem_line.trim();
+      if (rem_line.length() > 0) {
+        fTmp.println(rem_line);
+      }
+    }
+  }
+
+  if (fTmp) {
+    fTmp.close();
+  }
   fBuf.close();
 
-  // 정상 전송 후 오프라인 버퍼 삭제
-  LittleFS.remove(offline_buffer_file);
-  has_offline_data = false;
-  Serial.printf("✅ [LittleFS 오프라인 동기화 완료] 총 %d건 브로커 전송 및 버퍼 초기화!\n\n", sent);
+  if (all_sent) {
+    // 100% 온전히 모두 전송 완료된 경우에만 버퍼 삭제
+    LittleFS.remove(offline_buffer_file);
+    has_offline_data = false;
+    Serial.printf("✅ [LittleFS 오프라인 동기화 100%% 완료] 총 %d건 브로커 전송 및 버퍼 초기화!\n\n", sent);
+  } else {
+    // 일부만 전송되고 끊긴 경우: 잔여 데이터로 버퍼 교체하여 다음 연결 시 이어서 전송
+    LittleFS.remove(offline_buffer_file);
+    if (LittleFS.exists(temp_buf_file)) {
+      LittleFS.rename(temp_buf_file, offline_buffer_file);
+      has_offline_data = true;
+      Serial.printf("⚠️ [LittleFS 오프라인 부분 동기화] %d건 전송 후 일시 중단 -> 잔여 데이터 보존 (다음 연결 시 이어서 전송)\n\n", sent);
+    } else {
+      has_offline_data = false;
+    }
+  }
 }
 
 // ==========================================
