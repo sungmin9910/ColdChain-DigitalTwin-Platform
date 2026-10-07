@@ -80,15 +80,16 @@ streamlit run Final_Experiment/4_APC_Coldchain_Dashboard/Step4_Jetson_SplitHUD.p
   --browser.serverAddress localhost &
 ```
 
-#### 2) 우분투 순정 브라우저(Epiphany) 전체화면 키오스크 모드 실행
+#### 2) 우분투 순정 브라우저(Epiphany) 실행
 *(※ Snap 패키지 호환 문제가 없는 우분투 공식 Epiphany 브라우저 사용 권장)*
 ```bash
-DISPLAY=:0 XAUTHORITY=/home/$USER/.Xauthority epiphany-browser -a http://localhost:8501 &
+DISPLAY=:1 XAUTHORITY=/home/$USER/.Xauthority epiphany-browser http://localhost:8501 &
 ```
-*(화면 번호가 `:1`인 경우 `DISPLAY=:1` 입력)*
+*(화면 번호가 `:0`인 경우 `DISPLAY=:0` 입력, `-a` 옵션 없이 URL 직접 입력)*
 > **키오스크 조작 팁**:
 > * 종료: 키보드의 `Alt + F4` 또는 터미널에서 `killall epiphany-browser`
 > * 새로고침: `F5` 또는 `Ctrl + R`
+> * **세션 선택 기능**: 상단 드롭다운에서 `🟢 실시간 주행` 및 과거 주행 기록(전주➔대전 등)을 자유롭게 전환하여 열람 가능하며, 과거 기록을 보는 중에도 우측 배지에 차량의 실시간 온·습도·충격 수치가 상시 표시됩니다.
 
 ---
 
