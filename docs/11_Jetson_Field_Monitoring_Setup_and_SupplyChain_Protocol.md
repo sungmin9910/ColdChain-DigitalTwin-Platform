@@ -93,49 +93,28 @@ DISPLAY=:1 XAUTHORITY=/home/$USER/.Xauthority epiphany-browser http://localhost:
 
 ---
 
-### 3.3 차량 시동/부팅 시 자동 실행(Autostart) 스크립트 구축
+### 3.3 차량 부팅 시 자동 실행(Autostart) 및 바탕화면 원클릭 아이콘 구축
 
-실제 차량이나 현장에서는 전원만 켜면 모니터에 관제 화면이 자동으로 뜨도록 설정하는 것이 가장 이상적입니다.
+젯슨 전원만 켜면 자동으로 모니터에 대시보드가 뜨거나, 바탕화면에서 아이콘을 더블클릭/터치하여 바로 실행할 수 있도록 통합 인스톨러가 제공됩니다.
 
-#### 1) 쉘 스크립트 작성 (`run_kiosk.sh`)
+#### 1) 통합 인스톨러 1회 실행
 ```bash
-nano ~/run_kiosk.sh
-```
-아래 내용을 입력하고 저장(`Ctrl + O` ➔ `Enter` ➔ `Ctrl + X`):
-
-```bash
-#!/bin/bash
-# 1. 네트워크 및 GUI 데스크톱 초기화 대기 (10초)
-sleep 10
-
-# 2. 프로젝트 경로로 이동 (사용자 계정명 확인)
-cd /home/$USER/ColdChain-DigitalTwin-Platform
-
-# 3. Streamlit 대시보드 백그라운드 구동
-streamlit run Final_Experiment/4_APC_Coldchain_Dashboard/Step4_Run_Coldchain_v2.py \
-  --server.port 8501 \
-  --server.headless true \
-  --browser.serverAddress localhost &
-
-# 4. Streamlit 웹서버 기동 대기 (5초)
-sleep 5
-
-# 5. 크로미움 브라우저 전체화면 키오스크 모드로 오픈
-chromium-browser --kiosk --noerrdialogs --disable-infobars http://localhost:8501
+cd ~/ColdChain-DigitalTwin-Platform
+bash scripts/install_jetson_autostart.sh
 ```
 
-#### 2) 스크립트 실행 권한 부여
-```bash
-chmod +x ~/run_kiosk.sh
-```
+#### 2) 등록 결과 및 동작 방식
+1. **바탕화면 바로가기 아이콘 생성**:
+   * `[ColdChain HUD 실행]`: 클릭 시 이전 프로세스를 정리하고 Streamlit 서버와 Epiphany 브라우저를 한 번에 자동 구동합니다.
+   * `[ColdChain HUD 종료]`: 클릭 시 대시보드와 브라우저를 안전하게 한 번에 종료합니다.
+2. **부팅 시 자동 실행 (Autostart)**:
+   * 젯슨 부팅 후 데스크톱 로그인 시 3초 후 자동으로 화면이 열립니다.
+   * *(※ 완전 무인 자동 켜기를 원하실 경우: Ubuntu의 `Settings` ➔ `Users`에서 `Automatic Login`을 ON으로 설정하시면 전원만 켜도 바로 대시보드가 뜹니다.)*
 
-#### 3) Ubuntu GUI 시작 프로그램(Startup Applications) 등록
-1. Jetson 데스크톱 검색창에서 **`Startup Applications`** 검색 및 실행
-2. **Add (추가)** 버튼 클릭:
-   * **Name**: `ColdChain Dashboard Kiosk`
-   * **Command**: `/home/사용자명/run_kiosk.sh` (본인 Ubuntu 계정명)
-   * **Comment**: `Auto-run coldchain kiosk dashboard on boot`
-3. **Save (저장)** 클릭
+#### 3) 자동 실행 해제 (필요 시)
+```bash
+bash scripts/uninstall_jetson_autostart.sh
+```
 
 ---
 
