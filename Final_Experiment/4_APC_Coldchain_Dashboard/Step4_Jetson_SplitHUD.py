@@ -24,10 +24,10 @@ st.markdown("""
 <style>
     /* 전체 여백 극소화 (스크롤 방지) */
     .block-container {
-        padding-top: 0.5rem !important;
-        padding-bottom: 0.5rem !important;
-        padding-left: 0.8rem !important;
-        padding-right: 0.8rem !important;
+        padding-top: 0.35rem !important;
+        padding-bottom: 0.35rem !important;
+        padding-left: 0.7rem !important;
+        padding-right: 0.7rem !important;
         max-width: 100% !important;
     }
     header, footer { visibility: hidden !important; height: 0px !important; }
@@ -38,45 +38,37 @@ st.markdown("""
         color: #f1f5f9 !important;
     }
 
-    /* 상단 슬림바 버튼 스타일링 */
+    /* 드롭다운 셀렉트박스 스타일 (터치 최적화) */
+    div[data-baseweb="select"] {
+        border-radius: 10px !important;
+        font-weight: 700 !important;
+    }
+
+    /* 상단 슬림바 모듈 버튼 스타일 */
     div[data-testid="stButton"] button {
-        border-radius: 12px !important;
-        padding: 8px 14px !important;
+        border-radius: 10px !important;
+        padding: 6px 10px !important;
         font-weight: 800 !important;
-        font-size: 15px !important;
-        transition: all 0.2s ease-in-out !important;
-        border: 2px solid rgba(255, 255, 255, 0.15) !important;
-        background: rgba(255, 255, 255, 0.05) !important;
+        font-size: 13.5px !important;
+        transition: all 0.15s ease-in-out !important;
+        border: 2px solid rgba(255, 255, 255, 0.18) !important;
+        background: rgba(255, 255, 255, 0.06) !important;
         color: #e2e8f0 !important;
         width: 100% !important;
     }
     div[data-testid="stButton"] button:hover {
-        border-color: #00d4ff !important;
-        color: #00d4ff !important;
-        background: rgba(0, 212, 255, 0.1) !important;
-    }
-
-    /* 활성화된 1번/2번 슬롯 버튼 강조 스타일 */
-    .slot-active-1 {
-        border: 2px solid #00e5ff !important;
-        background: rgba(0, 229, 255, 0.18) !important;
+        border-color: #00e5ff !important;
         color: #00e5ff !important;
-        box-shadow: 0 0 12px rgba(0, 229, 255, 0.4) !important;
-    }
-    .slot-active-2 {
-        border: 2px solid #ffaa00 !important;
-        background: rgba(255, 170, 0, 0.18) !important;
-        color: #ffaa00 !important;
-        box-shadow: 0 0 12px rgba(255, 170, 0, 0.4) !important;
+        background: rgba(0, 229, 255, 0.12) !important;
     }
 
-    /* 패널 카드 컨테이너 */
+    /* 차트 및 맵 컨테이너 */
     .hud-card {
         background: #111827;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 14px;
-        padding: 10px 14px;
-        margin-bottom: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 8px 12px;
+        margin-bottom: 4px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -87,6 +79,7 @@ st.markdown("""
 MQTT_BROKER = "broker.emqx.io"
 MQTT_PORT = 1883
 MQTT_TOPIC = "coldchain/telemetry"
+DEFAULT_COLS = ['timestamp', 'lat', 'lng', 'speed', 'g_force', 'temperature', 'humidity', 'lux', 'status', 'device', 'run_id']
 
 def get_kst_now():
     return datetime.now(timezone(timedelta(hours=9)))
@@ -109,23 +102,20 @@ if 'last_valid_gps' not in st.session_state:
 
 # 뷰 토글 함수 (최대 2개 유지, FIFO 슬라이딩 교체)
 def toggle_view(view_key):
-    cur = st.session_state.selected_views
+    cur = list(st.session_state.selected_views)
     if view_key in cur:
-        # 이미 선택된 상태에서 클릭 시 (2개 선택 중일 때만 해제 허용, 1개는 유지)
         if len(cur) > 1:
             cur.remove(view_key)
     else:
-        # 새로운 뷰 선택 시
         if len(cur) < 2:
             cur.append(view_key)
         else:
-            # 2개가 이미 찼으면 가장 오래된 1번을 밀어내고 새 뷰 추가
             cur.pop(0)
             cur.append(view_key)
     st.session_state.selected_views = cur
 
 # ----------------------------------------------------------------
-# 3. AWS RDS MySQL 연동
+# 3. AWS RDS MySQL 연동 및 세션 관리 (기존 대시보드와 동일한 명칭 매핑)
 # ----------------------------------------------------------------
 def get_mysql_connection():
     try:
@@ -174,6 +164,119 @@ def save_to_mysql(msg_dict, run_id):
         print(f"MySQL 저장 에러: {e}")
     finally:
         conn.close()
+
+# DB에서 과거 세션 목록 및 요약 통계 로드
+@st.cache_data(ttl=60)
+def get_all_run_ids_and_meta():
+    run_list = ["실시간 주행 (현재 실험)"]
+    meta_dict = {}
+    conn = get_mysql_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT run_id, 
+                           COUNT(*) as cnt, 
+                           MIN(timestamp_str) as start_ts, 
+                           MAX(timestamp_str) as end_ts,
+                           MAX(speed) as max_spd,
+                           MIN(temperature) as min_temp,
+                           MAX(temperature) as max_temp
+                    FROM sensor_data 
+                    WHERE run_id IS NOT NULL 
+                    GROUP BY run_id 
+                    HAVING COUNT(*) >= 3 
+                    ORDER BY MAX(id) DESC
+                """)
+                rows = cursor.fetchall()
+                for r in rows:
+                    val = r["run_id"]
+                    if val not in run_list:
+                        run_list.append(val)
+                    meta_dict[val] = r
+        except Exception as e:
+            print(f"run_ids 로드 에러: {e}")
+        finally:
+            conn.close()
+    return run_list, meta_dict
+
+# 기존 대시보드와 동일한 지능형 세션 라벨 포맷터
+def format_session_label(session_id):
+    if session_id == "실시간 주행 (현재 실험)":
+        return "🟢 실시간 주행 (현재 센서 스트리밍)"
+    
+    meta = session_meta_dict.get(session_id)
+    if meta:
+        cnt = meta.get('cnt', 0)
+        start_ts = str(meta.get('start_ts', ''))
+        max_spd = float(meta.get('max_spd') or 0.0)
+        min_temp = float(meta.get('min_temp') or 0.0)
+        max_temp = float(meta.get('max_temp') or 0.0)
+        
+        # 1) 유명 핵심 기준 세션 매핑
+        if "departure" in session_id:
+            return f"🚗 [10-02 편도출발] 전주 ➔ 대전 (89km, {cnt:,}건)"
+        elif "return" in session_id:
+            return f"🚗 [10-02 편도복귀] 대전 ➔ 전주 (85km, {cnt:,}건)"
+        elif "30km" in session_id:
+            return f"📦 [07-15 모의주행] 30km 표준 시뮬레이션 ({cnt}건)"
+        elif "065739" in session_id:
+            return f"🧪 [10-01 야외검증] 캠퍼스 GPS 텔레메트리 ({cnt}건)"
+
+        # 2) 지능형 자동 분류 (주행 vs 급랭/챔버 vs 정적실험)
+        dt_tag = f"[{start_ts[5:10]} {start_ts[11:16]}]" if len(start_ts) >= 16 else ""
+        clean_name = session_id
+        for pfx in ["run_", "주행_"]:
+            if clean_name.startswith(pfx):
+                clean_name = clean_name[len(pfx):]
+        if len(clean_name) > 20:
+            clean_name = clean_name[:18] + ".."
+
+        if "fridge" in session_id or "냉장고" in session_id or (max_temp - min_temp >= 4.0 and max_spd < 5.0):
+            return f"❄️ {dt_tag} {clean_name} ({cnt}건, {max_temp:.1f}°C➔{min_temp:.1f}°C)"
+        elif max_spd >= 15.0 or "주행" in session_id or "driving" in session_id:
+            return f"🚗 {dt_tag} {clean_name} ({cnt}건, 최고 {max_spd:.0f}km/h)"
+        else:
+            return f"🧪 {dt_tag} {clean_name} ({cnt}건, {min_temp:.1f}°C)"
+
+    return f"📂 {session_id}"
+
+# 특정 과거 세션 데이터 로드 (캐싱)
+@st.cache_data(ttl=300)
+def load_session_data(target_run_id):
+    history = []
+    conn = get_mysql_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT * FROM sensor_data WHERE run_id = %s ORDER BY id ASC", (target_run_id,))
+                items = cursor.fetchall()
+            for item in items:
+                ts = item.get("timestamp_str")
+                if not ts or ts == "00:00:00" or str(ts).startswith("00:00") or str(ts).startswith("2026-10-01 00:00"):
+                    created_at = item.get("created_at")
+                    if created_at:
+                        ts = (created_at + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                history.append({
+                    "device": item.get("device", "carrier-c6-01"),
+                    "timestamp": str(ts),
+                    "temperature": float(item.get("temperature", 0.0) or 0.0),
+                    "humidity": float(item.get("humidity", 0.0) or 0.0),
+                    "lux": float(item.get("lux", 0.0) or 0.0),
+                    "g_force": float(item.get("g_force", 1.0) or 1.0),
+                    "speed": float(item.get("speed", 0.0) or 0.0),
+                    "lat": float(item.get("lat", 0.0) or 0.0),
+                    "lng": float(item.get("lng", 0.0) or 0.0),
+                    "status": item.get("status", ""),
+                    "run_id": target_run_id
+                })
+        except Exception as e:
+            print(f"과거 세션 로드 실패: {e}")
+        finally:
+            conn.close()
+    return history
 
 # ----------------------------------------------------------------
 # 4. 실시간 MQTT 파이프라인
@@ -232,60 +335,17 @@ mqtt_client = start_mqtt_client()
 # 5. UI 모듈 렌더링 함수들 (지도, 충격량, 온습도, 조도)
 # ----------------------------------------------------------------
 
-# 기본 컬럼 정의
-DEFAULT_COLS = ['timestamp', 'lat', 'lng', 'speed', 'g_force', 'temperature', 'humidity', 'lux', 'status', 'device', 'run_id']
-
-@st.cache_data(ttl=60)
-def load_recent_session():
-    conn = get_mysql_connection()
-    if conn:
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("SELECT run_id FROM sensor_data WHERE run_id IS NOT NULL ORDER BY id DESC LIMIT 1")
-                row = cursor.fetchone()
-                if row:
-                    last_run = row['run_id']
-                    cursor.execute("SELECT * FROM sensor_data WHERE run_id = %s ORDER BY id ASC LIMIT 500", (last_run,))
-                    records = cursor.fetchall()
-                    history = []
-                    for item in records:
-                        history.append({
-                            "device": item.get("device", "carrier-c6-01"),
-                            "timestamp": str(item.get("timestamp_str") or item.get("created_at")),
-                            "temperature": float(item.get("temperature", 0.0) or 0.0),
-                            "humidity": float(item.get("humidity", 0.0) or 0.0),
-                            "lux": float(item.get("lux", 0.0) or 0.0),
-                            "g_force": float(item.get("g_force", 1.0) or 1.0),
-                            "speed": float(item.get("speed", 0.0) or 0.0),
-                            "lat": float(item.get("lat", 0.0) or 0.0),
-                            "lng": float(item.get("lng", 0.0) or 0.0),
-                            "status": item.get("status", ""),
-                            "run_id": last_run
-                        })
-                    return history, last_run
-        except Exception as e:
-            print(f"DB 초기 로드 에러: {e}")
-        finally:
-            conn.close()
-    return [], generate_run_id()
-
-if len(data_history) == 0:
-    cached_records, last_run = load_recent_session()
-    if cached_records:
-        data_history.extend(cached_records)
-        st.session_state.run_id = last_run
-
 # [모듈 1] 📍 실시간 GPS 궤적 지도
 def render_map_module(df_gps, container, height=450):
     with container:
-        st.markdown("<div style='font-size:16px; font-weight:800; color:#00e5ff; margin-bottom:6px;'>📍 실시간 주행 궤적 지도</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:14px; font-weight:800; color:#00e5ff; margin-bottom:4px;'>📍 주행 궤적 지도</div>", unsafe_allow_html=True)
         if df_gps.empty or 'lat' not in df_gps.columns or 'lng' not in df_gps.columns:
-            st.info("🛰️ 위성 신호 및 센서 데이터 수신 대기 중입니다...")
+            st.info("🛰️ 위성 신호 수신 대기 중입니다...")
             return
 
         valid_gps = df_gps[(df_gps['lat'] != 0) & (df_gps['lng'] != 0)]
         if valid_gps.empty:
-            st.info("🛰️ 위성 신호 탐색 대기 중입니다 (야외 이동 시 궤적이 표시됩니다)")
+            st.info("🛰️ 유효 GPS 좌표가 없습니다 (실내 대기 중이거나 위성 탐색 중)")
             return
 
         cur_lat = valid_gps['lat'].iloc[-1]
@@ -294,11 +354,11 @@ def render_map_module(df_gps, container, height=450):
         view_state = pdk.ViewState(
             latitude=cur_lat,
             longitude=cur_lng,
-            zoom=14,
+            zoom=13.5,
             pitch=35
         )
 
-        # 1. 주행 궤적 라인 (두껍고 선명한 형광 청록색)
+        # 1. 주행 궤적 라인 (형광 청록색)
         path_layer = pdk.Layer(
             "PathLayer",
             data=[{"path": valid_gps[['lng', 'lat']].values.tolist()}],
@@ -319,7 +379,7 @@ def render_map_module(df_gps, container, height=450):
             pickable=True
         )
 
-        # 3. 현재 차량 위치 마커
+        # 3. 현재 차량 위치 마커 (네온 그린 + 흰색 외곽선)
         current_layer = pdk.Layer(
             "ScatterplotLayer",
             data=valid_gps.iloc[[-1]],
@@ -343,36 +403,31 @@ def render_map_module(df_gps, container, height=450):
 # [모듈 2] 💥 과일 충격량 & 속도 이중 Y축 차트
 def render_gforce_module(df_chart, container, height=450):
     with container:
-        st.markdown("<div style='font-size:16px; font-weight:800; color:#ff5555; margin-bottom:6px;'>💥 과일 충격량(G) & 속도(km/h) 이중 차트</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:14px; font-weight:800; color:#ff5555; margin-bottom:4px;'>💥 과일 충격량(G) & 주행속도(km/h)</div>", unsafe_allow_html=True)
         if df_chart.empty or 'g_force' not in df_chart.columns:
             st.info("데이터 수집 대기 중...")
             return
 
-        df_c = df_chart.copy().tail(250)
+        df_c = df_chart.copy().tail(350)
         df_c['timestamp'] = pd.to_datetime(df_c['timestamp'], errors='coerce', format='mixed')
         df_c = df_c.dropna(subset=['timestamp'])
 
-        # 메인 라인: 충격량 (오렌지-레드, 굵기 3.2px)
-        g_line = alt.Chart(df_c).mark_line(color='#ff5252', strokeWidth=3.2).encode(
+        g_line = alt.Chart(df_c).mark_line(color='#ff5252', strokeWidth=3.0).encode(
             x=alt.X('timestamp:T', axis=alt.Axis(labels=False, title=None)),
-            y=alt.Y('g_force:Q', scale=alt.Scale(domain=[0.8, max(3.5, df_c['g_force'].max() + 0.3)]), title='충격량 (G-Force)')
+            y=alt.Y('g_force:Q', scale=alt.Scale(domain=[0.8, max(3.5, df_c['g_force'].max() + 0.3)]), title='충격량 (G)')
         )
 
-        # 2.0G 주의 기준선
         r2 = alt.Chart(pd.DataFrame({'y': [2.0]})).mark_rule(color='#ffaa00', strokeDash=[4, 4], strokeWidth=2).encode(y='y:Q')
-        # 3.0G 위험 기준선
         r3 = alt.Chart(pd.DataFrame({'y': [3.0]})).mark_rule(color='#ff1744', strokeDash=[2, 2], strokeWidth=2.5).encode(y='y:Q')
 
-        # 충격 이벤트 하이라이트 (>1.8G)
-        shock_pts = alt.Chart(df_c[df_c['g_force'] >= 1.8]).mark_circle(size=90, color='#ff1744').encode(
+        shock_pts = alt.Chart(df_c[df_c['g_force'] >= 1.8]).mark_circle(size=80, color='#ff1744').encode(
             x='timestamp:T', y='g_force:Q',
             tooltip=['timestamp:T', 'g_force:Q', 'speed:Q']
         )
 
-        # 보조 라인: 속도 (녹색 옅은 라인)
-        speed_line = alt.Chart(df_c).mark_line(color='#00e676', strokeWidth=1.8, opacity=0.6).encode(
+        speed_line = alt.Chart(df_c).mark_line(color='#00e676', strokeWidth=1.8, opacity=0.65).encode(
             x='timestamp:T',
-            y=alt.Y('speed:Q', scale=alt.Scale(domain=[0, 130]), title='차량 속도 (km/h)')
+            y=alt.Y('speed:Q', scale=alt.Scale(domain=[0, 130]), title='속도 (km/h)')
         )
 
         chart = alt.layer(speed_line, g_line, r2, r3, shock_pts).resolve_scale(y='independent').properties(height=height)
@@ -381,19 +436,19 @@ def render_gforce_module(df_chart, container, height=450):
 # [모듈 3] 🌡️ 온·습도 환경 추이 차트
 def render_env_module(df_chart, container, height=450):
     with container:
-        st.markdown("<div style='font-size:16px; font-weight:800; color:#38bdf8; margin-bottom:6px;'>🌡️ 차량 적재함 온·습도 추이</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:14px; font-weight:800; color:#38bdf8; margin-bottom:4px;'>🌡️ 차량 적재함 온·습도 추이</div>", unsafe_allow_html=True)
         if df_chart.empty or 'temperature' not in df_chart.columns:
             st.info("데이터 수집 대기 중...")
             return
 
-        df_c = df_chart.copy().tail(250)
+        df_c = df_chart.copy().tail(350)
         df_c['timestamp'] = pd.to_datetime(df_c['timestamp'], errors='coerce', format='mixed')
         df_c = df_c.dropna(subset=['timestamp'])
 
         df_long = df_c.melt(id_vars=['timestamp'], value_vars=['temperature', 'humidity'], var_name='Metric', value_name='Value')
         df_long['Metric'] = df_long['Metric'].map({'temperature': '온도 (°C)', 'humidity': '습도 (%)'})
 
-        chart = alt.Chart(df_long).mark_line(strokeWidth=3.0).encode(
+        chart = alt.Chart(df_long).mark_line(strokeWidth=2.8).encode(
             x=alt.X('timestamp:T', axis=alt.Axis(labels=False, title=None)),
             y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title='온도 / 습도'),
             color=alt.Color('Metric:N', scale=alt.Scale(domain=['온도 (°C)', '습도 (%)'], range=['#f97316', '#38bdf8']), legend=alt.Legend(orient='top', title=None))
@@ -403,16 +458,16 @@ def render_env_module(df_chart, container, height=450):
 # [모듈 4] 💡 조도 센서 차트 (박스 개봉 감지)
 def render_lux_module(df_chart, container, height=450):
     with container:
-        st.markdown("<div style='font-size:16px; font-weight:800; color:#facc15; margin-bottom:6px;'>💡 실시간 조도(Lux) - 박스 개봉 모니터링</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:14px; font-weight:800; color:#facc15; margin-bottom:4px;'>💡 실시간 조도 (박스 개봉 감지)</div>", unsafe_allow_html=True)
         if df_chart.empty or 'lux' not in df_chart.columns:
             st.info("데이터 수집 대기 중...")
             return
 
-        df_c = df_chart.copy().tail(250)
+        df_c = df_chart.copy().tail(350)
         df_c['timestamp'] = pd.to_datetime(df_c['timestamp'], errors='coerce', format='mixed')
         df_c = df_c.dropna(subset=['timestamp'])
 
-        chart = alt.Chart(df_c).mark_area(color='#facc15', opacity=0.4, line={'color': '#facc15', 'width': 2.5}).encode(
+        chart = alt.Chart(df_c).mark_area(color='#facc15', opacity=0.35, line={'color': '#facc15', 'width': 2.5}).encode(
             x=alt.X('timestamp:T', axis=alt.Axis(labels=False, title=None)),
             y=alt.Y('lux:Q', scale=alt.Scale(zero=True), title='조도 (Lux)')
         )
@@ -420,19 +475,98 @@ def render_lux_module(df_chart, container, height=450):
         st.altair_chart((chart + rule_open).properties(height=height), use_container_width=True)
 
 # ----------------------------------------------------------------
-# 6. 상단 슬림 인터랙티브 바 및 2-슬롯 뷰포트 배치
+# 6. 상단 컨트롤 바 (세션 선택기 + 실시간 센서 상태 요약) & 4대 모듈 버튼
 # ----------------------------------------------------------------
-header_box = st.container()
-viewport_box = st.container()
+run_options, session_meta_dict = get_all_run_ids_and_meta()
 
-# 실시간 루프
+# Row 1: 세션 드롭다운 선택기 + 상태 모니터링 배지
+col_sel, col_stat = st.columns([6.2, 3.8], gap="small")
+with col_sel:
+    selected_run = st.selectbox(
+        "세션 선택",
+        options=run_options,
+        index=0,
+        format_func=format_session_label,
+        key="sb_selected_run",
+        label_visibility="collapsed"
+    )
+
+status_placeholder = col_stat.empty()
+
+# Row 2: 4대 모듈 인터랙티브 배지 버튼 (클릭 시 1~2개 뷰포트 토글)
+views = st.session_state.selected_views
+
+def get_slot_label(key, icon, name):
+    if key in views:
+        slot_idx = views.index(key) + 1
+        return f"[{slot_idx}번 {icon}] {name}"
+    return f"{icon} {name}"
+
+b1, b2, b3, b4 = st.columns(4, gap="small")
+with b1:
+    if st.button(get_slot_label('map', '📍', '지도'), key="btn_jetson_map", use_container_width=True):
+        toggle_view('map')
+        st.rerun()
+with b2:
+    if st.button(get_slot_label('gforce', '💥', '충격·속도'), key="btn_jetson_gforce", use_container_width=True):
+        toggle_view('gforce')
+        st.rerun()
+with b3:
+    if st.button(get_slot_label('env', '🌡️', '온·습도'), key="btn_jetson_env", use_container_width=True):
+        toggle_view('env')
+        st.rerun()
+with b4:
+    if st.button(get_slot_label('lux', '💡', '조도'), key="btn_jetson_lux", use_container_width=True):
+        toggle_view('lux')
+        st.rerun()
+
+# Row 3: 메인 뷰포트 레이아웃 준비
+if len(views) == 1:
+    slot1_container = st.empty()
+    slot2_container = None
+else:
+    col_left, col_right = st.columns([1, 1], gap="medium")
+    slot1_container = col_left.empty()
+    slot2_container = col_right.empty()
+
+# ----------------------------------------------------------------
+# 7. 실시간 스트리밍 & 디스플레이 루프
+# ----------------------------------------------------------------
 last_db_save_time = 0
-last_packet_epoch = 0
+is_live_mode = (selected_run == "실시간 주행 (현재 실험)")
+
+# 과거 세션 조회 시 DB 데이터 1회 사전 로드
+if not is_live_mode:
+    static_records = load_session_data(selected_run)
+    df_static = pd.DataFrame(static_records) if len(static_records) > 0 else pd.DataFrame(columns=DEFAULT_COLS)
+else:
+    df_static = None
+
+# 과거 모드일 때 정적 뷰포트 1회 렌더링
+def render_active_view(view_key, df_data, container, h):
+    if view_key == 'map':
+        render_map_module(df_data, container, height=h)
+    elif view_key == 'gforce':
+        render_gforce_module(df_data, container, height=h)
+    elif view_key == 'env':
+        render_env_module(df_data, container, height=h)
+    elif view_key == 'lux':
+        render_lux_module(df_data, container, height=h)
+
+if not is_live_mode:
+    h_target = 520 if len(views) == 1 else 450
+    with slot1_container.container():
+        render_active_view(views[0], df_static, st.container(), h_target)
+    if slot2_container is not None and len(views) > 1:
+        with slot2_container.container():
+            render_active_view(views[1], df_static, st.container(), h_target)
 
 while True:
-    # 1) MQTT 큐 수신 및 세션 데이터 적재
+    # 1) 실시간 MQTT 수신 (과거 세션 열람 중에도 메모리 큐 유지)
+    new_packet_arrived = False
     while not msg_queue.empty():
         msg = msg_queue.get()
+        new_packet_arrived = True
         msg['run_id'] = st.session_state.run_id
 
         lat_v = float(msg.get("lat", 0.0))
@@ -456,101 +590,55 @@ while True:
         if len(data_history) > 3000:
             data_history.pop(0)
 
-        # DB 주기적 저장 (5초 간격 or 1.8G 충격 시 즉시)
-        now_t = time.time()
-        if (now_t - last_db_save_time >= 5.0) or (g_v >= 1.8):
-            save_to_mysql(msg, st.session_state.run_id)
-            last_db_save_time = now_t
+        # 실시간 모드일 때만 DB 주기적 저장 (5초 간격 또는 1.8G 충격 시 즉시)
+        if is_live_mode:
+            now_t = time.time()
+            if (now_t - last_db_save_time >= 5.0) or (g_v >= 1.8):
+                save_to_mysql(msg, st.session_state.run_id)
+                last_db_save_time = now_t
 
-    # 최신 센서값 추출
-    latest = data_history[-1] if len(data_history) > 0 else {}
-    c_temp = latest.get('temperature', 0.0)
-    c_humi = latest.get('humidity', 0.0)
-    c_lux = latest.get('lux', 0.0)
-    c_g = latest.get('g_force', 1.00)
-    c_spd = latest.get('speed', 0.0)
-
-    # ----------------------------------------------------------------
-    # 상단 슬림바 렌더링 (클릭 가능한 4대 모듈 배지 버튼)
-    # ----------------------------------------------------------------
-    views = st.session_state.selected_views
-    
-    # 버튼 라벨에 순번(#1, #2)과 실시간 수치 표시
-    def get_btn_label(key, icon, name, val_str):
-        if key in views:
-            slot_num = views.index(key) + 1
-            return f"[{slot_num}번 {icon}] {name} ({val_str})"
-        return f"{icon} {name} ({val_str})"
-
-    lbl_map = get_btn_label('map', '📍', '지도', f"{latest.get('lat', 0.0):.2f}")
-    lbl_g = get_btn_label('gforce', '💥', '충격·속도', f"{c_g:.2f}G")
-    lbl_env = get_btn_label('env', '🌡️', '온·습도', f"{c_temp:.1f}°C")
-    lbl_lux = get_btn_label('lux', '💡', '조도', f"{c_lux:.0f}lx")
-
-    with header_box:
-        c1, c2, c3, c4, c_stat = st.columns([2.5, 2.5, 2.5, 2.5, 2.2], gap="small")
-        
-        with c1:
-            if st.button(lbl_map, key="btn_toggle_map", use_container_width=True):
-                toggle_view('map')
-                st.rerun()
-        with c2:
-            if st.button(lbl_g, key="btn_toggle_gforce", use_container_width=True):
-                toggle_view('gforce')
-                st.rerun()
-        with c3:
-            if st.button(lbl_env, key="btn_toggle_env", use_container_width=True):
-                toggle_view('env')
-                st.rerun()
-        with c4:
-            if st.button(lbl_lux, key="btn_toggle_lux", use_container_width=True):
-                toggle_view('lux')
-                st.rerun()
-        with c_stat:
-            st.markdown(f"""
-            <div style="background:rgba(255,255,255,0.08); border-radius:10px; padding:6px 10px; text-align:center; font-size:12px; line-height:1.4;">
-                <span style="color:#00e676; font-weight:800;">🟢 LIVE</span> | <code>{c_spd:.0f}km/h</code><br>
-                <span style="color:#94a3b8;">{get_kst_now().strftime('%H:%M:%S')}</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-    # ----------------------------------------------------------------
-    # 메인 뷰포트 렌더링 (1개 선택 시 100% 와이드, 2개 선택 시 50:50 분할)
-    # ----------------------------------------------------------------
+    # 2) 최근 실시간 센서 패킷 정보 추출
     if len(data_history) > 0:
-        df_cur = pd.DataFrame(data_history)
+        latest_live = data_history[-1]
+        live_temp = latest_live.get('temperature', 0.0)
+        live_humi = latest_live.get('humidity', 0.0)
+        live_g = latest_live.get('g_force', 1.0)
+        live_spd = latest_live.get('speed', 0.0)
+        live_time = latest_live.get('timestamp', get_kst_now().strftime('%H:%M:%S'))[-8:]
     else:
-        df_cur = pd.DataFrame(columns=DEFAULT_COLS)
+        live_temp, live_humi, live_g, live_spd = 0.0, 0.0, 1.0, 0.0
+        live_time = get_kst_now().strftime('%H:%M:%S')
 
-    with viewport_box:
-        if len(views) == 1:
-            # 1개 모듈 전체화면 100% 모드
-            c_full = st.container()
-            active_key = views[0]
-            if active_key == 'map':
-                render_map_module(df_cur, c_full, height=520)
-            elif active_key == 'gforce':
-                render_gforce_module(df_cur, c_full, height=520)
-            elif active_key == 'env':
-                render_env_module(df_cur, c_full, height=520)
-            elif active_key == 'lux':
-                render_lux_module(df_cur, c_full, height=520)
-        else:
-            # 2개 모듈 50:50 분할 모드 (좌측: 1번, 우측: 2번)
-            left_col, right_col = st.columns([1, 1], gap="medium")
-            
-            # 좌측 슬롯 (1번)
-            k1 = views[0]
-            if k1 == 'map': render_map_module(df_cur, left_col, height=460)
-            elif k1 == 'gforce': render_gforce_module(df_cur, left_col, height=460)
-            elif k1 == 'env': render_env_module(df_cur, left_col, height=460)
-            elif k1 == 'lux': render_lux_module(df_cur, left_col, height=460)
+    # 3) 상단 상태 모니터링 배지 갱신 (실시간 모드 vs 과거 세션 열람 모드)
+    if is_live_mode:
+        status_placeholder.markdown(f"""
+        <div style="background:rgba(0,230,118,0.12); border:1px solid #00e676; border-radius:10px; padding:6px 12px; text-align:center;">
+            <span style="color:#00e676; font-weight:800; font-size:13px;">🟢 LIVE 수신 중</span>
+            <span style="color:#94a3b8; font-size:12px; margin-left:8px;">수집: <b>{len(data_history)}</b>건 | {live_time}</span>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        # 과거 세션을 보고 있어도 현재 실시간 트럭 센서 값을 한눈에 확인 가능!
+        status_placeholder.markdown(f"""
+        <div style="background:rgba(56,189,248,0.12); border:1px solid #38bdf8; border-radius:10px; padding:3px 10px; text-align:center;">
+            <div style="color:#38bdf8; font-weight:800; font-size:12px;">📁 과거 기록 ({len(df_static)}건)</div>
+            <div style="color:#f1f5f9; font-size:11.5px; font-weight:700;">
+                📡 실시간: <span style="color:#f97316;">{live_temp:.1f}°C</span> · <span style="color:#ff5252;">{live_g:.2f}G</span> · <span style="color:#00e676;">{live_spd:.0f}km/h</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-            # 우측 슬롯 (2번)
-            k2 = views[1]
-            if k2 == 'map': render_map_module(df_cur, right_col, height=460)
-            elif k2 == 'gforce': render_gforce_module(df_cur, right_col, height=460)
-            elif k2 == 'env': render_env_module(df_cur, right_col, height=460)
-            elif k2 == 'lux': render_lux_module(df_cur, right_col, height=460)
+    # 4) 실시간 모드일 때 뷰포트 동적 갱신
+    if is_live_mode:
+        df_live = pd.DataFrame(data_history) if len(data_history) > 0 else pd.DataFrame(columns=DEFAULT_COLS)
+        h_target = 520 if len(views) == 1 else 450
+        
+        with slot1_container.container():
+            render_active_view(views[0], df_live, st.container(), h_target)
+        if slot2_container is not None and len(views) > 1:
+            with slot2_container.container():
+                render_active_view(views[1], df_live, st.container(), h_target)
 
-    time.sleep(1.0)
+    # 과거 모드일 때는 CPU 절약을 위해 1.5초 대기, 실시간 모드는 1.0초 대기
+    sleep_interval = 1.0 if is_live_mode else 1.5
+    time.sleep(sleep_interval)
