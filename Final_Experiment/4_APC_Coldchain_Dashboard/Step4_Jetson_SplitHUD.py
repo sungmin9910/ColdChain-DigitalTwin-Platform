@@ -232,10 +232,57 @@ mqtt_client = start_mqtt_client()
 # 5. UI 모듈 렌더링 함수들 (지도, 충격량, 온습도, 조도)
 # ----------------------------------------------------------------
 
+# 기본 컬럼 정의
+DEFAULT_COLS = ['timestamp', 'lat', 'lng', 'speed', 'g_force', 'temperature', 'humidity', 'lux', 'status', 'device', 'run_id']
+
+@st.cache_data(ttl=60)
+def load_recent_session():
+    conn = get_mysql_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT run_id FROM sensor_data WHERE run_id IS NOT NULL ORDER BY id DESC LIMIT 1")
+                row = cursor.fetchone()
+                if row:
+                    last_run = row['run_id']
+                    cursor.execute("SELECT * FROM sensor_data WHERE run_id = %s ORDER BY id ASC LIMIT 500", (last_run,))
+                    records = cursor.fetchall()
+                    history = []
+                    for item in records:
+                        history.append({
+                            "device": item.get("device", "carrier-c6-01"),
+                            "timestamp": str(item.get("timestamp_str") or item.get("created_at")),
+                            "temperature": float(item.get("temperature", 0.0) or 0.0),
+                            "humidity": float(item.get("humidity", 0.0) or 0.0),
+                            "lux": float(item.get("lux", 0.0) or 0.0),
+                            "g_force": float(item.get("g_force", 1.0) or 1.0),
+                            "speed": float(item.get("speed", 0.0) or 0.0),
+                            "lat": float(item.get("lat", 0.0) or 0.0),
+                            "lng": float(item.get("lng", 0.0) or 0.0),
+                            "status": item.get("status", ""),
+                            "run_id": last_run
+                        })
+                    return history, last_run
+        except Exception as e:
+            print(f"DB 초기 로드 에러: {e}")
+        finally:
+            conn.close()
+    return [], generate_run_id()
+
+if len(data_history) == 0:
+    cached_records, last_run = load_recent_session()
+    if cached_records:
+        data_history.extend(cached_records)
+        st.session_state.run_id = last_run
+
 # [모듈 1] 📍 실시간 GPS 궤적 지도
 def render_map_module(df_gps, container, height=450):
     with container:
         st.markdown("<div style='font-size:16px; font-weight:800; color:#00e5ff; margin-bottom:6px;'>📍 실시간 주행 궤적 지도</div>", unsafe_allow_html=True)
+        if df_gps.empty or 'lat' not in df_gps.columns or 'lng' not in df_gps.columns:
+            st.info("🛰️ 위성 신호 및 센서 데이터 수신 대기 중입니다...")
+            return
+
         valid_gps = df_gps[(df_gps['lat'] != 0) & (df_gps['lng'] != 0)]
         if valid_gps.empty:
             st.info("🛰️ 위성 신호 탐색 대기 중입니다 (야외 이동 시 궤적이 표시됩니다)")
@@ -470,7 +517,10 @@ while True:
     # ----------------------------------------------------------------
     # 메인 뷰포트 렌더링 (1개 선택 시 100% 와이드, 2개 선택 시 50:50 분할)
     # ----------------------------------------------------------------
-    df_cur = pd.DataFrame(data_history)
+    if len(data_history) > 0:
+        df_cur = pd.DataFrame(data_history)
+    else:
+        df_cur = pd.DataFrame(columns=DEFAULT_COLS)
 
     with viewport_box:
         if len(views) == 1:
