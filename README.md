@@ -57,17 +57,22 @@ flowchart TD
 * `4_APC_Coldchain_Dashboard/`: PC 관제용 대시보드(`Step4_Run_Coldchain_v2.py`) 및 젯슨 소형 디스플레이 전용 2분할 HUD(`Step4_Jetson_SplitHUD.py`).
 * `QR_Recovery_Script.py`: 데이터베이스 정밀 쿼리를 통한 QR 코드 일괄 자동 복구 유틸리티.
 
-### 🧪 2. [Hardware_Prototypes/](./Hardware_Prototypes/) (센서/레거시 샌드박스)
-다양한 IoT 환경과 센서 피팅을 연구했던 과거 하드웨어 개발 역사와 실험 자료를 보관하는 공간입니다.
+### 📜 2. [scripts/](./scripts/) (젯슨 자동 실행 및 런처 스크립트)
+* `install_jetson_autostart.sh`: 젯슨 바탕화면 바로가기 아이콘 생성 + 부팅 시 자동 실행(Autostart) 통합 인스톨러.
+* `run_jetson_hud.sh`: Streamlit 백그라운드 기동 및 Epiphany 브라우저 자동 오픈 런처.
+* `stop_jetson_hud.sh`: 대시보드 및 브라우저 안전 종료 스크립트.
+* `uninstall_jetson_autostart.sh`: 자동 실행 및 바탕화면 아이콘 삭제/해제 스크립트.
+
+### 🧪 3. [Hardware_Prototypes/](./Hardware_Prototypes/) (센서/레거시 샌드박스)
 * `coldchain_module`: 온습도/충격 감지 기본 ESP32 모듈 기초 설계 소스.
 * `coldchain_module_gy25` / `gy521`: GY-25 자이로 및 MPU6050 센서 연동 캘리브레이션 테스트 샌드박스.
 * `qr_scanner_module`: 아두이노 기반 바코드/QR 스캐너 트리거 및 수집 모듈.
 * `code26/`: 초기 학습 및 실험 코딩 소스.
 
-### 📄 3. [KSHS/](./KSHS/) (학술 발표 및 학회 성과 아카이브)
+### 📄 4. [KSHS/](./KSHS/) (학술 발표 및 학회 성과 아카이브)
 * 본 기술 플랫폼의 독창성과 학술적 기여를 인정받은 **한국원예학회(KSHS)** 제출 최종 초록, 포스터(PDF/HTML), 그리고 슬라이드 PPTX 파일이 들어있습니다.
 
-### 📚 4. [docs/](./docs/) (기술 가이드 및 연구 로드맵)
+### 📚 5. [docs/](./docs/) (기술 가이드 및 연구 로드맵)
 * `04_ColdChain_FDT_Process.md`: 전체 농가-APC-소비자 FDT 유통 프로세스 규격서.
 * `05_Scanner_Comparison.md`: ESP32 자작 스캐너 vs Jetson+MQ160W 비교 분석서.
 * **`06_Master_Thesis_Research_Roadmap.md`**: **석사 학위 논문 본심사 및 SCIE 저널 게재를 위한 연구 고도화 처방전 로드맵**.
@@ -77,6 +82,7 @@ flowchart TD
 * **`10_CarrierBoard_Power_Battery_Assembly_and_Telemetry_Guide.md`**: **CarrierBoard 전원 시스템, 배터리 결선, 멀티미터 진단 및 대시보드 텔레메트리 연동 가이드**.
 * **`11_Jetson_Field_Monitoring_Setup_and_SupplyChain_Protocol.md`**: **젯슨 나노 현장 관제 키오스크 설정 및 콜드체인 실증 프로토콜 (A00~A15 연동)**.
 * **`12_AWS_Cloud_RDS_Cost_and_Resource_Management_Guide.md`**: **AWS RDS 인프라 비용 분석, 잔여 크레딧($70), 스케줄 관리 및 예산 알림 가이드**.
+* **`13_Jetson_SplitHUD_and_Autostart_Operation_Guide.md`**: **젯슨 전용 2분할 스플릿 HUD(세션 선택기 + 상시 실시간 모니터링) 및 부팅 자동 실행 가이드**.
 
 ---
 
@@ -88,13 +94,24 @@ Python 3.10+ 환경에서 다음 명령어를 실행하여 필수 패키지를 �
 pip install -r requirements.txt
 ```
 
-### 2. 소비자 대시보드 구동
+### 2. 젯슨 차량용 스플릿 HUD 실행 및 자동 시작 등록
+```bash
+# 통합 인스톨러 실행 (바탕화면 아이콘 + 부팅 자동 실행 등록 + 즉시 실행)
+bash scripts/install_jetson_autostart.sh
+```
+
+### 3. PC 관제용 풀스크린 대시보드 구동
+```bash
+streamlit run Final_Experiment/4_APC_Coldchain_Dashboard/Step4_Run_Coldchain_v2.py
+```
+
+### 4. 소비자 대시보드 구동
 ```bash
 cd Final_Experiment/3_Consumer_Dashboard
 streamlit run Step5_Run_Dashboard.py
 ```
 
-### 3. QR 복구 스크립트 실행
+### 5. QR 복구 스크립트 실행
 ```bash
 cd Final_Experiment
 python QR_Recovery_Script.py
