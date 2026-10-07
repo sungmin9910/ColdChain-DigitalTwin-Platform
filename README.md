@@ -54,7 +54,7 @@ flowchart TD
 * `1_PC_QR_Generators/`: 브랜드 로고 및 품질 등급 연계 다이나믹 QR 자동 생성 엔진.
 * `2_ESP32_Firmware/`: OLED가 없는 경량 하드웨어용 Multi-WiFi 및 보안 Secrets 헤더 포함 스캔/송신 펌웨어.
 * `3_Consumer_Dashboard/`: 소비자가 한눈에 KST 기준 정확한 운송 경과 시간과 품질 등급을 확인하는 대시보드.
-* `4_APC_Coldchain_Dashboard/`: 관제용 대시보드 시스템.
+* `4_APC_Coldchain_Dashboard/`: PC 관제용 대시보드(`Step4_Run_Coldchain_v2.py`) 및 젯슨 소형 디스플레이 전용 2분할 HUD(`Step4_Jetson_SplitHUD.py`).
 * `QR_Recovery_Script.py`: 데이터베이스 정밀 쿼리를 통한 QR 코드 일괄 자동 복구 유틸리티.
 
 ### 🧪 2. [Hardware_Prototypes/](./Hardware_Prototypes/) (센서/레거시 샌드박스)

@@ -72,20 +72,22 @@ pip3 install streamlit pymysql paho-mqtt altair pandas folium streamlit-folium
 
 ### 3.2 수동 실행 및 테스트
 
-#### 1) Streamlit 대시보드 백그라운드 구동
+#### 1) Streamlit 대시보드 백그라운드 구동 (젯슨 전용 스플릿 HUD 대시보드)
 ```bash
-streamlit run Final_Experiment/4_APC_Coldchain_Dashboard/Step4_Run_Coldchain_v2.py \
+streamlit run Final_Experiment/4_APC_Coldchain_Dashboard/Step4_Jetson_SplitHUD.py \
   --server.port 8501 \
   --server.headless true \
   --browser.serverAddress localhost &
 ```
 
-#### 2) Chromium 키오스크(전체화면) 모드 실행
+#### 2) 우분투 순정 브라우저(Epiphany) 전체화면 키오스크 모드 실행
+*(※ Snap 패키지 호환 문제가 없는 우분투 공식 Epiphany 브라우저 사용 권장)*
 ```bash
-chromium-browser --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 http://localhost:8501
+DISPLAY=:0 XAUTHORITY=/home/$USER/.Xauthority epiphany-browser -a http://localhost:8501 &
 ```
+*(화면 번호가 `:1`인 경우 `DISPLAY=:1` 입력)*
 > **키오스크 조작 팁**:
-> * 전체화면 종료: 키보드의 `F11` 키 또는 `Alt + F4`
+> * 종료: 키보드의 `Alt + F4` 또는 터미널에서 `killall epiphany-browser`
 > * 새로고침: `F5` 또는 `Ctrl + R`
 
 ---
