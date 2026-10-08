@@ -83,6 +83,7 @@ flowchart TD
 * **`11_Jetson_Field_Monitoring_Setup_and_SupplyChain_Protocol.md`**: **젯슨 나노 현장 관제 키오스크 설정 및 콜드체인 실증 프로토콜 (A00~A15 연동)**.
 * **`12_AWS_Cloud_RDS_Cost_and_Resource_Management_Guide.md`**: **AWS RDS 인프라 비용 분석, 잔여 크레딧($70), 스케줄 관리 및 예산 알림 가이드**.
 * **`13_Jetson_SplitHUD_and_Autostart_Operation_Guide.md`**: **젯슨 전용 2분할 스플릿 HUD(세션 선택기 + 상시 실시간 모니터링) 및 부팅 자동 실행 가이드**.
+* **`14_CarrierBoard_Assembly_Sensor_Pinout_and_Battery_Diagnostic_Guide.md`**: **CarrierBoard 하드웨어 조립, 전 센서 핀맵 매핑, 배터리 결선 및 TP4057 충전 진단 가이드**.
 
 ---
 
