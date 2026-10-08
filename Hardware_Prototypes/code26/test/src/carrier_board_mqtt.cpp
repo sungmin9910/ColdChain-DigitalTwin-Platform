@@ -36,7 +36,7 @@ struct WiFiNetwork {
 };
 
 const WiFiNetwork wifi_networks[] = {
-  {"ㅅㅁㅇㅂ", ""},
+  {"smroom", ""},
   {"lab225", "123698745"},
   {"hani", "12345687"}
 };
@@ -145,7 +145,7 @@ void logToLittleFS(const char* jsonStr, bool isOffline) {
 
 // 오프라인 버퍼가 쌓여있다면 온라인 복구 시 MQTT로 순차 전송 (안전 무손실 재전송)
 void flushOfflineBuffer() {
-  if (!littlefs_ready || !client.connected()) return;
+  if (!littlefs_ready || !client.connected() || !has_offline_data) return;
   if (!LittleFS.exists(offline_buffer_file)) {
     has_offline_data = false;
     return;
@@ -521,6 +521,9 @@ void setup() {
         }
         fCurr.close();
       }
+    }
+    if (LittleFS.exists(offline_buffer_file)) {
+      has_offline_data = true;
     }
     Serial.printf("OK (사용량: %u / %u bytes, 기존 누적: %u bytes, %lu건)\n", 
                   (unsigned int)used, (unsigned int)total, (unsigned int)log_size, totalSavedRecords);
