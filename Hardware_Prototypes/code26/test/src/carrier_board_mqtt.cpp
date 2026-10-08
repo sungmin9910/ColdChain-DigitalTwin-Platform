@@ -78,7 +78,7 @@ const char* master_log_old  = "/telemetry_log_old.jsonl";  // 직전 기록 세�
 const char* offline_buffer_file = "/offline_buf.jsonl";    // 오프라인 시 임시 버퍼 (온라인 복구 시 전송)
 
 #define SEGMENT_MAX_BYTES     (512 * 1024)                 // 세그먼트 당 512KB (총 1.0MB 항시 유지)
-#define OFFLINE_BUF_MAX_BYTES (300 * 1024)                 // 오프라인 버퍼 최대 300KB
+#define OFFLINE_BUF_MAX_BYTES (1500 * 1024)                // 오프라인 버퍼 최대 1.5MB (약 6,000건, 8시간 이상 무손실 보관)
 
 bool littlefs_ready = false;
 bool has_offline_data = false;
@@ -91,7 +91,8 @@ float last_valid_lat = 0.0;    // 직전 유효 위도 (터널 진입 시 데드
 float last_valid_lng = 0.0;    // 직전 유효 경도
 unsigned long lastMotionTime = 0;       // 마지막 IMU 진동/움직임 감지 시각
 unsigned long lastGpsFixTime = 0;       // 마지막 GPS Fix 성공 시각
-#define TRIP_AUTO_STOP_MS   180000      // 3분(180초) 무진동 & GPS 단절 시 주행 자동 종료 (실내 대기 복귀)
+#define TRIP_AUTO_STOP_MS   300000      // 5분(300초) 무진동 & GPS 단절 시 주행 자동 종료 (신호대기/정체 오판 방지)
+
 
 void logToLittleFS(const char* jsonStr, bool isOffline) {
   if (!littlefs_ready) return;
@@ -286,8 +287,8 @@ String getFormattedTime() {
     }
   }
 
-  // 3순위: GPS 위성도 없고 NTP도 아직 연결되지 않은 초기 상태
-  return "2026-10-01 00:00:00";
+  // 3순위: GPS 위성도 없고 NTP도 아직 연결되지 않은 초기 상태 (더미 날짜 대신 미동기 표준값 반환)
+  return "00:00:00";
 }
 
 // ==========================================
@@ -479,8 +480,9 @@ void setup() {
     Serial.println("Fail");
   }
 
-  // 4. GPS UART 초기화
-  Serial.print("📦 [4] GPS ATGM336H UART 포트 열기 (RX:16, TX:17)... ");
+  // 4. GPS UART 초기화 (RX 버퍼를 기본 256B에서 1024B로 확장하여 플래시 쓰기/Wi-Fi 스캔 중 오버런 방지)
+  Serial.print("📦 [4] GPS ATGM336H UART 포트 열기 (RX:16, TX:17, 1KB 버퍼)... ");
+  Serial1.setRxBufferSize(1024);
   Serial1.begin(GPS_BAUDRATE, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
   Serial.println("OK");
 
@@ -681,9 +683,11 @@ void loop() {
   unsigned long now = millis();
 
   // 3) Wi-Fi 및 MQTT 연결 유지 (비블로킹 & 고속 IMU 샘플링 보호)
+  // 주행 중(trip_active)에는 50Hz 고속 충격 감지 및 GPS 수신 보호를 위해 스캔 주기를 20초로 완화
+  unsigned long wifi_scan_interval = trip_active ? 20000 : 8000;
   static unsigned long lastWifiScanTime = 0;
   bool wifi_connected = (WiFi.status() == WL_CONNECTED);
-  if (!wifi_connected && (now - lastWifiScanTime >= 6000)) {
+  if (!wifi_connected && (now - lastWifiScanTime >= wifi_scan_interval)) {
     lastWifiScanTime = now;
     wifi_connected = (wifiMulti.run() == WL_CONNECTED);
   }
