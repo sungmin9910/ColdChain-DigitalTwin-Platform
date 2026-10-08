@@ -87,8 +87,23 @@ def get_kst_now():
 def generate_run_id():
     return f"주행_{get_kst_now().strftime('%Y-%m-%d_%H시%M분')}"
 
+# 세션 분할 방지 및 브라우저 새로고침/자동시작 간 활성 세션 보존용 공유 트래커
+@st.cache_resource
+def get_session_tracker():
+    return {
+        "active_run_id": None,
+        "is_custom": False,
+        "last_packet_epoch": 0,
+        "start_ts_str": None
+    }
+
+tracker = get_session_tracker()
 if 'run_id' not in st.session_state:
-    st.session_state.run_id = generate_run_id()
+    if tracker['active_run_id']:
+        st.session_state.run_id = tracker['active_run_id']
+    else:
+        st.session_state.run_id = generate_run_id()
+
 
 # 기본 선택: [1번: 지도, 2번: 충격량·속도]
 if 'selected_views' not in st.session_state:
@@ -174,10 +189,11 @@ def get_all_run_ids_and_meta():
     if conn:
         try:
             with conn.cursor() as cursor:
+                # 미동기 더미 타임스탬프(2026-10-01)를 제외하여 실제 시작 시간을 정확하게 추출
                 cursor.execute("""
                     SELECT run_id, 
                            COUNT(*) as cnt, 
-                           MIN(timestamp_str) as start_ts, 
+                           MIN(CASE WHEN timestamp_str NOT LIKE '2026-10-01%' AND timestamp_str != '00:00:00' AND timestamp_str IS NOT NULL THEN timestamp_str END) as start_ts, 
                            MAX(timestamp_str) as end_ts,
                            MAX(speed) as max_spd,
                            MIN(temperature) as min_temp,
@@ -294,8 +310,9 @@ data_history = get_data_history()
 
 def on_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
-        client.subscribe(MQTT_TOPIC)
-        print("Connected to EMQX Broker!")
+        # PC 대시보드(truck01/sensor) 및 HUD 표준(telemetry) 토픽 동시 구독
+        client.subscribe([("coldchain/truck01/sensor", 0), ("coldchain/telemetry", 0)])
+        print("Connected to EMQX Broker (Subscribed: coldchain/truck01/sensor, coldchain/telemetry)!")
 
 def on_message(client, userdata, msg):
     try:
@@ -567,6 +584,24 @@ while True:
     while not msg_queue.empty():
         msg = msg_queue.get()
         new_packet_arrived = True
+
+        # 패킷 타임스탬프 기반 지능형 자동 세션 동기화 (오프라인 덤프 또는 신규 출발 시 실시간 시계 대신 데이터 시각 채택)
+        ts_val_str = str(msg.get("timestamp") or msg.get("timestamp_str") or "")
+        tracker = get_session_tracker()
+
+        if not tracker.get('is_custom', False) and len(ts_val_str) >= 16 and not ts_val_str.startswith("2026-10-01") and not ts_val_str.startswith("00:00"):
+            now_epoch = time.time()
+            if tracker['active_run_id'] is None or (now_epoch - tracker.get('last_packet_epoch', 0) > 1800):
+                dt_part = ts_val_str[:16].replace(" ", "_").replace(":", "시") + "분"
+                new_sync_id = f"주행_{dt_part}"
+                tracker['active_run_id'] = new_sync_id
+                tracker['start_ts_str'] = ts_val_str
+                st.session_state.run_id = new_sync_id
+                print(f"🚀 [HUD 세션 동기화] 세션 ID 설정: '{new_sync_id}' (출발시각: {ts_val_str})")
+            elif st.session_state.run_id != tracker['active_run_id']:
+                st.session_state.run_id = tracker['active_run_id']
+        
+        tracker['last_packet_epoch'] = time.time()
         msg['run_id'] = st.session_state.run_id
 
         lat_v = float(msg.get("lat", 0.0))

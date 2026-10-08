@@ -19,6 +19,17 @@ def generate_run_id():
     now_kst = get_kst_now()
     return f"주행_{now_kst.strftime('%Y-%m-%d_%H시%M분')}"
 
+# 세션 분할 방지 및 브라우저 새로고침 간 활성 세션 보존용 공유 트래커
+@st.cache_resource
+def get_session_tracker():
+    return {
+        "active_run_id": None,
+        "is_custom": False,
+        "last_packet_epoch": 0,
+        "start_ts_str": None
+    }
+
+
 # ----------------------------------------------------------------
 # 1. 설정 및 공유 자원 초기화
 # ----------------------------------------------------------------
@@ -86,10 +97,15 @@ LANG_DICT = {
 
 if 'lang' not in st.session_state:
     st.session_state.lang = 'KO'
+tracker = get_session_tracker()
 if 'run_id' not in st.session_state:
-    st.session_state.run_id = generate_run_id()
+    if tracker['active_run_id']:
+        st.session_state.run_id = tracker['active_run_id']
+    else:
+        st.session_state.run_id = generate_run_id()
 if 'session_user_locked' not in st.session_state:
-    st.session_state.session_user_locked = True
+    st.session_state.session_user_locked = tracker.get('is_custom', False)
+
 
 st.set_page_config(
     page_title=LANG_DICT[st.session_state.lang]['page_title'],
@@ -320,10 +336,11 @@ if conn:
     try:
         with conn.cursor() as cursor:
             # 3건 이상 기록된 정상 세션의 요약 메타데이터(시작/종료, 건수, 최고속도, 온습도) 조회
+            # 미동기 더미 타임스탬프(2026-10-01)를 제외하여 실제 시작 시간을 정확하게 추출
             cursor.execute("""
                 SELECT run_id, 
                        COUNT(*) as cnt, 
-                       MIN(timestamp_str) as start_ts, 
+                       MIN(CASE WHEN timestamp_str NOT LIKE '2026-10-01%' AND timestamp_str != '00:00:00' AND timestamp_str IS NOT NULL THEN timestamp_str END) as start_ts, 
                        MAX(timestamp_str) as end_ts,
                        MAX(speed) as max_spd,
                        MIN(temperature) as min_temp,
@@ -450,11 +467,18 @@ with st.sidebar:
         
         # 버튼 텍스트 잘림 해결 (풀위드 1열 배치)
         if st.button("🚀 새 실험 세션 시작 (화면 리셋)" if st.session_state.lang == 'KO' else "🚀 Start New Session", type="primary", use_container_width=True):
+            tracker = get_session_tracker()
             if new_run_input.strip():
                 st.session_state.run_id = new_run_input.strip()
+                tracker['active_run_id'] = new_run_input.strip()
+                tracker['is_custom'] = True
                 st.session_state.session_user_locked = True
             else:
+                tracker['active_run_id'] = None
+                tracker['is_custom'] = False
+                tracker['start_ts_str'] = None
                 st.session_state.run_id = generate_run_id()
+                st.session_state.session_user_locked = False
             
             # 주행 세션 및 GPS 보정 리셋
             st.session_state.trip_started = False
@@ -648,11 +672,26 @@ while True:
         was_stopped = not st.session_state.trip_started
         now_driving = gps_is_valid or (gps_speed_val > 2.5)
 
+        tracker = get_session_tracker()
+        # 패킷 타임스탬프 기반 지능형 자동 세션 동기화 (오프라인 덤프 또는 신규 출발 시 실시간 시계 대신 데이터 시각 채택)
+        if not tracker.get('is_custom', False) and len(ts_val_str) >= 16 and not ts_val_str.startswith("2026-10-01") and not ts_val_str.startswith("00:00"):
+            now_epoch = time.time()
+            if tracker['active_run_id'] is None or (now_epoch - tracker.get('last_packet_epoch', 0) > 1800):
+                dt_part = ts_val_str[:16].replace(" ", "_").replace(":", "시") + "분"
+                new_sync_id = f"주행_{dt_part}"
+                tracker['active_run_id'] = new_sync_id
+                tracker['start_ts_str'] = ts_val_str
+                st.session_state.run_id = new_sync_id
+                print(f"🚀 [패킷 기반 세션 동기화] 세션 ID 설정: '{new_sync_id}' (출발시각: {ts_val_str})")
+            elif st.session_state.run_id != tracker['active_run_id']:
+                st.session_state.run_id = tracker['active_run_id']
+        
+        tracker['last_packet_epoch'] = time.time()
+
         if "대기" not in incoming_status and "실내" not in incoming_status:
             if was_stopped and now_driving:
                 # 🚗 실내/대기에서 완전 신규 주행 시작 감지
-                # 세션 락(session_user_locked)이 켜져있으면 세션을 절대 임의로 쪼개지 않음
-                user_locked = st.session_state.get('session_user_locked', True)
+                user_locked = st.session_state.get('session_user_locked', False) or tracker.get('is_custom', False)
                 should_create_new_session = (not user_locked) and ((now_ts - st.session_state.last_driving_time > 300) or not st.session_state.run_id)
                 
                 if should_create_new_session:
@@ -662,6 +701,7 @@ while True:
                     else:
                         st.session_state.run_id = generate_run_id()
                     
+                    tracker['active_run_id'] = st.session_state.run_id
                     # 이전 대기 화면 흔적만 안전하게 비우기
                     data_history.clear()
                     print(f"🚀 [신규 주행 세션 개시] 새 세션 '{st.session_state.run_id}' 자동 개시!")
