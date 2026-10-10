@@ -599,18 +599,25 @@ else if (render_part == "part_front_shell") {
     apple_front_shell();
 }
 else if (render_part == "rear_shell") {
-    apple_rear_shell();
+    // Pre-oriented flat on print bed: Parting plane sits on bed at Z=0, dome rises into +Z
+    rotate([-90, 0, 0])
+        apple_rear_shell();
 }
 else if (render_part == "battery_tray") {
+    // Pre-oriented flat on print bed: Plate back sits at Z=0, 18mm M3 standoffs rise into +Z
     rotate([90, 0, 0])
-    translate([0, 21.5, -bat_z_center])
+    translate([0, 22.5, -bat_z_center])
         apple_battery_tray();
 }
 else if (render_part == "front_shell") {
-    apple_front_shell();
+    // Pre-oriented flat on print bed: Parting plane sits on bed at Z=0, dome rises into +Z
+    rotate([90, 0, 0])
+        apple_front_shell();
 }
 else if (render_part == "stem") {
-    apple_stem();
+    // Pre-oriented with plug base on print bed
+    translate([0, -1.5, -31.0])
+        apple_stem();
 }
 else if (render_part == "print_all") {
     translate([-60, 0, 0]) rotate([90, 0, 0]) apple_rear_shell();
