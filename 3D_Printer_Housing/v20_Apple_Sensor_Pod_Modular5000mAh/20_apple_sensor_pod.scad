@@ -276,13 +276,25 @@ module apple_rear_shell() {
                     }
                 }
                 
-                // 2. 4x Perimeter Shell Assembly Screw Bosses
+                // 2. 4x Wall-Integrated Reinforced Screw Bosses (Elongated depth & fused to shell wall)
                 for (pt = screw_pts) {
+                    norm_len = sqrt(pt[0]*pt[0] + pt[1]*pt[1]);
+                    dir_x = pt[0] / norm_len;
+                    dir_z = pt[1] / norm_len;
                     translate([pt[0], 0, pt[1]]) {
-                        rotate([90, 0, 0])
-                        difference() {
-                            cylinder(r=5.0, h=14.0);
-                            cylinder(r=1.4, h=14.5);
+                        rotate([90, 0, 0]) {
+                            difference() {
+                                hull() {
+                                    cylinder(r=5.2, h=26.0);
+                                    // Outward extension into the shell wall
+                                    translate([dir_x * 9.0, dir_z * 9.0, 0])
+                                        cylinder(r=4.0, h=26.0);
+                                    // Tapered base flare extending deeper into the wall
+                                    translate([0, 0, 16.0])
+                                        cylinder(r1=5.2, r2=9.0, h=10.0);
+                                }
+                                cylinder(r=1.4, h=28.0); // M3 pilot hole
+                            }
                         }
                     }
                 }
@@ -302,12 +314,18 @@ module apple_battery_tray() {
         // Flat safety divider plate (rests on battery cradle rim at Y = -22.5 to -20.5)
         translate([0, -21.5, bat_z_center]) {
             difference() {
-                cube([bat_w + 4.0, 2.0, bat_h + 4.0], center=true);
+                cube([bat_w + 3.0, 2.0, bat_h + 3.0], center=true);
                 // Battery wire channel at top-left
                 translate([-bat_w/2 + 8.0, 0, bat_h/2 - 2.0])
                     cube([14.0, 4.0, 14.0], center=true);
                 // Finger pull / inspection window at center
                 cube([24.0, 4.0, 26.0], center=true);
+                // 4x Corner Boss Clearance Notches (hugs the 4 wall-integrated bosses)
+                for (pt = screw_pts) {
+                    translate([pt[0], 0, pt[1] - bat_z_center])
+                        rotate([90, 0, 0])
+                        cylinder(r=5.8, h=5.0, center=true);
+                }
             }
         }
         
@@ -350,16 +368,28 @@ module apple_front_shell() {
                     }
                 }
                 
-                // 4x Perimeter Assembly Screw Bosses (Internal through-holes)
+                // 4x Wall-Integrated Reinforced Screw Bosses (Through-holes & counterbores)
                 for (pt = screw_pts) {
+                    norm_len = sqrt(pt[0]*pt[0] + pt[1]*pt[1]);
+                    dir_x = pt[0] / norm_len;
+                    dir_z = pt[1] / norm_len;
                     translate([pt[0], 0, pt[1]]) {
-                        rotate([-90, 0, 0])
-                        difference() {
-                            cylinder(r=5.0, h=14.0);
-                            translate([0, 0, -1])
-                                cylinder(r=1.7, h=16.0);
-                            translate([0, 0, 7.5])
-                                cylinder(r=3.4, h=8.0);
+                        rotate([-90, 0, 0]) {
+                            difference() {
+                                hull() {
+                                    cylinder(r=5.2, h=26.0);
+                                    translate([dir_x * 9.0, dir_z * 9.0, 0])
+                                        cylinder(r=4.0, h=26.0);
+                                    translate([0, 0, 16.0])
+                                        cylinder(r1=5.2, r2=9.0, h=10.0);
+                                }
+                                // M3 clearance through-hole
+                                translate([0, 0, -1])
+                                    cylinder(r=1.7, h=30.0);
+                                // M3 screw head counterbore from outer surface
+                                translate([0, 0, 8.5])
+                                    cylinder(r=3.4, h=20.0);
+                            }
                         }
                     }
                 }
