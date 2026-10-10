@@ -302,13 +302,6 @@ module apple_rear_shell() {
             }
         }
         
-        // Perimeter Mating Groove (Y = 0)
-        translate([0, 0, 0]) {
-            difference() {
-                cylinder(r=49.6, h=1.6);
-                cylinder(r=45.5, h=1.7);
-            }
-        }
         
         functional_cutouts();
     }
@@ -335,16 +328,6 @@ module apple_front_shell() {
                     }
                 }
                 
-                // Perimeter Male Mating Lip (Tongue)
-                translate([0, -1.4, 0]) {
-                    intersection() {
-                        difference() {
-                            cylinder(r=48.2 - clearance, h=1.5);
-                            cylinder(r=46.5 + clearance, h=2.5);
-                        }
-                        apple_solid_outer();
-                    }
-                }
                 
                 // 4x Perimeter Assembly Screw Bosses (Internal through-holes)
                 for (pt = screw_pts) {
