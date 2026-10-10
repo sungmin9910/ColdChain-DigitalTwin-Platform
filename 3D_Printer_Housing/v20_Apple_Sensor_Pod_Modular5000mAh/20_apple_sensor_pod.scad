@@ -276,7 +276,7 @@ module apple_rear_shell() {
                     }
                 }
                 
-                // 2. 4x Wall-Integrated Reinforced Screw Bosses (Elongated depth & fused to shell wall)
+                // 2. 4x Wall-Integrated Reinforced Screw Bosses (Fully fused to shell wall, zero floating ledge)
                 for (pt = screw_pts) {
                     norm_len = sqrt(pt[0]*pt[0] + pt[1]*pt[1]);
                     dir_x = pt[0] / norm_len;
@@ -285,13 +285,10 @@ module apple_rear_shell() {
                         rotate([90, 0, 0]) {
                             difference() {
                                 hull() {
-                                    cylinder(r=5.2, h=26.0);
+                                    cylinder(r=5.2, h=42.0);
                                     // Outward extension into the shell wall
-                                    translate([dir_x * 9.0, dir_z * 9.0, 0])
-                                        cylinder(r=4.0, h=26.0);
-                                    // Tapered base flare extending deeper into the wall
-                                    translate([0, 0, 16.0])
-                                        cylinder(r1=5.2, r2=9.0, h=10.0);
+                                    translate([dir_x * 12.0, dir_z * 12.0, 0])
+                                        cylinder(r=5.0, h=42.0);
                                 }
                                 cylinder(r=1.4, h=28.0); // M3 pilot hole
                             }
@@ -368,7 +365,7 @@ module apple_front_shell() {
                     }
                 }
                 
-                // 4x Wall-Integrated Reinforced Screw Bosses (Through-holes & counterbores)
+                // 4x Wall-Integrated Reinforced Screw Bosses (Fully fused to shell wall, zero floating ledge)
                 for (pt = screw_pts) {
                     norm_len = sqrt(pt[0]*pt[0] + pt[1]*pt[1]);
                     dir_x = pt[0] / norm_len;
@@ -377,18 +374,16 @@ module apple_front_shell() {
                         rotate([-90, 0, 0]) {
                             difference() {
                                 hull() {
-                                    cylinder(r=5.2, h=26.0);
-                                    translate([dir_x * 9.0, dir_z * 9.0, 0])
-                                        cylinder(r=4.0, h=26.0);
-                                    translate([0, 0, 16.0])
-                                        cylinder(r1=5.2, r2=9.0, h=10.0);
+                                    cylinder(r=5.2, h=42.0);
+                                    translate([dir_x * 12.0, dir_z * 12.0, 0])
+                                        cylinder(r=5.0, h=42.0);
                                 }
                                 // M3 clearance through-hole
                                 translate([0, 0, -1])
-                                    cylinder(r=1.7, h=30.0);
+                                    cylinder(r=1.7, h=44.0);
                                 // M3 screw head counterbore from outer surface
                                 translate([0, 0, 8.5])
-                                    cylinder(r=3.4, h=20.0);
+                                    cylinder(r=3.4, h=35.0);
                             }
                         }
                     }
