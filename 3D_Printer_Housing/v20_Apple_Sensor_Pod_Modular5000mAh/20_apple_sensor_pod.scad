@@ -259,21 +259,25 @@ module apple_rear_shell() {
                     }
                 }
                 
-                // 1. Open Battery Cradle Ribs (Recessed at Y = -28.5)
+                // 1. Open Battery Cradle (100% attached to shell wall and floor, zero floating gap)
                 // Completely OPEN to +Y so battery drops directly in!
-                translate([0, bat_y_center, bat_z_center]) {
-                    difference() {
-                        // Outer cradle perimeter support box
-                        cube([bat_w + 4.5, bat_t + 10.0, bat_h + 4.5], center=true);
-                        // Battery pocket: cleared through to +Y face!
-                        translate([0, 10.0, 0])
-                            cube([bat_w, bat_t + 20.0, bat_h], center=true);
-                        // Finger extraction notch at center rear
-                        cube([24.0, 40.0, 30.0], center=true);
-                        // Wire passage notch at top
-                        translate([-bat_w/2 + 8.0, 10.0, bat_h/2])
-                            cube([16.0, 30.0, 16.0], center=true);
-                    }
+                difference() {
+                    // Outer support block extending from Y = -22.5 to shell back wall,
+                    // expanding in X and Z so it fuses completely to the shell perimeter & floor
+                    translate([0, -36.0, bat_z_center])
+                        cube([bat_w + 16.0, 27.0, bat_h + 20.0], center=true);
+                        
+                    // 1. Battery pocket: cleared through to +Y face (from Y = -34.5 to +Y)
+                    translate([0, bat_y_center + 10.0, bat_z_center])
+                        cube([bat_w, bat_t + 20.0, bat_h], center=true);
+                        
+                    // 2. Wire passage notch at top
+                    translate([-bat_w/2 + 8.0, bat_y_center + 10.0, bat_z_center + bat_h/2])
+                        cube([16.0, 30.0, 16.0], center=true);
+                        
+                    // 3. Finger pull extraction notch (recessed into floor for easy battery removal)
+                    translate([0, bat_y_center - bat_t/2, bat_z_center])
+                        cube([26.0, 8.0, 32.0], center=true);
                 }
                 
                 // 2. 4x Wall-Integrated Reinforced Screw Bosses (Fully fused to shell wall, zero floating ledge)
