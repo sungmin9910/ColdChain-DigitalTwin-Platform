@@ -344,11 +344,14 @@ void processScan(String rawData) {
       Serial.println("🔍 DB에서 FmID (" + fmId + ")의 이전 이력 조회 중...");
       String lastLo = "NONE";
       if (query_executor.execute(checkQuery.c_str())) {
+        column_names *cols = query_executor.get_columns();
         row_values *row = query_executor.get_next_row();
         if (row != NULL && row->values[0] != NULL) {
           lastLo = String(row->values[0]);
+          lastLo.trim();
         }
         while (row != NULL) { row = query_executor.get_next_row(); }
+        query_executor.close();
       }
 
       Serial.println("💡 DB 이전 최신 이력(Lo): " + lastLo);
