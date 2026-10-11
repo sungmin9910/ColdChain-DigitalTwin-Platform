@@ -3,11 +3,18 @@ import paho.mqtt.client as mqtt
 import json
 import pandas as pd
 import time
+import sys
 from datetime import datetime, timezone, timedelta
 import queue
 import pydeck as pdk
 import pymysql
 import altair as alt
+
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
 
 # 한국 표준시 (KST, UTC+9) 설정
 KST = timezone(timedelta(hours=9))
