@@ -21,15 +21,18 @@ DB_NAME = "lab225"
 DB_PORT = 3306
 
 MODES = {
+    "AUTO": "🤖 AUTO (지능형 자동 단계 판단 - DB 이력 기반)",
     "A10": "A10 - 박스 입고 (APC 입고)",
     "A11": "A11 - 세척 완료 (APC 세척)",
-    "A12": "A12 - 수송 시작 (APC 출하/수송)",
+    "A12": "A12 - 선별 완료 (APC 선별)",
     "A13": "A13 - 포장 완료 (유통 센터 포장)",
     "A14": "A14 - 저장 완료 (저장소 입고)",
     "A15": "A15 - 최종 출하 (소비지 출하)"
 }
 
 MODE_KEYS = {
+    "a": "AUTO",
+    "A": "AUTO",
     "0": "A10",
     "1": "A11",
     "2": "A12",
@@ -38,7 +41,7 @@ MODE_KEYS = {
     "5": "A15"
 }
 
-current_mode = "A10"
+current_mode = "AUTO"
 
 def clear_console():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -167,38 +170,73 @@ def process_scan(scanned_data):
     lat, lon, tp, hm = get_latest_sensor_data()
     print(f"[+] 최근 센서 데이터 -> Lat: {lat}, Lng: {lon}, Temp: {tp}, Hum: {hm}")
 
-    # 현재 모드에 맞게 쿼리 생성
+    # 타겟 단계 결정 (AUTO 지능형 자동 판단 vs 수동 지정)
+    target_mode = current_mode
+    if current_mode == "AUTO":
+        print(f"[*] 🤖 [AUTO] DB에서 상자(FmID: {fmid})의 최근 이력 조회 중...")
+        last_lo = "NONE"
+        conn_chk = None
+        try:
+            conn_chk = get_db_connection()
+            with conn_chk.cursor() as cur:
+                cur.execute(f"SELECT Lo FROM lab225.qr WHERE FmID = {fmid} ORDER BY id DESC LIMIT 1")
+                row = cur.fetchone()
+                if row and row[0]:
+                    last_lo = str(row[0]).strip().upper()
+        except Exception as e:
+            print(f"{COLOR_RED}[-] 이전 이력 조회 실패: {e}{COLOR_RESET}")
+        finally:
+            if conn_chk:
+                conn_chk.close()
+        
+        print(f"[*] 최근 기록된 단계(Lo): {COLOR_BLUE}{last_lo}{COLOR_RESET}")
+        if last_lo in ["NONE", "A00"]:
+            target_mode = "A10"
+        elif last_lo == "A10":
+            target_mode = "A11"
+        elif last_lo in ["A11", "A12"]:
+            target_mode = "A13"
+        elif last_lo == "A13":
+            target_mode = "A14"
+        elif last_lo == "A14":
+            target_mode = "A15"
+        elif last_lo == "A15":
+            print(f"{COLOR_YELLOW}[!] 이미 최종 출하(A15)까지 모든 단계가 완료된 상자입니다.{COLOR_RESET}\n")
+            return
+        print(f"[*] 🎯 [AUTO 판단 결과] 다음 진행 단계: {COLOR_GREEN}★ {target_mode} ★{COLOR_RESET}")
+
+    # 모드에 맞게 쿼리 생성
     query = ""
-    if current_mode == "A10":
+    if target_mode == "A10":
         query = f"""
         INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, Lat, lon)
         VALUES ('A10', {ac}, {fmid}, {frt}, {vt}, {ct}, {hd}, {dd}, {qt}, {mt}, {hn}, {std}, {rp}, NOW(), {lat}, {lon})
         """
-    elif current_mode == "A11":
+    elif target_mode == "A11":
         query = f"""
         INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, Lat, lon)
         SELECT 'A11', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, NOW(), {lat}, {lon}
         FROM lab225.qr WHERE FmID = {fmid} AND APC_AD IS NOT NULL ORDER BY APC_AD DESC LIMIT 1
         """
-    elif current_mode == "A12":
+    elif target_mode == "A12":
         query = f"""
         INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, Lat, lon)
         SELECT 'A12', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, NOW(), {lat}, {lon}
         FROM lab225.qr WHERE Lo = 'A11' AND FmID = {fmid} ORDER BY APC_WD DESC LIMIT 1
         """
-    elif current_mode == "A13":
+    elif target_mode == "A13":
         query = f"""
         INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate)
         SELECT 'A13', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, NOW(), {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate
         FROM lab225.qr WHERE Lo = 'A12' AND FmID = {fmid} ORDER BY APC_RT DESC LIMIT 1
         """
-    elif current_mode == "A14":
+    elif target_mode == "A14":
         query = f"""
         INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate)
         SELECT 'A14', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, NOW(), {tp}, {hm}, {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate
         FROM lab225.qr WHERE Lo = 'A13' AND FmID = {fmid} ORDER BY APC_PT DESC LIMIT 1
         """
-    elif current_mode == "A15":
+    elif target_mode == "A15":
         query = f"""
         INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Lat, lon, AGrade, BGrade, CGrade, DefectRate)
         SELECT 'A15', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, NOW(), {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate
@@ -215,7 +253,7 @@ def process_scan(scanned_data):
             conn.commit()
             
             if affected > 0:
-                print(f"{COLOR_GREEN}[+] DB 저장 완료! [단계: {current_mode}]{COLOR_RESET}\n")
+                print(f"{COLOR_GREEN}[+] DB 저장 성공! [단계: {target_mode}]{COLOR_RESET}\n")
             else:
                 print(f"{COLOR_RED}[-] DB 저장 실패: 조건에 맞는 이전 단계 이력 데이터가 존재하지 않습니다.{COLOR_RESET}\n")
     except Exception as e:
