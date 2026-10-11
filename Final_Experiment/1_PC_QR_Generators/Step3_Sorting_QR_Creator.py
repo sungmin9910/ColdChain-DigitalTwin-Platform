@@ -252,7 +252,8 @@ def save_and_generate():
             cursor = conn.cursor()
             cursor.execute(f"SHOW COLUMNS FROM {TABLE_NAME}")
             db_columns = {col[0] for col in cursor.fetchall()}
-            data_to_insert = {k: v for k, v in data_dict.items() if k in db_columns}
+            # 새 레코드 삽입이므로 이전 A11 레코드의 id는 제외하여 자동 증가(AUTO_INCREMENT)가 동작하도록 함
+            data_to_insert = {k: v for k, v in data_dict.items() if k in db_columns and k != 'id'}
             
             columns = ", ".join(data_to_insert.keys())
             placeholders = ", ".join([f"%({key})s" for key in data_to_insert.keys()])

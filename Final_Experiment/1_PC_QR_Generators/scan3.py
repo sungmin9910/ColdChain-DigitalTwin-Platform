@@ -82,10 +82,9 @@ def save_to_db(data_dict):
         data_dict['Lat'] = lat
         data_dict['lon'] = lon
 
-        # DB占쏙옙 占쏙옙占쏙옙占싹댐옙 占시뤄옙占쏙옙 占쏙옙占쏙옙占싹깍옙 占쏙옙占쏙옙 占쏙옙占싶몌옙
         cursor.execute(f"SHOW COLUMNS FROM {TABLE_NAME}")
         db_columns = {col[0] for col in cursor.fetchall()}
-        data_to_save = {k: v for k, v in data_dict.items() if k in db_columns}
+        data_to_save = {k: v for k, v in data_dict.items() if k in db_columns and k != 'id'}
 
         columns = ", ".join(data_to_save.keys())
         placeholders = ", ".join([f"%({key})s" for key in data_to_save.keys()])
