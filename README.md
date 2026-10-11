@@ -84,6 +84,7 @@ flowchart TD
 * **`12_AWS_Cloud_RDS_Cost_and_Resource_Management_Guide.md`**: **AWS RDS 인프라 비용 분석, 잔여 크레딧($70), 스케줄 관리 및 예산 알림 가이드**.
 * **`13_Jetson_SplitHUD_and_Autostart_Operation_Guide.md`**: **젯슨 전용 2분할 스플릿 HUD(세션 선택기 + 상시 실시간 모니터링) 및 부팅 자동 실행 가이드**.
 * **`14_CarrierBoard_Assembly_Sensor_Pinout_and_Battery_Diagnostic_Guide.md`**: **CarrierBoard 하드웨어 조립, 전 센서 핀맵 매핑, 배터리 결선 및 TP4057 충전 진단 가이드**.
+* **`15_ColdChain_Lifecycle_Physical_Scanner_Recovery_and_AutoRecognition_Report.md`**: **물리 핸드헬드 GM77 스마트 스캐너 복구 및 A00~A15 지능형 자동 단계인식(AUTO) 실증 완료 보고서**.
 
 ---
 
