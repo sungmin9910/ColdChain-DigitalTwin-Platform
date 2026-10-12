@@ -24,7 +24,7 @@
 #define GPS_BAUDRATE  9600
 
 // MQTT 브로커 및 토픽
-const char* mqtt_server = "broker.emqx.io";
+const char* mqtt_server = "broker.hivemq.com";
 const int mqtt_port = 1883;
 const char* mqtt_topic = "coldchain/truck01/sensor";
 const char* device_id = "carrier-c6-01";
@@ -37,7 +37,7 @@ struct WiFiNetwork {
 
 const WiFiNetwork wifi_networks[] = {
   {"smroom", ""},
-  {"lab225", "123698745"},
+  {"225", "123698745"},
   {"hani", "12345687"}
 };
 const int num_wifi_networks = sizeof(wifi_networks) / sizeof(wifi_networks[0]);
@@ -300,11 +300,12 @@ bool reconnectMQTT() {
   unsigned long now = millis();
   if (now - lastMqttAttempt > 4000) {
     lastMqttAttempt = now;
-    Serial.print("  [MQTT] Connecting to broker.emqx.io...");
+    Serial.printf("  [MQTT] Connecting to %s...", mqtt_server);
     
     String clientId = "ESP32C6-ColdChain-";
     clientId += String((uint32_t)ESP.getEfuseMac(), HEX);
 
+    client.setSocketTimeout(3);
     if (client.connect(clientId.c_str())) {
       Serial.println(" OK (Connected!)");
       return true;
@@ -554,6 +555,7 @@ void setup() {
   // 7. MQTT 설정
   client.setServer(mqtt_server, mqtt_port);
   client.setBufferSize(512);
+  client.setSocketTimeout(3);
 
   // 8. NTP 시간 동기화 (KST: UTC+9)
   configTime(9 * 3600, 0, "pool.ntp.org", "time.nist.gov");

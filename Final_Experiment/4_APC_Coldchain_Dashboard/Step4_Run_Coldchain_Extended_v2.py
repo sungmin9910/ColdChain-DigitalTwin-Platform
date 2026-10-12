@@ -12,7 +12,7 @@ import altair as alt
 # ----------------------------------------------------------------
 # 1. 설정 및 공유 자원 초기화
 # ----------------------------------------------------------------
-MQTT_BROKER = "broker.emqx.io"
+MQTT_BROKER = "broker.hivemq.com"
 MQTT_PORT = 1883
 MQTT_TOPIC = "coldchain/truck01/sensor"
 
