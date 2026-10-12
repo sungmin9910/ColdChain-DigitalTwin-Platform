@@ -1102,26 +1102,21 @@ while True:
             df = pd.DataFrame(display_history).set_index('timestamp')
             df_chart = df.copy()
             
-            # 1. 온도/습도 그래프 (온도와 습도 중 사용 가능한 컬럼 추출)
-            available_env = [col for col in ['temperature', 'humidity'] if col in df_chart.columns]
-            if available_env:
+            # 1. 온도/습도 이중 Y축(Dual Y-Axis) 그래프
+            # 왼쪽 축: 온도 (-10°C ~ +40°C), 오른쪽 축: 습도 (0% ~ 100%)
+            has_temp = 'temperature' in df_chart.columns
+            has_humi = 'humidity' in df_chart.columns
+            if has_temp or has_humi:
                 df_reset = df_chart.reset_index()
                 df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'], errors='coerce', format='mixed')
                 df_reset = df_reset.dropna(subset=['timestamp'])
                 if not df_reset.empty:
-                    df_long = df_reset.melt(id_vars=['timestamp'], value_vars=available_env, var_name='Metric', value_name='Value')
+                    is_ko = (st.session_state.lang == 'KO')
+                    temp_lbl = '온도 (°C)' if is_ko else 'Temperature (°C)'
+                    humi_lbl = '습도 (%)' if is_ko else 'Humidity (%)'
                     
-                    # 범례 한글화 매핑 (세션 언어가 KO이면 한글로 표시)
-                    if st.session_state.lang == 'KO':
-                        metric_labels = {'temperature': '온도 (°C)', 'humidity': '습도 (%)'}
-                        domain_list = ['온도 (°C)', '습도 (%)']
-                        y_title = '온도 / 습도'
-                    else:
-                        metric_labels = {'temperature': 'Temperature (°C)', 'humidity': 'Humidity (%)'}
-                        domain_list = ['Temperature (°C)', 'Humidity (%)']
-                        y_title = 'Temp / Humi'
-                    
-                    df_long['Metric'] = df_long['Metric'].map(metric_labels)
+                    df_reset['temp_label'] = temp_lbl
+                    df_reset['humi_label'] = humi_lbl
                     
                     axis_x_compact = alt.Axis(
                         format='%H:%M',
@@ -1135,18 +1130,78 @@ while True:
                         gridOpacity=0.25
                     )
                     
-                    chart = alt.Chart(df_long).mark_line().encode(
-                        x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
-                        y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title=y_title),
-                        color=alt.Color('Metric:N', 
-                                        scale=alt.Scale(domain=domain_list, range=['#FF5733', '#33A2FF']),
-                                        legend=alt.Legend(orient='bottom', title=None)),
-                        tooltip=[
-                            alt.Tooltip('timestamp:T', title='시간' if st.session_state.lang == 'KO' else 'Time', format='%H:%M:%S'),
-                            alt.Tooltip('Metric:N', title='항목' if st.session_state.lang == 'KO' else 'Metric'),
-                            alt.Tooltip('Value:Q', title='수치' if st.session_state.lang == 'KO' else 'Value', format='.2f')
-                        ]
-                    ).properties(
+                    tooltip_list = [
+                        alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time', format='%H:%M:%S')
+                    ]
+                    if has_temp:
+                        tooltip_list.append(alt.Tooltip('temperature:Q', title=temp_lbl, format='.2f'))
+                    if has_humi:
+                        tooltip_list.append(alt.Tooltip('humidity:Q', title=humi_lbl, format='.2f'))
+                    
+                    layers = []
+                    
+                    # 1) 왼쪽 Y축: 온도 (-10°C ~ +40°C)
+                    if has_temp:
+                        temp_line = alt.Chart(df_reset).mark_line(
+                            strokeWidth=2.2
+                        ).encode(
+                            x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
+                            y=alt.Y(
+                                'temperature:Q',
+                                axis=alt.Axis(
+                                    title=temp_lbl,
+                                    titleColor='#FF5733',
+                                    orient='left',
+                                    grid=True
+                                ),
+                                scale=alt.Scale(domain=[-10, 40], clamp=True)
+                            ),
+                            color=alt.Color(
+                                'temp_label:N',
+                                scale=alt.Scale(
+                                    domain=[temp_lbl, humi_lbl],
+                                    range=['#FF5733', '#33A2FF']
+                                ),
+                                legend=alt.Legend(orient='bottom', title=None)
+                            ),
+                            tooltip=tooltip_list
+                        )
+                        layers.append(temp_line)
+                    
+                    # 2) 오른쪽 Y축: 습도 (0% ~ 100%)
+                    if has_humi:
+                        humi_line = alt.Chart(df_reset).mark_line(
+                            strokeWidth=2.0
+                        ).encode(
+                            x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
+                            y=alt.Y(
+                                'humidity:Q',
+                                axis=alt.Axis(
+                                    title=humi_lbl,
+                                    titleColor='#33A2FF',
+                                    orient='right',
+                                    grid=False
+                                ),
+                                scale=alt.Scale(domain=[0, 100], clamp=True)
+                            ),
+                            color=alt.Color(
+                                'humi_label:N',
+                                scale=alt.Scale(
+                                    domain=[temp_lbl, humi_lbl],
+                                    range=['#FF5733', '#33A2FF']
+                                ),
+                                legend=alt.Legend(orient='bottom', title=None)
+                            ),
+                            tooltip=tooltip_list
+                        )
+                        layers.append(humi_line)
+                    
+                    if len(layers) == 2:
+                        env_combined = alt.layer(layers[0], layers[1]).resolve_scale(y='independent')
+                    else:
+                        env_combined = layers[0]
+                    
+                    final_env_chart = env_combined.properties(
                         height=400
                     ).configure_axis(
                         labelFontSize=12,
@@ -1155,7 +1210,8 @@ while True:
                         labelFontSize=12,
                         titleFontSize=14
                     ).interactive(bind_y=False)
-                    env_chart.altair_chart(chart, width="stretch")
+                    
+                    env_chart.altair_chart(final_env_chart, use_container_width=True)
             
             # 2. 조도 그래프
             if 'lux' in df_chart.columns:
@@ -1199,7 +1255,7 @@ while True:
                         labelFontSize=12,
                         titleFontSize=14
                     ).interactive(bind_y=False)
-                    lux_chart.altair_chart(chart, width="stretch")
+                    lux_chart.altair_chart(chart, use_container_width=True)
                 
             # 3. 충격량 및 속도 이중 Y축 (Dual-Axis) 고도화 그래프
             if 'g_force' in df_chart.columns:
@@ -1297,7 +1353,7 @@ while True:
                         titleFontSize=14
                     ).interactive(bind_y=False)
                     
-                    gforce_chart.altair_chart(final_g_chart, width="stretch")
+                    gforce_chart.altair_chart(final_g_chart, use_container_width=True)
      
             # 로그 (전체 데이터를 역순으로 표시, 스크롤 가능하며 표 우측 상단 'Download as CSV' 클릭 시 전량 다운로드)
             log_container.dataframe(df.iloc[::-1], height=350, use_container_width=True)
