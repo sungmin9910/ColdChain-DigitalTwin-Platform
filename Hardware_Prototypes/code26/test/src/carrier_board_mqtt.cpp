@@ -26,8 +26,8 @@
 // MQTT 브로커 및 토픽
 const char* mqtt_server = "broker.hivemq.com";
 const int mqtt_port = 1883;
-const char* mqtt_topic = "coldchain/truck02/sensor";
-const char* device_id = "carrier-c6-02";
+const char* mqtt_topic = "coldchain/truck01/sensor";
+const char* device_id = "carrier-c6-01";
 
 // Wi-Fi 네트워크 목록 (다중 AP 자동 접속)
 struct WiFiNetwork {
@@ -53,7 +53,7 @@ const int num_wifi_networks = sizeof(wifi_networks) / sizeof(wifi_networks[0]);
 // ==========================================
 Adafruit_MPU6050 mpu;
 BH1750 lightMeter;
-SHTSensor sht(SHTSensor::SHT4X);
+SHTSensor sht(SHTSensor::AUTO_DETECT);
 TinyGPSPlus gps;
 
 WiFiMulti wifiMulti;
@@ -464,14 +464,14 @@ void setup() {
   if (i2c_count == 0) Serial.print("없음 (I2C 버스 응답 없음)");
   Serial.println();
 
-  // 1. SHT45 온습도 센서 초기화
-  Serial.print("📦 [1] SHT45 온습도 센서 초기화... ");
+  // 1. SHT 온습도 센서 초기화 (AUTO_DETECT: SHT4x, SHT3x 자동 프로빙)
+  Serial.print("📦 [1] SHT 온습도 센서 초기화 (AUTO_DETECT)... ");
   if (sht.init()) {
     sht.setAccuracy(SHTSensor::SHT_ACCURACY_HIGH);
     sht45_ready = true;
     Serial.println("OK");
   } else {
-    Serial.println("Fail");
+    Serial.println("Fail (미응답/접촉 확인 필요)");
   }
 
   // 2. BH1750 조도 센서 초기화
@@ -719,6 +719,17 @@ void loop() {
       reconnectMQTT();
     }
     client.loop();
+  }
+
+  // SHT 온습도 센서 미연결 상태일 경우 3초마다 재시도
+  static unsigned long lastShtRetry = 0;
+  if (!sht45_ready && (now - lastShtRetry >= 3000)) {
+    lastShtRetry = now;
+    if (sht.init()) {
+      sht.setAccuracy(SHTSensor::SHT_ACCURACY_HIGH);
+      sht45_ready = true;
+      Serial.println("\n🎉 [SHT 온습도 센서 실시간 감지 성공] 온습도 센서가 활성화되었습니다!\n");
+    }
   }
 
   // MPU6050 미연결 상태일 경우 3초마다 재시도 (사용자가 모듈을 꽂거나 흔들 때 자동 인식)
