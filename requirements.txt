@@ -1,4 +1,7 @@
 streamlit
+paho-mqtt
+pydeck
+altair
 pymysql
 toml
 pandas

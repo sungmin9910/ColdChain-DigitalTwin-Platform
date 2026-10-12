@@ -1190,6 +1190,26 @@ while True:
             log_container.dataframe(df.iloc[::-1], height=350, use_container_width=True)
         except Exception as chart_err:
             print(f"Chart render warning: {chart_err}")
+    else:
+        # 실시간 데이터 최초 수신 대기 상태 표시 (화면이 빈 상태로 남는 현상 방지)
+        temp_metric.metric(LANG_DICT[st.session_state.lang]['metric_temp'], "- °C")
+        humi_metric.metric(LANG_DICT[st.session_state.lang]['metric_humi'], "- %")
+        lux_metric.metric(LANG_DICT[st.session_state.lang]['metric_lux'], "- lx")
+        gforce_metric.metric(LANG_DICT[st.session_state.lang]['metric_gforce'], "- G")
+        speed_metric.metric(LANG_DICT[st.session_state.lang]['metric_speed'], "- km/h")
+        
+        map_container.info("⏳ 센서 노드로부터 첫 실시간 데이터 수신 대기 중입니다 (5초 주기)..." if st.session_state.lang == 'KO' else "⏳ Waiting for initial telemetry from sensor node (5s interval)...")
+        if selected_run == "실시간 주행 (현재 실험)":
+            sidebar_status_box.markdown(f"""
+            <div style="background-color: rgba(0, 212, 255, 0.08); border: 1px solid rgba(0, 212, 255, 0.35); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
+                <div style="font-size: 13.5px; font-weight: bold; color: #00d4ff; margin-bottom: 6px;">📡 실시간 데이터 수신 대기</div>
+                <div style="font-size: 12px; line-height: 1.7; color: #e0e0e0;">
+                    • <b>브로커:</b> <code>{MQTT_BROKER}</code><br>
+                    • <b>토픽:</b> <code>{MQTT_TOPIC}</code><br>
+                    • <b>상태:</b> 🟡 센서 노드 패킷 대기 중
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
  
     if selected_run != "실시간 주행 (현재 실험)":
         # 과거 실험 데이터는 정적 데이터이므로 한 번 렌더링 후 루프 종료 (클라우드 CPU 절약 및 UI 안정화)
