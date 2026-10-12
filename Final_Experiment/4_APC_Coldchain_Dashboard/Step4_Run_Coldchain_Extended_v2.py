@@ -107,8 +107,24 @@ st.markdown("""
     .stMarkdown p, .stMarkdown li {
         font-size: 16px !important;
     }
+    /* 세그먼트 컨트롤 및 필터 버튼 중앙 정렬 및 여백 */
+    [data-testid="stSegmentedControl"], [data-testid="stPills"], [data-testid="stRadio"] {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 8px;
+    }
     </style>
     """, unsafe_allow_html=True)
+
+# 반응형 토글 컨트롤 렌더링 헬퍼 (모든 Streamlit 버전 호환)
+def render_segmented_toggle(label, options, default, key):
+    if hasattr(st, "segmented_control"):
+        val = st.segmented_control(label, options=options, default=default, key=key, label_visibility="collapsed")
+    elif hasattr(st, "pills"):
+        val = st.pills(label, options=options, default=default, key=key, label_visibility="collapsed")
+    else:
+        val = st.radio(label, options=options, index=options.index(default) if default in options else 0, key=key, horizontal=True, label_visibility="collapsed")
+    return val or default
 
 # AWS MySQL 설정
 def get_mysql_connection():
@@ -373,15 +389,17 @@ with col2_row1:
     st.markdown(f"<h3 style='text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['chart_lux']}</h3>", unsafe_allow_html=True)
     lux_chart = st.empty()
 
-# Row 2: 충격량/속도 차트 및 온습도 차트
+# Row 2: 충격량/속도 차트 및 온습도 차트 (개별/통합 토글 지원)
 col1_row2, col2_row2 = st.columns(2)
 
 with col1_row2:
-    st.markdown(f"<h3 style='text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 10px; margin-top: 20px;'>{LANG_DICT[st.session_state.lang]['chart_g_speed']}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align: center; font-size: 26px; font-weight: bold; margin-bottom: 6px; margin-top: 15px;'>{LANG_DICT[st.session_state.lang]['chart_g_speed']}</h3>", unsafe_allow_html=True)
     gforce_chart = st.empty()
 
 with col2_row2:
-    st.markdown(f"<h3 style='text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 10px; margin-top: 20px;'>{LANG_DICT[st.session_state.lang]['chart_env']}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align: center; font-size: 26px; font-weight: bold; margin-bottom: 6px; margin-top: 15px;'>{LANG_DICT[st.session_state.lang]['chart_env']}</h3>", unsafe_allow_html=True)
+    env_filter_opts = ["🌡️+💧 온습도 전체", "🌡️ 온도만", "💧 습도만"] if st.session_state.lang == 'KO' else ["🌡️+💧 All (Dual)", "🌡️ Temp Only", "💧 Humi Only"]
+    render_segmented_toggle("Env Filter", options=env_filter_opts, default=env_filter_opts[0], key="filter_env_chart_ext")
     env_chart = st.empty()
 
 st.markdown("---")
@@ -583,8 +601,7 @@ while True:
             df = pd.DataFrame(data_history).set_index('timestamp')
             df_chart = df.copy()
             
-            # 1. 온도/습도 이중 Y축(Dual Y-Axis) 그래프
-            # 왼쪽 축: 온도 (-10°C ~ +40°C), 오른쪽 축: 습도 (0% ~ 100%)
+            # 1. 온도/습도 그래프 (이중 Y축 or 단독 필터 보기)
             has_temp = 'temperature' in df_chart.columns
             has_humi = 'humidity' in df_chart.columns
             if has_temp or has_humi:
@@ -611,20 +628,27 @@ while True:
                         gridOpacity=0.25
                     )
                     
+                    # 현재 선택된 온습도 필터 확인 (전체 / 온도만 / 습도만)
+                    active_env_filter = st.session_state.get('filter_env_chart_ext') or ""
+                    is_all = ("전체" in active_env_filter or "All" in active_env_filter or not active_env_filter)
+                    show_temp = (is_all or "온도" in active_env_filter or "Temp" in active_env_filter) and has_temp
+                    show_humi = (is_all or "습도" in active_env_filter or "Humi" in active_env_filter) and has_humi
+                    is_dual = show_temp and show_humi
+                    
                     tooltip_list = [
                         alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time', format='%H:%M:%S')
                     ]
-                    if has_temp:
+                    if show_temp:
                         tooltip_list.append(alt.Tooltip('temperature:Q', title=temp_lbl, format='.2f'))
-                    if has_humi:
+                    if show_humi:
                         tooltip_list.append(alt.Tooltip('humidity:Q', title=humi_lbl, format='.2f'))
                     
                     layers = []
                     
                     # 1) 왼쪽 Y축: 온도 (-10°C ~ +40°C)
-                    if has_temp:
+                    if show_temp:
                         temp_line = alt.Chart(df_reset).mark_line(
-                            strokeWidth=2.2
+                            strokeWidth=2.4
                         ).encode(
                             x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
                             y=alt.Y(
@@ -643,16 +667,17 @@ while True:
                                     domain=[temp_lbl, humi_lbl],
                                     range=['#FF5733', '#33A2FF']
                                 ),
-                                legend=alt.Legend(orient='bottom', title=None)
+                                legend=alt.Legend(orient='bottom', title=None) if is_dual else None
                             ),
                             tooltip=tooltip_list
                         )
                         layers.append(temp_line)
                     
                     # 2) 오른쪽 Y축: 습도 (0% ~ 100%)
-                    if has_humi:
+                    if show_humi:
+                        humi_orient = 'right' if is_dual else 'left'
                         humi_line = alt.Chart(df_reset).mark_line(
-                            strokeWidth=2.0
+                            strokeWidth=2.2
                         ).encode(
                             x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
                             y=alt.Y(
@@ -660,8 +685,8 @@ while True:
                                 axis=alt.Axis(
                                     title=humi_lbl,
                                     titleColor='#33A2FF',
-                                    orient='right',
-                                    grid=False
+                                    orient=humi_orient,
+                                    grid=(not is_dual)
                                 ),
                                 scale=alt.Scale(domain=[0, 100], clamp=True)
                             ),
@@ -671,7 +696,7 @@ while True:
                                     domain=[temp_lbl, humi_lbl],
                                     range=['#FF5733', '#33A2FF']
                                 ),
-                                legend=alt.Legend(orient='bottom', title=None)
+                                legend=alt.Legend(orient='bottom', title=None) if is_dual else None
                             ),
                             tooltip=tooltip_list
                         )
@@ -679,8 +704,10 @@ while True:
                     
                     if len(layers) == 2:
                         env_combined = alt.layer(layers[0], layers[1]).resolve_scale(y='independent')
-                    else:
+                    elif len(layers) == 1:
                         env_combined = layers[0]
+                    else:
+                        env_combined = alt.Chart(df_reset.head(0)).mark_line()
                     
                     final_env_chart = env_combined.properties(
                         height=400

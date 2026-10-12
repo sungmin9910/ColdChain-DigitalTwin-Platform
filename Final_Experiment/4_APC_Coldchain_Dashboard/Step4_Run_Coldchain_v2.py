@@ -163,11 +163,24 @@ st.markdown("""
     .stDataFrame td, .stDataFrame th {
         font-size: 15px !important;
     }
-    .stMarkdown p, .stMarkdown li {
-        font-size: 16px !important;
+    /* 세그먼트 컨트롤 및 필터 버튼 중앙 정렬 및 여백 */
+    [data-testid="stSegmentedControl"], [data-testid="stPills"], [data-testid="stRadio"] {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 8px;
     }
     </style>
     """, unsafe_allow_html=True)
+
+# 반응형 토글 컨트롤 렌더링 헬퍼 (모든 Streamlit 버전 호환)
+def render_segmented_toggle(label, options, default, key):
+    if hasattr(st, "segmented_control"):
+        val = st.segmented_control(label, options=options, default=default, key=key, label_visibility="collapsed")
+    elif hasattr(st, "pills"):
+        val = st.pills(label, options=options, default=default, key=key, label_visibility="collapsed")
+    else:
+        val = st.radio(label, options=options, index=options.index(default) if default in options else 0, key=key, horizontal=True, label_visibility="collapsed")
+    return val or default
 
 # AWS MySQL 설정
 def get_mysql_connection():
@@ -653,15 +666,19 @@ with col2_row1:
     st.markdown(f"<h3 style='text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 10px;'>{LANG_DICT[st.session_state.lang]['chart_lux']}</h3>", unsafe_allow_html=True)
     lux_chart = st.empty()
 
-# Row 2: 충격량/속도 차트 및 온습도 차트
+# Row 2: 충격량/속도 차트 및 온습도 차트 (개별/통합 토글 지원)
 col1_row2, col2_row2 = st.columns(2)
 
 with col1_row2:
-    st.markdown(f"<h3 style='text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 10px; margin-top: 20px;'>{LANG_DICT[st.session_state.lang]['chart_g_speed']}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align: center; font-size: 26px; font-weight: bold; margin-bottom: 6px; margin-top: 15px;'>{LANG_DICT[st.session_state.lang]['chart_g_speed']}</h3>", unsafe_allow_html=True)
+    g_filter_opts = ["💥+🚗 충격량+속도", "💥 충격량만", "🚗 속도만"] if st.session_state.lang == 'KO' else ["💥+🚗 All (Dual)", "💥 Impact Only", "🚗 Speed Only"]
+    render_segmented_toggle("G-Force Filter", options=g_filter_opts, default=g_filter_opts[0], key="filter_g_chart")
     gforce_chart = st.empty()
 
 with col2_row2:
-    st.markdown(f"<h3 style='text-align: center; font-size: 28px; font-weight: bold; margin-bottom: 10px; margin-top: 20px;'>{LANG_DICT[st.session_state.lang]['chart_env']}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align: center; font-size: 26px; font-weight: bold; margin-bottom: 6px; margin-top: 15px;'>{LANG_DICT[st.session_state.lang]['chart_env']}</h3>", unsafe_allow_html=True)
+    env_filter_opts = ["🌡️+💧 온습도 전체", "🌡️ 온도만", "💧 습도만"] if st.session_state.lang == 'KO' else ["🌡️+💧 All (Dual)", "🌡️ Temp Only", "💧 Humi Only"]
+    render_segmented_toggle("Env Filter", options=env_filter_opts, default=env_filter_opts[0], key="filter_env_chart")
     env_chart = st.empty()
 
 st.markdown("---")
@@ -1102,8 +1119,7 @@ while True:
             df = pd.DataFrame(display_history).set_index('timestamp')
             df_chart = df.copy()
             
-            # 1. 온도/습도 이중 Y축(Dual Y-Axis) 그래프
-            # 왼쪽 축: 온도 (-10°C ~ +40°C), 오른쪽 축: 습도 (0% ~ 100%)
+            # 1. 온도/습도 그래프 (이중 Y축 or 단독 필터 보기)
             has_temp = 'temperature' in df_chart.columns
             has_humi = 'humidity' in df_chart.columns
             if has_temp or has_humi:
@@ -1130,20 +1146,27 @@ while True:
                         gridOpacity=0.25
                     )
                     
+                    # 현재 선택된 온습도 필터 확인 (전체 / 온도만 / 습도만)
+                    active_env_filter = st.session_state.get('filter_env_chart') or ""
+                    is_all = ("전체" in active_env_filter or "All" in active_env_filter or not active_env_filter)
+                    show_temp = (is_all or "온도" in active_env_filter or "Temp" in active_env_filter) and has_temp
+                    show_humi = (is_all or "습도" in active_env_filter or "Humi" in active_env_filter) and has_humi
+                    is_dual = show_temp and show_humi
+                    
                     tooltip_list = [
                         alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time', format='%H:%M:%S')
                     ]
-                    if has_temp:
+                    if show_temp:
                         tooltip_list.append(alt.Tooltip('temperature:Q', title=temp_lbl, format='.2f'))
-                    if has_humi:
+                    if show_humi:
                         tooltip_list.append(alt.Tooltip('humidity:Q', title=humi_lbl, format='.2f'))
                     
                     layers = []
                     
-                    # 1) 왼쪽 Y축: 온도 (-10°C ~ +40°C)
-                    if has_temp:
+                    # 1) 온도 레이어 (범위: -10°C ~ +40°C)
+                    if show_temp:
                         temp_line = alt.Chart(df_reset).mark_line(
-                            strokeWidth=2.2
+                            strokeWidth=2.4
                         ).encode(
                             x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
                             y=alt.Y(
@@ -1162,16 +1185,17 @@ while True:
                                     domain=[temp_lbl, humi_lbl],
                                     range=['#FF5733', '#33A2FF']
                                 ),
-                                legend=alt.Legend(orient='bottom', title=None)
+                                legend=alt.Legend(orient='bottom', title=None) if is_dual else None
                             ),
                             tooltip=tooltip_list
                         )
                         layers.append(temp_line)
                     
-                    # 2) 오른쪽 Y축: 습도 (0% ~ 100%)
-                    if has_humi:
+                    # 2) 습도 레이어 (범위: 0% ~ 100%)
+                    if show_humi:
+                        humi_orient = 'right' if is_dual else 'left'
                         humi_line = alt.Chart(df_reset).mark_line(
-                            strokeWidth=2.0
+                            strokeWidth=2.2
                         ).encode(
                             x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
                             y=alt.Y(
@@ -1179,8 +1203,8 @@ while True:
                                 axis=alt.Axis(
                                     title=humi_lbl,
                                     titleColor='#33A2FF',
-                                    orient='right',
-                                    grid=False
+                                    orient=humi_orient,
+                                    grid=(not is_dual)
                                 ),
                                 scale=alt.Scale(domain=[0, 100], clamp=True)
                             ),
@@ -1190,7 +1214,7 @@ while True:
                                     domain=[temp_lbl, humi_lbl],
                                     range=['#FF5733', '#33A2FF']
                                 ),
-                                legend=alt.Legend(orient='bottom', title=None)
+                                legend=alt.Legend(orient='bottom', title=None) if is_dual else None
                             ),
                             tooltip=tooltip_list
                         )
@@ -1198,8 +1222,10 @@ while True:
                     
                     if len(layers) == 2:
                         env_combined = alt.layer(layers[0], layers[1]).resolve_scale(y='independent')
-                    else:
+                    elif len(layers) == 1:
                         env_combined = layers[0]
+                    else:
+                        env_combined = alt.Chart(df_reset.head(0)).mark_line()
                     
                     final_env_chart = env_combined.properties(
                         height=400
@@ -1257,7 +1283,7 @@ while True:
                     ).interactive(bind_y=False)
                     lux_chart.altair_chart(chart, use_container_width=True)
                 
-            # 3. 충격량 및 속도 이중 Y축 (Dual-Axis) 고도화 그래프
+            # 3. 충격량 및 속도 그래프 (이중 Y축 or 단독 필터 보기)
             if 'g_force' in df_chart.columns:
                 df_reset = df_chart.reset_index()
                 df_reset['timestamp'] = pd.to_datetime(df_reset['timestamp'], errors='coerce', format='mixed')
@@ -1265,8 +1291,6 @@ while True:
                 if not df_reset.empty:
                     is_ko = (st.session_state.lang == 'KO')
                     
-                    # 1) 충격량 메인 라인 (왼쪽 Y축 - 주인공)
-                    y_g_title = '충격량 (G-Force)' if is_ko else 'Impact (G-Force)'
                     axis_x_gforce = alt.Axis(
                         format='%H:%M',
                         labelAngle=0,
@@ -1279,69 +1303,86 @@ while True:
                         gridOpacity=0.25
                     )
                     
-                    gforce_line = alt.Chart(df_reset).mark_line(
-                        color='#E74C3C', strokeWidth=2.2
-                    ).encode(
-                        x=alt.X('timestamp:T', axis=axis_x_gforce, title=None),
-                        y=alt.Y('g_force:Q', axis=alt.Axis(title=y_g_title, titleColor='#E74C3C', grid=True), scale=alt.Scale(zero=False)),
-                        tooltip=[
-                            alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time', format='%H:%M:%S'),
-                            alt.Tooltip('g_force:Q', title='충격량(G)' if is_ko else 'Impact(G)', format='.2f'),
-                            alt.Tooltip('speed:Q', title='속도(km/h)' if is_ko else 'Speed(km/h)', format='.1f')
-                        ]
-                    )
+                    # 현재 선택된 충격/속도 필터 확인 (전체 / 충격량만 / 속도만)
+                    active_g_filter = st.session_state.get('filter_g_chart') or ""
+                    is_g_all = ("전체" in active_g_filter or "충격량+속도" in active_g_filter or "All" in active_g_filter or not active_g_filter)
+                    show_g = (is_g_all or "충격량만" in active_g_filter or "Impact" in active_g_filter)
+                    show_spd = (is_g_all or "속도만" in active_g_filter or "Speed" in active_g_filter) and ('speed' in df_reset.columns)
+                    is_g_dual = show_g and show_spd
                     
-                    # 2) 2.0G 이상 충격 피크 포인트 강조 (빨간 점)
-                    shock_pts_df = df_reset[df_reset['g_force'] >= 2.0]
-                    if not shock_pts_df.empty:
-                        shock_points = alt.Chart(shock_pts_df).mark_circle(
-                            size=60, color='#E74C3C'
+                    # 1) 충격량 메인 라인 & 피크 & 기준선 그룹
+                    if show_g:
+                        y_g_title = '충격량 (G-Force)' if is_ko else 'Impact (G-Force)'
+                        gforce_line = alt.Chart(df_reset).mark_line(
+                            color='#E74C3C', strokeWidth=2.2
                         ).encode(
-                            x=alt.X('timestamp:T'),
-                            y=alt.Y('g_force:Q'),
+                            x=alt.X('timestamp:T', axis=axis_x_gforce, title=None),
+                            y=alt.Y('g_force:Q', axis=alt.Axis(title=y_g_title, titleColor='#E74C3C', grid=True), scale=alt.Scale(zero=False)),
                             tooltip=[
                                 alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time', format='%H:%M:%S'),
                                 alt.Tooltip('g_force:Q', title='충격량(G)' if is_ko else 'Impact(G)', format='.2f'),
-                                alt.Tooltip('speed:Q', title='당시속도(km/h)' if is_ko else 'Speed(km/h)', format='.1f')
+                                alt.Tooltip('speed:Q', title='속도(km/h)' if is_ko else 'Speed(km/h)', format='.1f')
                             ]
                         )
-                    else:
-                        shock_points = alt.Chart(df_reset.head(0)).mark_circle()
+                        
+                        # 2.0G 이상 충격 피크 포인트 강조 (빨간 점)
+                        shock_pts_df = df_reset[df_reset['g_force'] >= 2.0]
+                        if not shock_pts_df.empty:
+                            shock_points = alt.Chart(shock_pts_df).mark_circle(
+                                size=60, color='#E74C3C'
+                            ).encode(
+                                x=alt.X('timestamp:T'),
+                                y=alt.Y('g_force:Q'),
+                                tooltip=[
+                                    alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time', format='%H:%M:%S'),
+                                    alt.Tooltip('g_force:Q', title='충격량(G)' if is_ko else 'Impact(G)', format='.2f'),
+                                    alt.Tooltip('speed:Q', title='당시속도(km/h)' if is_ko else 'Speed(km/h)', format='.1f')
+                                ]
+                            )
+                        else:
+                            shock_points = alt.Chart(df_reset.head(0)).mark_circle()
 
-                    # 3) 과일 손상 위험 기준선 (2.0G 주의선, 3.0G 위험선)
-                    lbl_2g = '2.0G 과일 손상 주의 (요철)' if is_ko else '2.0G Fruit Damage Warning'
-                    lbl_3g = '3.0G 과일 압상 위험 (Critical)' if is_ko else '3.0G Critical Impact'
-                    thresh_df = pd.DataFrame([
-                        {'level': 2.0, 'label': lbl_2g},
-                        {'level': 3.0, 'label': lbl_3g}
-                    ])
-                    rules = alt.Chart(thresh_df).mark_rule(
-                        strokeDash=[4, 4], strokeWidth=1.5, opacity=0.85
-                    ).encode(
-                        y=alt.Y('level:Q'),
-                        color=alt.Color('label:N', 
-                                        scale=alt.Scale(domain=[lbl_2g, lbl_3g], range=['#FFA500', '#FF0000']), 
-                                        legend=alt.Legend(orient='bottom', title=None))
-                    )
-                    
-                    gforce_group = alt.layer(gforce_line, shock_points, rules)
+                        # 과일 손상 위험 기준선 (2.0G 주의선, 3.0G 위험선)
+                        lbl_2g = '2.0G 과일 손상 주의 (요철)' if is_ko else '2.0G Fruit Damage Warning'
+                        lbl_3g = '3.0G 과일 압상 위험 (Critical)' if is_ko else '3.0G Critical Impact'
+                        thresh_df = pd.DataFrame([
+                            {'level': 2.0, 'label': lbl_2g},
+                            {'level': 3.0, 'label': lbl_3g}
+                        ])
+                        rules = alt.Chart(thresh_df).mark_rule(
+                            strokeDash=[4, 4], strokeWidth=1.5, opacity=0.85
+                        ).encode(
+                            y=alt.Y('level:Q'),
+                            color=alt.Color('label:N', 
+                                            scale=alt.Scale(domain=[lbl_2g, lbl_3g], range=['#FFA500', '#FF0000']), 
+                                            legend=alt.Legend(orient='bottom', title=None))
+                        )
+                        gforce_group = alt.layer(gforce_line, shock_points, rules)
 
-                    # 4) 차량 속도 보조 라인 (오른쪽 Y축 - 배경)
-                    if 'speed' in df_reset.columns:
+                    # 2) 차량 속도 라인
+                    if show_spd:
                         y_spd_title = '차량 속도 (km/h)' if is_ko else 'Speed (km/h)'
+                        spd_orient = 'right' if is_g_dual else 'left'
                         speed_layer = alt.Chart(df_reset).mark_line(
-                            color='#2ECC71', strokeWidth=1.4, opacity=0.6
+                            color='#2ECC71', strokeWidth=2.2 if not is_g_dual else 1.5, opacity=1.0 if not is_g_dual else 0.7
                         ).encode(
                             x=alt.X('timestamp:T', axis=axis_x_gforce, title=None),
-                            y=alt.Y('speed:Q', axis=alt.Axis(title=y_spd_title, titleColor='#2ECC71', grid=False), scale=alt.Scale(zero=True)),
+                            y=alt.Y('speed:Q', axis=alt.Axis(title=y_spd_title, titleColor='#2ECC71', orient=spd_orient, grid=(not is_g_dual)), scale=alt.Scale(zero=True)),
                             tooltip=[
                                 alt.Tooltip('timestamp:T', title='시간' if is_ko else 'Time', format='%H:%M:%S'),
                                 alt.Tooltip('speed:Q', title='속도(km/h)' if is_ko else 'Speed(km/h)', format='.1f')
                             ]
                         )
+
+                    # 3) 차트 결합 (단독 or 이중축)
+                    if is_g_dual:
                         combined_chart = alt.layer(speed_layer, gforce_group).resolve_scale(y='independent')
-                    else:
+                    elif show_g:
                         combined_chart = gforce_group
+                    elif show_spd:
+                        combined_chart = speed_layer
+                    else:
+                        combined_chart = alt.Chart(df_reset.head(0)).mark_line()
 
                     final_g_chart = combined_chart.properties(
                         height=400
