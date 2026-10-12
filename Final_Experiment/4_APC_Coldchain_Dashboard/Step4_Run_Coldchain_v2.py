@@ -342,17 +342,41 @@ def on_message(client, userdata, msg):
 
 @st.cache_resource
 def start_mqtt_client():
+    # 1순위: WebSockets (Port 8000) - Streamlit Community Cloud 및 모든 방화벽/클라우드 완벽 호환
     try:
-        from paho.mqtt.client import CallbackAPIVersion
-        client = mqtt.Client(CallbackAPIVersion.VERSION1)
-    except:
-        client = mqtt.Client()
-    
-    client.on_connect = on_connect
-    client.on_message = on_message
-    client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    client.loop_start()
-    return client
+        try:
+            from paho.mqtt.client import CallbackAPIVersion
+            client = mqtt.Client(CallbackAPIVersion.VERSION1, transport="websockets")
+        except Exception:
+            client = mqtt.Client(transport="websockets")
+        
+        client.ws_set_options(path="/mqtt")
+        client.on_connect = on_connect
+        client.on_message = on_message
+        client.connect(MQTT_BROKER, 8000, 60)
+        client.loop_start()
+        print("Connected to HiveMQ via WebSockets (Port 8000) successfully!", flush=True)
+        return client
+    except Exception as e:
+        print(f"WebSocket Port 8000 connection failed: {e}, falling back to standard TCP 1883...", flush=True)
+
+    # 2순위: Standard TCP (Port 1883)
+    try:
+        try:
+            from paho.mqtt.client import CallbackAPIVersion
+            client = mqtt.Client(CallbackAPIVersion.VERSION1, transport="tcp")
+        except Exception:
+            client = mqtt.Client(transport="tcp")
+        
+        client.on_connect = on_connect
+        client.on_message = on_message
+        client.connect(MQTT_BROKER, 1883, 60)
+        client.loop_start()
+        print("Connected to HiveMQ via TCP (Port 1883) successfully!", flush=True)
+        return client
+    except Exception as e:
+        print(f"TCP Port 1883 connection failed: {e}", flush=True)
+        return client
 
 mqtt_client = start_mqtt_client()
 
