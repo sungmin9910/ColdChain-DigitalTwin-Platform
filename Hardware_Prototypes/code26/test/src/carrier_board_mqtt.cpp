@@ -449,7 +449,20 @@ void setup() {
   // I2C 초기화
   Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
   Wire.setClock(100000);
-  Wire.setTimeOut(25);
+  Wire.setTimeOut(50);
+
+  // I2C 버스 전체 스캔
+  Serial.print("🔍 [I2C 버스 스캔] 감지된 장치: ");
+  int i2c_count = 0;
+  for (byte addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      Serial.printf("[0x%02X] ", addr);
+      i2c_count++;
+    }
+  }
+  if (i2c_count == 0) Serial.print("없음 (I2C 버스 응답 없음)");
+  Serial.println();
 
   // 1. SHT45 온습도 센서 초기화
   Serial.print("📦 [1] SHT45 온습도 센서 초기화... ");
@@ -470,15 +483,20 @@ void setup() {
     Serial.println("Fail");
   }
 
-  // 3. MPU6050 6축 IMU 초기화
+  // 3. MPU6050 6축 IMU 초기화 (0x68 및 0x69 듀얼 시도)
   Serial.print("📦 [3] GY-521 (MPU6050) IMU 초기화... ");
-  if (mpu.begin()) {
+  if (mpu.begin(0x68, &Wire)) {
     mpu_ready = true;
     mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-    Serial.println("OK");
+    Serial.println("OK (주소: 0x68)");
+  } else if (mpu.begin(0x69, &Wire)) {
+    mpu_ready = true;
+    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+    Serial.println("OK (주소: 0x69)");
   } else {
-    Serial.println("Fail");
+    Serial.println("Fail (0x68/0x69 미응답)");
   }
 
   // 4. GPS UART 초기화 (RX 버퍼를 기본 256B에서 1024B로 확장하여 플래시 쓰기/Wi-Fi 스캔 중 오버런 방지)
@@ -701,6 +719,18 @@ void loop() {
       reconnectMQTT();
     }
     client.loop();
+  }
+
+  // MPU6050 미연결 상태일 경우 3초마다 재시도 (사용자가 모듈을 꽂거나 흔들 때 자동 인식)
+  static unsigned long lastMpuRetry = 0;
+  if (!mpu_ready && (now - lastMpuRetry >= 3000)) {
+    lastMpuRetry = now;
+    if (mpu.begin(0x68, &Wire) || mpu.begin(0x69, &Wire)) {
+      mpu_ready = true;
+      mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+      mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+      Serial.println("\n🎉 [MPU6050 실시간 감지 성공] IMU 충격 감지 센서가 활성화되었습니다!\n");
+    }
   }
 
   // 4) 고속 가속도 샘플링 (20ms 간격)
