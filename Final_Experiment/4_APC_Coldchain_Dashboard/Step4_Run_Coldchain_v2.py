@@ -42,7 +42,22 @@ def get_session_tracker():
 # ----------------------------------------------------------------
 MQTT_BROKER = "broker.hivemq.com"
 MQTT_PORT = 1883
-MQTT_TOPIC = "coldchain/+/sensor"
+
+# 독립 관제 차량 및 단말 매핑 (개별 분리)
+TRUCK_OPTIONS = {
+    'truck02': {
+        'name_ko': '2호차 (truck02 / carrier-c6-02) [현재 연결]',
+        'name_en': 'Truck 02 (carrier-c6-02) [Connected]',
+        'topic': 'coldchain/truck02/sensor',
+        'device_id': 'carrier-c6-02',
+    },
+    'truck01': {
+        'name_ko': '1호차 (truck01 / carrier-c6-01)',
+        'name_en': 'Truck 01 (carrier-c6-01)',
+        'topic': 'coldchain/truck01/sensor',
+        'device_id': 'carrier-c6-01',
+    }
+}
 
 # --- 다국어 설정 (Localization) ---
 LANG_DICT = {
@@ -104,6 +119,13 @@ LANG_DICT = {
 
 if 'lang' not in st.session_state:
     st.session_state.lang = 'KO'
+if 'selected_truck_id' not in st.session_state:
+    st.session_state.selected_truck_id = 'truck02'
+if 'conflict_alert' not in st.session_state:
+    st.session_state.conflict_alert = None
+if 'conflict_alert_time' not in st.session_state:
+    st.session_state.conflict_alert_time = 0.0
+
 tracker = get_session_tracker()
 if 'run_id' not in st.session_state:
     if tracker['active_run_id']:
@@ -285,18 +307,28 @@ data_history = get_data_history()
 # ----------------------------------------------------------------
 # 2. MQTT 콜백 설정
 # ----------------------------------------------------------------
+@st.cache_resource
+def get_mqtt_tracker():
+    return {
+        "subscribed_topic": None
+    }
+
 def on_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
-        client.subscribe("coldchain/+/sensor")
-        client.subscribe("coldchain/truck01/sensor")
-        client.subscribe("coldchain/truck02/sensor")
-        print("Connected to MQTT Broker (Subscribed to truck01 & truck02)!")
+        tracker = get_mqtt_tracker()
+        cur_topic = tracker.get("subscribed_topic")
+        if cur_topic:
+            client.subscribe(cur_topic)
+            print(f"Connected to MQTT Broker (Subscribed only to {cur_topic})")
+        else:
+            print("Connected to MQTT Broker (waiting for topic subscription)")
     else:
         print(f"Failed to connect, return code {rc}")
 
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
+        payload['topic'] = msg.topic
         
         # 보드에서 보낸 시간 정보가 있으면 사용, 없거나 비정상일 경우 현재 시간 생성
         ts_val = payload.get('timestamp_str', '')
@@ -329,6 +361,23 @@ def start_mqtt_client():
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
     client.loop_start()
     return client
+
+def sync_mqtt_subscription(client, target_topic):
+    tracker = get_mqtt_tracker()
+    old_topic = tracker.get("subscribed_topic")
+    if old_topic != target_topic:
+        if old_topic:
+            try:
+                client.unsubscribe(old_topic)
+                print(f"Unsubscribed from previous topic: {old_topic}")
+            except Exception as e:
+                print(f"Unsubscribe error: {e}")
+        try:
+            client.subscribe(target_topic)
+            tracker["subscribed_topic"] = target_topic
+            print(f"Subscribed exclusively to: {target_topic}")
+        except Exception as e:
+            print(f"Subscribe error: {e}")
 
 mqtt_client = start_mqtt_client()
 
@@ -374,6 +423,34 @@ if conn:
 with st.sidebar:
     st.markdown(f"### {LANG_DICT[st.session_state.lang]['sidebar_title']}")
     st.caption(LANG_DICT[st.session_state.lang]['sidebar_desc'])
+    
+    # [0] 관제 대상 차량/단말 독립 선택기
+    truck_keys = list(TRUCK_OPTIONS.keys())
+    truck_labels = [
+        TRUCK_OPTIONS[k]['name_ko'] if st.session_state.lang == 'KO' else TRUCK_OPTIONS[k]['name_en']
+        for k in truck_keys
+    ]
+    cur_truck_idx = truck_keys.index(st.session_state.selected_truck_id) if st.session_state.selected_truck_id in truck_keys else 0
+    selected_truck_label = st.radio(
+        "🚚 관제 대상 차량 (독립 단말 선택)" if st.session_state.lang == 'KO' else "🚚 Target Vehicle (Isolated)",
+        truck_labels,
+        index=cur_truck_idx,
+        help="단말 혼선 및 데이터 충돌을 방지하기 위해 선택된 단말의 전용 토픽만 독립 수신합니다."
+    )
+    new_truck_id = truck_keys[truck_labels.index(selected_truck_label)]
+    if new_truck_id != st.session_state.selected_truck_id:
+        st.session_state.selected_truck_id = new_truck_id
+        data_history.clear()
+        with msg_queue.mutex:
+            msg_queue.queue.clear()
+        st.session_state.conflict_alert = None
+        st.session_state.conflict_alert_time = 0.0
+        st.rerun()
+
+    active_truck = TRUCK_OPTIONS[st.session_state.selected_truck_id]
+    MQTT_TOPIC = active_truck['topic']
+    EXPECTED_DEVICE = active_truck['device_id']
+    sync_mqtt_subscription(mqtt_client, MQTT_TOPIC)
     
     # [1] 실시간 통신 및 센서 상태 요약 카드 (플레이스홀더)
     sidebar_status_box = st.empty()
@@ -552,6 +629,13 @@ with col_lang:
         st.session_state.lang = lang_key
         st.rerun()
 
+# 단말 혼선 / 충돌 경고 배너
+conflict_alert_ph = st.empty()
+if st.session_state.get('conflict_alert') and (time.time() - st.session_state.get('conflict_alert_time', 0) < 20):
+    conflict_alert_ph.error(st.session_state['conflict_alert'])
+else:
+    conflict_alert_ph.empty()
+
 # 상단 5대 지표 레이아웃
 m1, m2, m3, m4, m5 = st.columns(5)
 temp_metric = m1.empty()
@@ -615,6 +699,26 @@ while True:
     # 1) 실시간 패킷 항시 처리 (과거 세션 조회 중에도 실시간 데이터 유실 방지)
     while not msg_queue.empty():
         msg = msg_queue.get()
+        incoming_dev = str(msg.get("device", "")).strip()
+        incoming_topic = str(msg.get("topic", "")).strip()
+
+        # ⚠️ 단말 혼선 및 충돌 검출: 현재 선택된 차량/단말과 일치하지 않으면 차단 및 오류 표시
+        if incoming_dev and incoming_dev != EXPECTED_DEVICE:
+            st.session_state.conflict_alert = (
+                f"🚨 **[단말 혼선 및 충돌 오류 감지]** 현재 대시보드는 **'{active_truck['name_ko']}'** (`{EXPECTED_DEVICE}`) 전용으로 동작 중입니다. "
+                f"그러나 다른 단말인 **`{incoming_dev}`** (수신 토픽: `{incoming_topic}`)의 데이터가 유입되었습니다!\n\n"
+                f"⚠️ 데이터 혼재 방지를 위해 해당 패킷을 차단했습니다. 관제하려는 보드에 맞게 사이드바에서 차량을 변경하거나 다른 보드의 전원을 확인하세요."
+            )
+            st.session_state.conflict_alert_time = time.time()
+            continue
+
+        if incoming_topic and incoming_topic != MQTT_TOPIC:
+            st.session_state.conflict_alert = (
+                f"🚨 **[토픽 불일치 오류]** 현재 설정된 토픽(`{MQTT_TOPIC}`)이 아닌 다른 토픽(`{incoming_topic}`)에서 패킷이 수신되었습니다!"
+            )
+            st.session_state.conflict_alert_time = time.time()
+            continue
+
         msg['run_id'] = st.session_state.run_id
         
         # --- 다중 복합 이벤트 감지 (충격, 조도 급변, 온도 급변) ---
@@ -836,18 +940,23 @@ while True:
             else:
                 db_badge = "<span style='color:#888888; font-weight:bold;'>⚪ 기록 차단됨 (모니터링)</span>"
 
-            dev_id = latest.get('device', 'carrier-c6-01')
+            dev_id = latest.get('device', EXPECTED_DEVICE)
             ts_str = latest.get('timestamp', '-')
             
+            conflict_badge = ""
+            if st.session_state.get('conflict_alert') and (time.time() - st.session_state.get('conflict_alert_time', 0) < 20):
+                conflict_badge = "<br>• <b style='color:#ff4d4f;'>⚠️ 단말 충돌 오류 감지됨!</b>"
+
             sidebar_status_box.markdown(f"""
             <div style="background-color: rgba(0, 212, 255, 0.08); border: 1px solid rgba(0, 212, 255, 0.35); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
                 <div style="font-size: 13.5px; font-weight: bold; color: #00d4ff; margin-bottom: 6px;">📡 실시간 데이터 수신 상태</div>
                 <div style="font-size: 12px; line-height: 1.7; color: #e0e0e0;">
+                    • <b>관제 대상:</b> <code>{active_truck['name_ko']}</code><br>
                     • <b>수신 단말:</b> <code>{dev_id}</code><br>
                     • <b>GPS 상태:</b> {gps_badge}<br>
                     • <b>DB 상태:</b> {db_badge}<br>
                     • <b>최근 패킷:</b> <code>{ts_str}</code><br>
-                    • <b>현재 세션 수집:</b> <b style="color:#00d4ff;">{len(display_history)}</b>건
+                    • <b>현재 세션 수집:</b> <b style="color:#00d4ff;">{len(display_history)}</b>건{conflict_badge}
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -1206,8 +1315,10 @@ while True:
             <div style="background-color: rgba(0, 212, 255, 0.08); border: 1px solid rgba(0, 212, 255, 0.35); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
                 <div style="font-size: 13.5px; font-weight: bold; color: #00d4ff; margin-bottom: 6px;">📡 실시간 데이터 수신 대기</div>
                 <div style="font-size: 12px; line-height: 1.7; color: #e0e0e0;">
+                    • <b>관제 대상:</b> <code>{active_truck['name_ko']}</code><br>
                     • <b>브로커:</b> <code>{MQTT_BROKER}</code><br>
-                    • <b>토픽:</b> <code>{MQTT_TOPIC}</code><br>
+                    • <b>전용 토픽:</b> <code>{MQTT_TOPIC}</code><br>
+                    • <b>대상 단말:</b> <code>{EXPECTED_DEVICE}</code><br>
                     • <b>상태:</b> 🟡 센서 노드 패킷 대기 중
                 </div>
             </div>

@@ -7,7 +7,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 broker = "broker.hivemq.com"
 port = 1883
-topic = "coldchain/+/sensor"
+topic = sys.argv[1] if len(sys.argv) > 1 else "coldchain/truck02/sensor"
 
 messages_received = []
 
