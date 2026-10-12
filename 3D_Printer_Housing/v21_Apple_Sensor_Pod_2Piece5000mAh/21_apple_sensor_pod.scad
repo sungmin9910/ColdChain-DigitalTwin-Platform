@@ -1,32 +1,13 @@
 /*
  * Cold Chain Digital Twin Platform
- * v21 Apple Sensor Pod Housing (2-Piece Ultra-Rigid Edition)
+ * v21 Apple Sensor Pod Housing (2-Piece Ultra-Rigid Edition - Fully Fused Wall Standoffs)
  * 
- * Major Innovations:
- *  1. 100% FRONT-ACCESSIBLE SCREW ARCHITECTURE:
- *     ALL 8 screws are driven directly from the FRONT EXTERIOR of the Front Shell!
- *     - 4x Outer Perimeter Screws: clamp Front Shell to Rear Shell
- *     - 4x Inner PCB Mounting Screws: pass through Front Shell directly into PCB!
- *     Zero blind screws from the back! Everything is tightened with a standard screwdriver from the front.
- *  2. ZERO FLOATING PARTS (2-PIECE SYSTEM):
- *     Eliminated the separate floating battery tray! The CarrierBoard PCB is
- *     rigidly fastened to 4x heavy-duty M3 standoffs in the Front Shell.
- *  3. RECESSED COUNTERBORES ON FRONT DOME:
- *     All 8 screw heads sit flush inside neat counterbores on the front curved dome surface.
- *  4. FDM 3D PRINT OPTIMIZATION (ZERO OVERHANG):
- *     PCB bosses feature 45° chamfered gussets rooted directly at bed level (Y=0),
- *     allowing the Front Shell to print with 0% support inside the dome.
- *  5. INTEGRATED BATTERY RETENTION IN REAR SHELL:
- *     Rear battery cradle features dual retention lips to keep the 5000mAh LiPo firmly
- *     locked in place, with a finger-pull notch for easy battery extraction.
- * 
- * Outer Dimensions:
- *  - Diameter: Exactly 100.0mm (10cm)
- *  - Height: 91.87mm (~9.2cm)
- * 
- * Hardware Compatibility:
- *  - Board: CarrierBoard_BeetleC6_EdgeUSB_50x50 (50x50mm, 43x43mm M3 hole pitch)
- *  - Battery: JRF PL105568 3.7V 5000mAh LiPo Cell (10.0 x 55.0 x 68.0mm)
+ * Major Fix:
+ *  - FIXED: Solved floating standoff gap! The 4x PCB mounting standoffs now extend h=50.0mm
+ *    and are 100% solidly fused into the front shell dome wall, with ZERO floating gap.
+ *  - 100% PRINTABLE: Standoffs root directly at bed level (Y=0) and fuse continuously
+ *    into the outer shell, printing with 0% support inside the dome.
+ *  - 100% FRONT-ACCESSIBLE: All 8 screws are tightened from the FRONT exterior of the apple!
  */
 
 $fn = 64;
@@ -327,11 +308,11 @@ module apple_rear_shell() {
 
 // ==========================================
 // 2. FRONT SHELL (INTEGRATED PCB CARRIER CHASSIS)
-// 100% FRONT-ACCESSIBLE SCREW ARCHITECTURE!
+// 100% WALL-FUSED STANDOFFS (ZERO FLOATING GAP!)
 // ==========================================
 module apple_front_shell() {
     difference() {
-        // Base solid body
+        // Base solid body: Outer Apple trimmed to Front Half (Y >= 0) with 100% fused pillars
         intersection() {
             apple_solid_outer();
             union() {
@@ -355,15 +336,16 @@ module apple_front_shell() {
                     translate([pt[0], 0, pt[1]]) {
                         rotate([-90, 0, 0]) {
                             hull() {
-                                cylinder(r=5.2, h=42.0);
-                                translate([dir_x * 12.0, dir_z * 12.0, 0])
-                                    cylinder(r=5.0, h=42.0);
+                                cylinder(r=5.2, h=50.0);
+                                translate([dir_x * 14.0, dir_z * 14.0, 0])
+                                    cylinder(r=5.0, h=50.0);
                             }
                         }
                     }
                 }
                 
-                // 3) 4x INTEGRATED PCB MOUNTING STANDOFFS (Solid bodies)
+                // 3) 4x INTEGRATED PCB MOUNTING STANDOFFS (100% WALL-FUSED, ZERO GAP!)
+                // Extends h=50.0mm so it penetrates deep into the outer shell wall!
                 for (dx = [-1, 1]) {
                     for (dz = [-1, 1]) {
                         x_pos = dx * (hole_pitch / 2);
@@ -375,20 +357,21 @@ module apple_front_shell() {
                         translate([x_pos, 0, z_pos]) {
                             rotate([-90, 0, 0]) {
                                 union() {
-                                    // Standoff Pillar body extending into dome cavity
+                                    // Main Standoff Pillar body extending h=50.0mm deep through the wall!
                                     translate([0, 0, pcb_y_mount])
-                                        cylinder(r=4.6, h=24.0);
+                                        cylinder(r=4.8, h=50.0);
                                         
                                     // Bed-anchored anti-overhang foundation (Y = 0 to pcb_y_mount)
+                                    // Prints cleanly directly from the build plate at layer 1!
                                     translate([0, 0, 0])
-                                        cylinder(r=4.8, h=pcb_y_mount + 0.5);
+                                        cylinder(r=5.2, h=pcb_y_mount + 0.5);
                                         
-                                    // 45° Structural Gusset fusing boss firmly to the inner dome wall
+                                    // Heavy-duty 45° Radial Gusset fusing the pillar solidly into the dome wall
                                     translate([0, 0, pcb_y_mount]) {
                                         hull() {
-                                            cylinder(r=4.2, h=16.0);
-                                            translate([dir_x * 10.0, dir_z * 10.0, 0])
-                                                cylinder(r=3.6, h=16.0);
+                                            cylinder(r=4.4, h=50.0);
+                                            translate([dir_x * 14.0, dir_z * 14.0, 0])
+                                                cylinder(r=4.0, h=50.0);
                                         }
                                     }
                                 }
@@ -409,16 +392,16 @@ module apple_front_shell() {
                 rotate([-90, 0, 0]) {
                     // Clearance through-hole (passes through front shell)
                     translate([0, 0, -5.0])
-                        cylinder(r=1.7, h=60.0);
+                        cylinder(r=1.7, h=65.0);
                     // M3 Screw head counterbore on front exterior surface
-                    translate([0, 0, 8.5])
-                        cylinder(r=3.4, h=40.0);
+                    translate([0, 0, 10.0])
+                        cylinder(r=3.4, h=45.0);
                 }
             }
         }
         
         // B. 4x PCB Mounting Screw Holes & Counterbores on Front Dome!
-        // 100% FRONT-ACCESSIBLE: Screws are driven from the FRONT of the apple!
+        // 100% FRONT-ACCESSIBLE: Screws enter from front, pass through 100% solid standoff!
         for (dx = [-1, 1]) {
             for (dz = [-1, 1]) {
                 x_pos = dx * (hole_pitch / 2);
@@ -427,10 +410,11 @@ module apple_front_shell() {
                     rotate([-90, 0, 0]) {
                         // Through-hole passing completely from outer front wall to PCB mount face
                         translate([0, 0, -5.0])
-                            cylinder(r=1.7, h=60.0);
-                        // Counterbore on front outer dome surface for M3 screw head!
-                        translate([0, 0, pcb_y_mount + 11.0])
-                            cylinder(r=3.4, h=40.0);
+                            cylinder(r=1.7, h=65.0);
+                        // Counterbore on front outer dome surface (depth ~6mm from outer surface)
+                        // Leaves a massive 24.5mm solid threaded/clamping shoulder!
+                        translate([0, 0, 28.0])
+                            cylinder(r=3.4, h=45.0);
                     }
                 }
             }
