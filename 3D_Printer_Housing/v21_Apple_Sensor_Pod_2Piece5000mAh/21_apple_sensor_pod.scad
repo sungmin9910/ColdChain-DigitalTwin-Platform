@@ -2,15 +2,17 @@
  * Cold Chain Digital Twin Platform
  * v21 Apple Sensor Pod Housing (2-Piece Ultra-Rigid Edition)
  * 
- * Major Innovations over v20:
- *  1. ZERO FLOATING PARTS (2-PIECE SYSTEM):
- *     Eliminated the separate floating battery tray! The CarrierBoard PCB is now
- *     DIRECTLY and rigidly fastened to 4x heavy-duty M3 standoffs integrated into the Front Shell.
- *  2. 100% RIGID BOARD MOUNTING:
- *     The PCB is screwed from behind into the front shell bosses with 4x M3 screws.
- *     Zero rattle, zero vibration shift, and 100% optical alignment with the BH1750 light sensor window.
- *  3. CLEAN EXTERIOR (NO EXTERNAL SCREW HEADS ON FRONT):
- *     All PCB mounting screws are internal. The iconic Apple front dome remains 100% smooth & pristine.
+ * Major Innovations:
+ *  1. 100% FRONT-ACCESSIBLE SCREW ARCHITECTURE:
+ *     ALL 8 screws are driven directly from the FRONT EXTERIOR of the Front Shell!
+ *     - 4x Outer Perimeter Screws: clamp Front Shell to Rear Shell
+ *     - 4x Inner PCB Mounting Screws: pass through Front Shell directly into PCB!
+ *     Zero blind screws from the back! Everything is tightened with a standard screwdriver from the front.
+ *  2. ZERO FLOATING PARTS (2-PIECE SYSTEM):
+ *     Eliminated the separate floating battery tray! The CarrierBoard PCB is
+ *     rigidly fastened to 4x heavy-duty M3 standoffs in the Front Shell.
+ *  3. RECESSED COUNTERBORES ON FRONT DOME:
+ *     All 8 screw heads sit flush inside neat counterbores on the front curved dome surface.
  *  4. FDM 3D PRINT OPTIMIZATION (ZERO OVERHANG):
  *     PCB bosses feature 45° chamfered gussets rooted directly at bed level (Y=0),
  *     allowing the Front Shell to print with 0% support inside the dome.
@@ -30,7 +32,7 @@
 $fn = 64;
 
 // Render modes:
-// "assembly", "cross_section", "exploded", "exploded_wide", "front_shell", "rear_shell", "stem", "print_all"
+// "assembly", "cross_section", "exploded", "exploded_wide", "front_shell", "rear_shell", "stem", "print_all", "front_face", "part_front_shell", "part_rear_shell"
 render_part = "assembly"; 
 
 wall_t = 3.0;          // Outer shell wall thickness (mm)
@@ -325,14 +327,15 @@ module apple_rear_shell() {
 
 // ==========================================
 // 2. FRONT SHELL (INTEGRATED PCB CARRIER CHASSIS)
-// Rigid 4x PCB Standoffs with Anti-Overhang Gussets
+// 100% FRONT-ACCESSIBLE SCREW ARCHITECTURE!
 // ==========================================
 module apple_front_shell() {
     difference() {
+        // Base solid body
         intersection() {
             apple_solid_outer();
             union() {
-                // Main front half shell (Y >= 0)
+                // 1) Main front half shell (Y >= 0)
                 difference() {
                     intersection() {
                         apple_solid_outer();
@@ -344,66 +347,50 @@ module apple_front_shell() {
                     }
                 }
                 
-                // 1. 4x Wall-Integrated Perimeter Screw Bosses (Clearance Holes & Counterbores)
+                // 2) 4x Wall-Integrated Perimeter Screw Bosses (Solid bodies)
                 for (pt = screw_pts) {
                     norm_len = sqrt(pt[0]*pt[0] + pt[1]*pt[1]);
                     dir_x = pt[0] / norm_len;
                     dir_z = pt[1] / norm_len;
                     translate([pt[0], 0, pt[1]]) {
                         rotate([-90, 0, 0]) {
-                            difference() {
-                                hull() {
-                                    cylinder(r=5.2, h=42.0);
-                                    translate([dir_x * 12.0, dir_z * 12.0, 0])
-                                        cylinder(r=5.0, h=42.0);
-                                }
-                                // M3 clearance through-hole
-                                translate([0, 0, -1])
-                                    cylinder(r=1.7, h=44.0);
-                                // M3 screw head counterbore from outer surface
-                                translate([0, 0, 8.5])
-                                    cylinder(r=3.4, h=35.0);
+                            hull() {
+                                cylinder(r=5.2, h=42.0);
+                                translate([dir_x * 12.0, dir_z * 12.0, 0])
+                                    cylinder(r=5.0, h=42.0);
                             }
                         }
                     }
                 }
                 
-                // 2. 4x INTEGRATED PCB MOUNTING STANDOFFS (43mm x 43mm spacing)
-                // Bolted from behind the PCB into front shell bosses!
+                // 3) 4x INTEGRATED PCB MOUNTING STANDOFFS (Solid bodies)
                 for (dx = [-1, 1]) {
                     for (dz = [-1, 1]) {
                         x_pos = dx * (hole_pitch / 2);
                         z_pos = pcb_z_center + dz * (hole_pitch / 2);
-                        
                         norm_len = sqrt(x_pos*x_pos + z_pos*z_pos);
                         dir_x = x_pos / norm_len;
                         dir_z = z_pos / norm_len;
                         
                         translate([x_pos, 0, z_pos]) {
                             rotate([-90, 0, 0]) {
-                                difference() {
-                                    union() {
-                                        // Standoff Pillar body extending into dome cavity
-                                        translate([0, 0, pcb_y_mount])
-                                            cylinder(r=4.2, h=24.0);
-                                            
-                                        // Bed-anchored anti-overhang foundation (Y = 0 to pcb_y_mount)
-                                        // Allows 100% clean FDM print directly from the build plate!
-                                        translate([0, 0, 0])
-                                            cylinder(r=4.8, h=pcb_y_mount + 0.5);
-                                            
-                                        // 45° Structural Gusset fusing boss firmly to the inner dome wall
-                                        translate([0, 0, pcb_y_mount]) {
-                                            hull() {
-                                                cylinder(r=4.0, h=16.0);
-                                                translate([dir_x * 10.0, dir_z * 10.0, 0])
-                                                    cylinder(r=3.6, h=16.0);
-                                            }
+                                union() {
+                                    // Standoff Pillar body extending into dome cavity
+                                    translate([0, 0, pcb_y_mount])
+                                        cylinder(r=4.6, h=24.0);
+                                        
+                                    // Bed-anchored anti-overhang foundation (Y = 0 to pcb_y_mount)
+                                    translate([0, 0, 0])
+                                        cylinder(r=4.8, h=pcb_y_mount + 0.5);
+                                        
+                                    // 45° Structural Gusset fusing boss firmly to the inner dome wall
+                                    translate([0, 0, pcb_y_mount]) {
+                                        hull() {
+                                            cylinder(r=4.2, h=16.0);
+                                            translate([dir_x * 10.0, dir_z * 10.0, 0])
+                                                cylinder(r=3.6, h=16.0);
                                         }
                                     }
-                                    // M3 Screw Pilot Hole (Radius 1.35mm, depth 9.0mm from PCB mount face)
-                                    translate([0, 0, pcb_y_mount - 1.0])
-                                        cylinder(r=1.35, h=10.0);
                                 }
                             }
                         }
@@ -412,10 +399,46 @@ module apple_front_shell() {
             }
         }
         
+        // ==========================================
+        // SUBTRACTIONS (Drills through the OUTER WALL so screws enter from the FRONT!)
+        // ==========================================
+        
+        // A. 4x Perimeter Screw Holes & Counterbores on Front Dome
+        for (pt = screw_pts) {
+            translate([pt[0], 0, pt[1]]) {
+                rotate([-90, 0, 0]) {
+                    // Clearance through-hole (passes through front shell)
+                    translate([0, 0, -5.0])
+                        cylinder(r=1.7, h=60.0);
+                    // M3 Screw head counterbore on front exterior surface
+                    translate([0, 0, 8.5])
+                        cylinder(r=3.4, h=40.0);
+                }
+            }
+        }
+        
+        // B. 4x PCB Mounting Screw Holes & Counterbores on Front Dome!
+        // 100% FRONT-ACCESSIBLE: Screws are driven from the FRONT of the apple!
+        for (dx = [-1, 1]) {
+            for (dz = [-1, 1]) {
+                x_pos = dx * (hole_pitch / 2);
+                z_pos = pcb_z_center + dz * (hole_pitch / 2);
+                translate([x_pos, 0, z_pos]) {
+                    rotate([-90, 0, 0]) {
+                        // Through-hole passing completely from outer front wall to PCB mount face
+                        translate([0, 0, -5.0])
+                            cylinder(r=1.7, h=60.0);
+                        // Counterbore on front outer dome surface for M3 screw head!
+                        translate([0, 0, pcb_y_mount + 11.0])
+                            cylinder(r=3.4, h=40.0);
+                    }
+                }
+            }
+        }
+        
         functional_cutouts();
         
         // BH1750 Ambient Light Sensor Tapered Optical Window (Viewer Right: -X)
-        // Perfectly positioned right above the BH1750 sensor on the PCB!
         translate([-13.0, 35.0, 16.5]) {
             rotate([90, 0, 0]) {
                 cylinder(r1=3.0, r2=5.0, h=18, center=true);
