@@ -307,28 +307,20 @@ data_history = get_data_history()
 # ----------------------------------------------------------------
 # 2. MQTT 콜백 설정
 # ----------------------------------------------------------------
-@st.cache_resource
-def get_mqtt_tracker():
-    return {
-        "subscribed_topic": None
-    }
-
 def on_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
-        tracker = get_mqtt_tracker()
-        cur_topic = tracker.get("subscribed_topic")
-        if cur_topic:
-            client.subscribe(cur_topic)
-            print(f"Connected to MQTT Broker (Subscribed only to {cur_topic})")
-        else:
-            print("Connected to MQTT Broker (waiting for topic subscription)")
+        # 단말별 전용 토픽 구독 (와일드카드 없이 각각 개별 구독)
+        client.subscribe("coldchain/truck01/sensor")
+        client.subscribe("coldchain/truck02/sensor")
+        print("Connected to HiveMQ Broker! Subscribed to [coldchain/truck01/sensor, coldchain/truck02/sensor]", flush=True)
     else:
-        print(f"Failed to connect, return code {rc}")
+        print(f"Failed to connect, return code {rc}", flush=True)
 
 def on_message(client, userdata, msg):
     try:
         payload = json.loads(msg.payload.decode())
         payload['topic'] = msg.topic
+        print(f"[STREAMLIT MQTT on_message] topic={msg.topic}, device={payload.get('device')}", flush=True)
         
         # 보드에서 보낸 시간 정보가 있으면 사용, 없거나 비정상일 경우 현재 시간 생성
         ts_val = payload.get('timestamp_str', '')
@@ -346,7 +338,7 @@ def on_message(client, userdata, msg):
                     pass
         msg_queue.put(payload)
     except Exception as e:
-        print(f"Error parsing message: {e}")
+        print(f"Error parsing message: {e}", flush=True)
 
 @st.cache_resource
 def start_mqtt_client():
@@ -361,23 +353,6 @@ def start_mqtt_client():
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
     client.loop_start()
     return client
-
-def sync_mqtt_subscription(client, target_topic):
-    tracker = get_mqtt_tracker()
-    old_topic = tracker.get("subscribed_topic")
-    if old_topic != target_topic:
-        if old_topic:
-            try:
-                client.unsubscribe(old_topic)
-                print(f"Unsubscribed from previous topic: {old_topic}")
-            except Exception as e:
-                print(f"Unsubscribe error: {e}")
-        try:
-            client.subscribe(target_topic)
-            tracker["subscribed_topic"] = target_topic
-            print(f"Subscribed exclusively to: {target_topic}")
-        except Exception as e:
-            print(f"Subscribe error: {e}")
 
 mqtt_client = start_mqtt_client()
 
@@ -450,7 +425,6 @@ with st.sidebar:
     active_truck = TRUCK_OPTIONS[st.session_state.selected_truck_id]
     MQTT_TOPIC = active_truck['topic']
     EXPECTED_DEVICE = active_truck['device_id']
-    sync_mqtt_subscription(mqtt_client, MQTT_TOPIC)
     
     # [1] 실시간 통신 및 센서 상태 요약 카드 (플레이스홀더)
     sidebar_status_box = st.empty()
@@ -701,6 +675,7 @@ while True:
         msg = msg_queue.get()
         incoming_dev = str(msg.get("device", "")).strip()
         incoming_topic = str(msg.get("topic", "")).strip()
+        print(f"[STREAMLIT LOOP] processing packet: dev={incoming_dev}, expected={EXPECTED_DEVICE}, topic={incoming_topic}", flush=True)
 
         # ⚠️ 단말 혼선 및 충돌 검출: 현재 선택된 차량/단말과 일치하지 않으면 차단 및 오류 표시
         if incoming_dev and incoming_dev != EXPECTED_DEVICE:
@@ -718,6 +693,9 @@ while True:
             )
             st.session_state.conflict_alert_time = time.time()
             continue
+
+        if time.time() - st.session_state.get('conflict_alert_time', 0) > 15:
+            st.session_state.conflict_alert = None
 
         msg['run_id'] = st.session_state.run_id
         
