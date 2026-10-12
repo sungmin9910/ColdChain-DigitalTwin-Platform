@@ -42,7 +42,7 @@ def get_session_tracker():
 # ----------------------------------------------------------------
 MQTT_BROKER = "broker.hivemq.com"
 MQTT_PORT = 1883
-MQTT_TOPIC = "coldchain/truck01/sensor"
+MQTT_TOPIC = "coldchain/+/sensor"
 
 # --- 다국어 설정 (Localization) ---
 LANG_DICT = {
@@ -287,8 +287,10 @@ data_history = get_data_history()
 # ----------------------------------------------------------------
 def on_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
-        client.subscribe(MQTT_TOPIC)
-        print("Connected to MQTT Broker!")
+        client.subscribe("coldchain/+/sensor")
+        client.subscribe("coldchain/truck01/sensor")
+        client.subscribe("coldchain/truck02/sensor")
+        print("Connected to MQTT Broker (Subscribed to truck01 & truck02)!")
     else:
         print(f"Failed to connect, return code {rc}")
 
