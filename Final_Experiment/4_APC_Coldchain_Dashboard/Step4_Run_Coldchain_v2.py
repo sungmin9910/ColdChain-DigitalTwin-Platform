@@ -22,9 +22,11 @@ KST = timezone(timedelta(hours=9))
 def get_kst_now():
     return datetime.now(KST)
 
-def generate_run_id():
+def generate_run_id(truck_id='truck01'):
     now_kst = get_kst_now()
-    return f"주행_{now_kst.strftime('%Y-%m-%d_%H시%M분')}"
+    if truck_id == 'truck01':
+        return f"주행_{now_kst.strftime('%Y-%m-%d_%H시%M분')}"
+    return f"{truck_id}_주행_{now_kst.strftime('%Y-%m-%d_%H시%M분')}"
 
 # 세션 분할 방지 및 브라우저 새로고침 간 활성 세션 보존용 공유 트래커
 @st.cache_resource
@@ -45,17 +47,17 @@ MQTT_PORT = 1883
 
 # 독립 관제 차량 및 단말 매핑 (개별 분리)
 TRUCK_OPTIONS = {
-    'truck02': {
-        'name_ko': '2호차 (truck02 / carrier-c6-02) [현재 연결]',
-        'name_en': 'Truck 02 (carrier-c6-02) [Connected]',
-        'topic': 'coldchain/truck02/sensor',
-        'device_id': 'carrier-c6-02',
-    },
     'truck01': {
         'name_ko': '1호차 (truck01 / carrier-c6-01)',
         'name_en': 'Truck 01 (carrier-c6-01)',
         'topic': 'coldchain/truck01/sensor',
         'device_id': 'carrier-c6-01',
+    },
+    'truck02': {
+        'name_ko': '2호차 (truck02 / carrier-c6-02)',
+        'name_en': 'Truck 02 (carrier-c6-02)',
+        'topic': 'coldchain/truck02/sensor',
+        'device_id': 'carrier-c6-02',
     }
 }
 
@@ -120,7 +122,7 @@ LANG_DICT = {
 if 'lang' not in st.session_state:
     st.session_state.lang = 'KO'
 if 'selected_truck_id' not in st.session_state:
-    st.session_state.selected_truck_id = 'truck02'
+    st.session_state.selected_truck_id = 'truck01'
 if 'conflict_alert' not in st.session_state:
     st.session_state.conflict_alert = None
 if 'conflict_alert_time' not in st.session_state:
@@ -242,13 +244,21 @@ def get_data_history():
     return []
 
 @st.cache_data(ttl=300)
-def load_run_data(run_id):
+def load_run_data(run_id, device=None):
     history = []
     conn = get_mysql_connection()
     if conn:
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT * FROM sensor_data WHERE run_id = %s ORDER BY id ASC", (run_id,))
+                if device:
+                    cursor.execute("""
+                        SELECT * FROM sensor_data 
+                        WHERE run_id = %s 
+                          AND (device = %s OR (device = 'truck01' AND %s = 'carrier-c6-01'))
+                        ORDER BY id ASC
+                    """, (run_id, device, device))
+                else:
+                    cursor.execute("SELECT * FROM sensor_data WHERE run_id = %s ORDER BY id ASC", (run_id,))
                 items = cursor.fetchall()
             
             for item in items:
@@ -273,7 +283,7 @@ def load_run_data(run_id):
                     "run_id": item.get("run_id")
                 }
                 history.append(parsed_item)
-            print(f"MySQL에서 실험 '{run_id}'의 데이터 {len(history)}개를 불러왔습니다.")
+            print(f"MySQL에서 실험 '{run_id}' (device={device})의 데이터 {len(history)}개를 불러왔습니다.")
         except Exception as e:
             print(f"MySQL 데이터 로드 실패: {e}")
         finally:
@@ -397,41 +407,6 @@ mqtt_client = start_mqtt_client()
 # 3. UI 구성
 # ----------------------------------------------------------------
 
-# DB에서 고유 run_id 목록 및 메타데이터 가져오기
-run_ids = ["실시간 주행 (현재 실험)"]
-session_meta_dict = {}
-
-conn = get_mysql_connection()
-if conn:
-    try:
-        with conn.cursor() as cursor:
-            # 3건 이상 기록된 정상 세션의 요약 메타데이터(시작/종료, 건수, 최고속도, 온습도) 조회
-            # 미동기 더미 타임스탬프(2026-10-01)를 제외하여 실제 시작 시간을 정확하게 추출
-            cursor.execute("""
-                SELECT run_id, 
-                       COUNT(*) as cnt, 
-                       MIN(CASE WHEN timestamp_str NOT LIKE '2026-10-01%' AND timestamp_str != '00:00:00' AND timestamp_str IS NOT NULL THEN timestamp_str END) as start_ts, 
-                       MAX(timestamp_str) as end_ts,
-                       MAX(speed) as max_spd,
-                       MIN(temperature) as min_temp,
-                       MAX(temperature) as max_temp
-                FROM sensor_data 
-                WHERE run_id IS NOT NULL 
-                GROUP BY run_id 
-                HAVING COUNT(*) >= 3 
-                ORDER BY MAX(id) DESC
-            """)
-            rows = cursor.fetchall()
-            for r in rows:
-                val = r["run_id"]
-                if val not in run_ids:
-                    run_ids.append(val)
-                session_meta_dict[val] = r
-    except Exception as e:
-        print(f"run_ids 로드 에러: {e}")
-    finally:
-        conn.close()
-
 with st.sidebar:
     st.markdown(f"### {LANG_DICT[st.session_state.lang]['sidebar_title']}")
     st.caption(LANG_DICT[st.session_state.lang]['sidebar_desc'])
@@ -452,6 +427,7 @@ with st.sidebar:
     new_truck_id = truck_keys[truck_labels.index(selected_truck_label)]
     if new_truck_id != st.session_state.selected_truck_id:
         st.session_state.selected_truck_id = new_truck_id
+        st.session_state.run_id = generate_run_id(new_truck_id)
         data_history.clear()
         with msg_queue.mutex:
             msg_queue.queue.clear()
@@ -462,6 +438,40 @@ with st.sidebar:
     active_truck = TRUCK_OPTIONS[st.session_state.selected_truck_id]
     MQTT_TOPIC = active_truck['topic']
     EXPECTED_DEVICE = active_truck['device_id']
+
+    # DB에서 현재 관제 차량의 고유 run_id 목록 및 메타데이터 가져오기
+    run_ids = ["실시간 주행 (현재 실험)"]
+    session_meta_dict = {}
+
+    conn = get_mysql_connection()
+    if conn:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                    SELECT run_id, 
+                           COUNT(*) as cnt, 
+                           MIN(CASE WHEN timestamp_str NOT LIKE '2026-10-01%' AND timestamp_str != '00:00:00' AND timestamp_str IS NOT NULL THEN timestamp_str END) as start_ts, 
+                           MAX(timestamp_str) as end_ts,
+                           MAX(speed) as max_spd,
+                           MIN(temperature) as min_temp,
+                           MAX(temperature) as max_temp
+                    FROM sensor_data 
+                    WHERE run_id IS NOT NULL 
+                      AND (device = %s OR (device = 'truck01' AND %s = 'carrier-c6-01'))
+                    GROUP BY run_id 
+                    HAVING COUNT(*) >= 3 
+                    ORDER BY MAX(id) DESC
+                """, (EXPECTED_DEVICE, EXPECTED_DEVICE))
+                rows = cursor.fetchall()
+                for r in rows:
+                    val = r["run_id"]
+                    if val not in run_ids:
+                        run_ids.append(val)
+                    session_meta_dict[val] = r
+        except Exception as e:
+            print(f"run_ids 로드 에러: {e}")
+        finally:
+            conn.close()
     
     # [1] 실시간 통신 및 센서 상태 요약 카드 (플레이스홀더)
     sidebar_status_box = st.empty()
@@ -502,6 +512,8 @@ with st.sidebar:
                 return f"📦 [07-15 모의주행] 30km 표준 시뮬레이션 ({cnt}건)"
             elif "065739" in session_id:
                 return f"🧪 [10-01 야외검증] 캠퍼스 GPS 텔레메트리 ({cnt}건)"
+            elif "truck02_bench" in session_id:
+                return f"🔬 [10-12 벤치테스트] 2호차 실내 충격/환경 캘리브레이션 ({cnt}건)"
 
             # 2) 지능형 자동 분류 (주행 vs 급랭/챔버 vs 정적실험)
             clean_name = session_id
@@ -598,7 +610,7 @@ with st.sidebar:
             st.rerun()
     else:
         db_record_mode = "⚪ 저장 안함"
-        static_history = load_run_data(selected_run)
+        static_history = load_run_data(selected_run, device=EXPECTED_DEVICE)
         
         sidebar_status_box.markdown(f"""
         <div style="background-color: rgba(255, 165, 0, 0.08); border: 1px solid rgba(255, 165, 0, 0.35); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
@@ -718,24 +730,28 @@ while True:
         incoming_topic = str(msg.get("topic", "")).strip()
         print(f"[STREAMLIT LOOP] processing packet: dev={incoming_dev}, expected={EXPECTED_DEVICE}, topic={incoming_topic}", flush=True)
 
-        # ⚠️ 단말 혼선 및 충돌 검출: 현재 선택된 차량/단말과 일치하지 않으면 차단 및 오류 표시
+        # ⚠️ 단말 혼선 및 충돌 검출:
+        expected_dev_for_topic = None
+        for tk, tinfo in TRUCK_OPTIONS.items():
+            if incoming_topic == tinfo['topic']:
+                expected_dev_for_topic = tinfo['device_id']
+                break
+
+        # 1) 진짜 단말 혼선/충돌: 토픽과 송신 단말이 불일치할 때 (예: truck01 토픽에 carrier-c6-02가 전송)
+        if expected_dev_for_topic and incoming_dev and incoming_dev != expected_dev_for_topic:
+            st.session_state.conflict_alert = (
+                f"🚨 **[단말-토픽 혼선 오류 감지]** 토픽 **`{incoming_topic}`**에 비인가 단말 **`{incoming_dev}`** (정상 등록 단말: `{expected_dev_for_topic}`)의 패킷이 유입되었습니다!\n\n"
+                f"⚠️ 펌웨어의 단말 ID 및 전송 토픽 설정을 확인하세요."
+            )
+            st.session_state.conflict_alert_time = time.time()
+            continue
+
+        # 2) 다른 차량의 정상 전송 패킷: 현재 대시보드 관제 대상이 아니므로 조용히 스킵 (오류 아님)
         if incoming_dev and incoming_dev != EXPECTED_DEVICE:
-            st.session_state.conflict_alert = (
-                f"🚨 **[단말 혼선 및 충돌 오류 감지]** 현재 대시보드는 **'{active_truck['name_ko']}'** (`{EXPECTED_DEVICE}`) 전용으로 동작 중입니다. "
-                f"그러나 다른 단말인 **`{incoming_dev}`** (수신 토픽: `{incoming_topic}`)의 데이터가 유입되었습니다!\n\n"
-                f"⚠️ 데이터 혼재 방지를 위해 해당 패킷을 차단했습니다. 관제하려는 보드에 맞게 사이드바에서 차량을 변경하거나 다른 보드의 전원을 확인하세요."
-            )
-            st.session_state.conflict_alert_time = time.time()
             continue
 
-        if incoming_topic and incoming_topic != MQTT_TOPIC:
-            st.session_state.conflict_alert = (
-                f"🚨 **[토픽 불일치 오류]** 현재 설정된 토픽(`{MQTT_TOPIC}`)이 아닌 다른 토픽(`{incoming_topic}`)에서 패킷이 수신되었습니다!"
-            )
-            st.session_state.conflict_alert_time = time.time()
-            continue
-
-        if time.time() - st.session_state.get('conflict_alert_time', 0) > 15:
+        # 3) 현재 관제 차량의 정상 패킷 수신 시 오류 플래그 정리
+        if time.time() - st.session_state.get('conflict_alert_time', 0) > 10:
             st.session_state.conflict_alert = None
 
         msg['run_id'] = st.session_state.run_id
@@ -810,7 +826,8 @@ while True:
             now_epoch = time.time()
             if tracker['active_run_id'] is None or (now_epoch - tracker.get('last_packet_epoch', 0) > 1800):
                 dt_part = ts_val_str[:16].replace(" ", "_").replace(":", "시") + "분"
-                new_sync_id = f"주행_{dt_part}"
+                truck_pfx = f"{st.session_state.selected_truck_id}_" if st.session_state.selected_truck_id != 'truck01' else ""
+                new_sync_id = f"{truck_pfx}주행_{dt_part}"
                 tracker['active_run_id'] = new_sync_id
                 tracker['start_ts_str'] = ts_val_str
                 st.session_state.run_id = new_sync_id
@@ -829,9 +846,10 @@ while True:
                 if should_create_new_session:
                     if len(ts_val_str) >= 16 and not ts_val_str.startswith("2026-10-01 00:00"):
                         dt_part = ts_val_str[:16].replace(" ", "_").replace(":", "시") + "분"
-                        st.session_state.run_id = f"주행_{dt_part}"
+                        truck_pfx = f"{st.session_state.selected_truck_id}_" if st.session_state.selected_truck_id != 'truck01' else ""
+                        st.session_state.run_id = f"{truck_pfx}주행_{dt_part}"
                     else:
-                        st.session_state.run_id = generate_run_id()
+                        st.session_state.run_id = generate_run_id(st.session_state.selected_truck_id)
                     
                     tracker['active_run_id'] = st.session_state.run_id
                     # 이전 대기 화면 흔적만 안전하게 비우기
