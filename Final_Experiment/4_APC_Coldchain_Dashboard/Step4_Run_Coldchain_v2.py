@@ -450,7 +450,7 @@ with st.sidebar:
                 cursor.execute("""
                     SELECT run_id, 
                            COUNT(*) as cnt, 
-                           MIN(CASE WHEN timestamp_str NOT LIKE '2026-10-01%' AND timestamp_str != '00:00:00' AND timestamp_str IS NOT NULL THEN timestamp_str END) as start_ts, 
+                           MIN(CASE WHEN LEFT(timestamp_str, 10) != '2026-10-01' AND timestamp_str != '00:00:00' AND timestamp_str IS NOT NULL THEN timestamp_str END) as start_ts, 
                            MAX(timestamp_str) as end_ts,
                            MAX(speed) as max_spd,
                            MIN(temperature) as min_temp,
