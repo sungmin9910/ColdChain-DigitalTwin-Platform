@@ -53,7 +53,7 @@ const int num_wifi_networks = sizeof(wifi_networks) / sizeof(wifi_networks[0]);
 // ==========================================
 Adafruit_MPU6050 mpu;
 BH1750 lightMeter;
-SHTSensor sht(SHTSensor::AUTO_DETECT);
+SHTSensor sht(SHTSensor::SHT4X);
 TinyGPSPlus gps;
 
 WiFiMulti wifiMulti;
@@ -464,14 +464,22 @@ void setup() {
   if (i2c_count == 0) Serial.print("없음 (I2C 버스 응답 없음)");
   Serial.println();
 
-  // 1. SHT 온습도 센서 초기화 (AUTO_DETECT: SHT4x, SHT3x 자동 프로빙)
-  Serial.print("📦 [1] SHT 온습도 센서 초기화 (AUTO_DETECT)... ");
+  // 1. SHT 온습도 센서 초기화 (SHT4X 우선, 실패 시 SHT3X 자동 시도)
+  Serial.print("📦 [1] SHT 온습도 센서 초기화... ");
+  sht = SHTSensor(SHTSensor::SHT4X);
   if (sht.init()) {
     sht.setAccuracy(SHTSensor::SHT_ACCURACY_HIGH);
     sht45_ready = true;
-    Serial.println("OK");
+    Serial.println("OK (SHT4x 감지)");
   } else {
-    Serial.println("Fail (미응답/접촉 확인 필요)");
+    sht = SHTSensor(SHTSensor::SHT3X);
+    if (sht.init()) {
+      sht.setAccuracy(SHTSensor::SHT_ACCURACY_HIGH);
+      sht45_ready = true;
+      Serial.println("OK (SHT3x 감지)");
+    } else {
+      Serial.println("Fail (미응답/접촉 확인 필요)");
+    }
   }
 
   // 2. BH1750 조도 센서 초기화
@@ -686,6 +694,18 @@ void handleSerialCommands() {
       Serial.printf("\n📊 [LittleFS 링버퍼 현황] 전체: %u B, 사용: %u B | 블랙박스(최신1MB 유지): %u B (%lu건), 오프라인: %u B | 상태: %s\n\n",
                     (unsigned int)total, (unsigned int)used, (unsigned int)fsize, totalSavedRecords, (unsigned int)obuf_size,
                     trip_active ? "🚗 주행 기록 중" : "💤 실내 대기 중");
+    } else if (cmd.equalsIgnoreCase("scan") || cmd.equalsIgnoreCase("i2c")) {
+      Serial.print("\n🔍 [I2C 버스 스캔] 감지된 장치: ");
+      int cnt = 0;
+      for (byte addr = 1; addr < 127; addr++) {
+        Wire.beginTransmission(addr);
+        if (Wire.endTransmission() == 0) {
+          Serial.printf("[0x%02X] ", addr);
+          cnt++;
+        }
+      }
+      if (cnt == 0) Serial.print("없음");
+      Serial.printf(" (총 %d개 감지됨)\n\n", cnt);
     }
   }
 }
@@ -725,10 +745,18 @@ void loop() {
   static unsigned long lastShtRetry = 0;
   if (!sht45_ready && (now - lastShtRetry >= 3000)) {
     lastShtRetry = now;
+    sht = SHTSensor(SHTSensor::SHT4X);
     if (sht.init()) {
       sht.setAccuracy(SHTSensor::SHT_ACCURACY_HIGH);
       sht45_ready = true;
-      Serial.println("\n🎉 [SHT 온습도 센서 실시간 감지 성공] 온습도 센서가 활성화되었습니다!\n");
+      Serial.println("\n🎉 [SHT4x 온습도 센서 실시간 감지 성공] 온습도 센서가 활성화되었습니다!\n");
+    } else {
+      sht = SHTSensor(SHTSensor::SHT3X);
+      if (sht.init()) {
+        sht.setAccuracy(SHTSensor::SHT_ACCURACY_HIGH);
+        sht45_ready = true;
+        Serial.println("\n🎉 [SHT3x 온습도 센서 실시간 감지 성공] 온습도 센서가 활성화되었습니다!\n");
+      }
     }
   }
 
