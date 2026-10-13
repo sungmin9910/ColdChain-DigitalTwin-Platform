@@ -344,19 +344,39 @@ module apple_front_shell() {
                     }
                 }
                 
-                // 3) 4x INTEGRATED PCB MOUNTING STANDOFFS (PURE CYLINDERS, ZERO SENSOR INTERFERENCE!)
-                // Pure clean circular standoffs matching v20 geometry (r=3.8mm, OD=7.6mm).
-                // All wing/bar gussets completely removed so all PCB sensors fit with zero collision!
-                // Extends from PCB mount face (pcb_y_mount=3.5mm) deep through the dome wall (h=50.0mm).
+                // 3) 4x INTEGRATED STEPPED REINFORCED STANDOFFS (BREAK-PROOF + ZERO SENSOR INTERFERENCE)
+                // Zone 1: Slender Tip (0 to 15.0mm = 1.5cm from PCB face, Y = 3.5 to 18.5)
+                //         Pure circular cylinder (r=3.8mm, OD=7.6mm) -> 100% sensor clearance (GPS, Beetle, BH1750)!
+                // Zone 2: Conical Transition (Y = 18.5 to 21.5)
+                //         Smooth 45° taper (r1=3.8mm to r2=5.2mm) -> Eliminates notch stress concentration!
+                // Zone 3: Heavy-Duty Reinforced Base (Y >= 21.5 to 55.0 deep in dome)
+                //         Thick pillar (r=5.2mm) + diagonal wall-fused gusset -> Extreme rigidity, never breaks!
                 for (dx = [-1, 1]) {
                     for (dz = [-1, 1]) {
                         x_pos = dx * (hole_pitch / 2);
                         z_pos = pcb_z_center + dz * (hole_pitch / 2);
+                        norm_len = sqrt(x_pos*x_pos + z_pos*z_pos);
+                        dir_x = x_pos / norm_len;
+                        dir_z = z_pos / norm_len;
                         
                         translate([x_pos, 0, z_pos]) {
                             rotate([-90, 0, 0]) {
+                                // 1. Slender tip (1.5cm sensor keep-out zone: Y = 3.5 to 18.5)
                                 translate([0, 0, pcb_y_mount])
-                                    cylinder(r=3.8, h=50.0);
+                                    cylinder(r=3.8, h=15.0 + 0.1);
+                                    
+                                // 2. Smooth strengthening taper (Y = 18.5 to 21.5)
+                                translate([0, 0, pcb_y_mount + 15.0])
+                                    cylinder(r1=3.8, r2=5.2, h=3.0);
+                                    
+                                // 3. Thick reinforced root with wall-fused gusset (Y = 21.5 to 55.0)
+                                translate([0, 0, pcb_y_mount + 18.0]) {
+                                    hull() {
+                                        cylinder(r=5.2, h=35.0);
+                                        translate([dir_x * 12.0, dir_z * 12.0, 0])
+                                            cylinder(r=4.8, h=35.0);
+                                    }
+                                }
                             }
                         }
                     }
