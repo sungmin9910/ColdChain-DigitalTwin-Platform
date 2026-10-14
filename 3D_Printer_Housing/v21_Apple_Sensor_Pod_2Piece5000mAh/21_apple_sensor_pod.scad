@@ -344,17 +344,22 @@ module apple_front_shell() {
                     }
                 }
                 
-                // 3) 4x MONOLITHIC FULL-HEIGHT OUTWARD BACKING RIB STANDOFFS (NEVER-BREAK DESIGN)
-                // - Inner side: r=4.0mm circular boss (100% sensor clearance: GPS, Beetle C6, BH1750)
-                // - Outer side: Continuous thick triangular gusset fused directly to the curved dome wall!
-                // - Starts at Y=pcb_y_mount+1.5mm (clears PCB corner perfectly), zero isolated cantilever!
+                // 3) 4x MONOLITHIC RED-ARROW WALL-ANCHORED STANDOFFS (100% ZERO SENSOR INTERFERENCE)
+                // - Each standoff connects DIRECTLY to the nearest outer wall along user's red arrows:
+                //   * Top standoffs (dz=+1): Anchor straight UP into +Z ceiling wall
+                //   * Bottom standoffs (dz=-1): Anchor straight DOWN into -Z floor wall
+                // - Zero wings/gussets towards the board center or sides -> 100% open sensor space!
                 for (dx = [-1, 1]) {
                     for (dz = [-1, 1]) {
                         x_pos = dx * (hole_pitch / 2);
                         z_pos = pcb_z_center + dz * (hole_pitch / 2);
-                        norm_len = sqrt(x_pos*x_pos + z_pos*z_pos);
-                        dir_x = x_pos / norm_len;
-                        dir_z = z_pos / norm_len;
+                        
+                        // Rib vector in local coordinates of rotate([-90, 0, 0]):
+                        // Local X = Global X (dx * 3.5mm slight outward spread)
+                        // Local Y = -Global Z (-dz * length: top goes to +Z, bottom goes to -Z!)
+                        rib_len_z = (dz > 0) ? 16.5 : 20.0;
+                        rib_x = dx * 3.5;
+                        rib_y = -dz * rib_len_z;
                         
                         translate([x_pos, 0, z_pos]) {
                             rotate([-90, 0, 0]) {
@@ -362,13 +367,14 @@ module apple_front_shell() {
                                 translate([0, 0, pcb_y_mount])
                                     cylinder(r=4.0, h=45.0);
                                     
-                                // B. Full-Height Outward Backing Gusset (Anchored to shell wall)
-                                // Directed 100% outward towards perimeter wall (opposite to PCB components!)
+                                // B. Direct Wall-Anchor Rib along Red Arrows
+                                // Starts 1.5mm above PCB mount face (clears 1.6mm PCB corner perfectly)
+                                // Extends directly into top/bottom outer dome wall!
                                 translate([0, 0, pcb_y_mount + 1.5]) {
                                     hull() {
                                         cylinder(r=4.0, h=43.5);
-                                        translate([dir_x * 14.0, dir_z * 14.0, 0])
-                                            cylinder(r=4.8, h=43.5);
+                                        translate([rib_x, rib_y, 0])
+                                            cylinder(r=4.2, h=43.5);
                                     }
                                 }
                             }
