@@ -344,13 +344,10 @@ module apple_front_shell() {
                     }
                 }
                 
-                // 3) 4x INTEGRATED STEPPED REINFORCED STANDOFFS (BREAK-PROOF + ZERO SENSOR INTERFERENCE)
-                // Zone 1: Slender Tip (0 to 15.0mm = 1.5cm from PCB face, Y = 3.5 to 18.5)
-                //         Pure circular cylinder (r=3.8mm, OD=7.6mm) -> 100% sensor clearance (GPS, Beetle, BH1750)!
-                // Zone 2: Conical Transition (Y = 18.5 to 21.5)
-                //         Smooth 45° taper (r1=3.8mm to r2=5.2mm) -> Eliminates notch stress concentration!
-                // Zone 3: Heavy-Duty Reinforced Base (Y >= 21.5 to 55.0 deep in dome)
-                //         Thick pillar (r=5.2mm) + diagonal wall-fused gusset -> Extreme rigidity, never breaks!
+                // 3) 4x MONOLITHIC FULL-HEIGHT OUTWARD BACKING RIB STANDOFFS (NEVER-BREAK DESIGN)
+                // - Inner side: r=4.0mm circular boss (100% sensor clearance: GPS, Beetle C6, BH1750)
+                // - Outer side: Continuous thick triangular gusset fused directly to the curved dome wall!
+                // - Starts at Y=pcb_y_mount+1.5mm (clears PCB corner perfectly), zero isolated cantilever!
                 for (dx = [-1, 1]) {
                     for (dz = [-1, 1]) {
                         x_pos = dx * (hole_pitch / 2);
@@ -361,20 +358,17 @@ module apple_front_shell() {
                         
                         translate([x_pos, 0, z_pos]) {
                             rotate([-90, 0, 0]) {
-                                // 1. Slender tip (1.5cm sensor keep-out zone: Y = 3.5 to 18.5)
+                                // A. Main Boss Cylinder (r=4.0mm, h=45.0mm, solid anchor into shell)
                                 translate([0, 0, pcb_y_mount])
-                                    cylinder(r=3.8, h=15.0 + 0.1);
+                                    cylinder(r=4.0, h=45.0);
                                     
-                                // 2. Smooth strengthening taper (Y = 18.5 to 21.5)
-                                translate([0, 0, pcb_y_mount + 15.0])
-                                    cylinder(r1=3.8, r2=5.2, h=3.0);
-                                    
-                                // 3. Thick reinforced root with wall-fused gusset (Y = 21.5 to 55.0)
-                                translate([0, 0, pcb_y_mount + 18.0]) {
+                                // B. Full-Height Outward Backing Gusset (Anchored to shell wall)
+                                // Directed 100% outward towards perimeter wall (opposite to PCB components!)
+                                translate([0, 0, pcb_y_mount + 1.5]) {
                                     hull() {
-                                        cylinder(r=5.2, h=35.0);
-                                        translate([dir_x * 12.0, dir_z * 12.0, 0])
-                                            cylinder(r=4.8, h=35.0);
+                                        cylinder(r=4.0, h=43.5);
+                                        translate([dir_x * 14.0, dir_z * 14.0, 0])
+                                            cylinder(r=4.8, h=43.5);
                                     }
                                 }
                             }
@@ -402,21 +396,17 @@ module apple_front_shell() {
             }
         }
         
-        // B. 4x PCB Mounting Screw Holes & Counterbores on Front Dome!
-        // 100% FRONT-ACCESSIBLE: Screws enter from front, pass through 100% solid standoff!
+        // B. 4x PCB Mounting Pilot Through-Holes (Zero-Notch Solid Boss)
+        // Uniform r=1.45mm (~2.6mm printed for M3 screw bite or pass-through)
+        // ELIMINATED 6.8mm counterbore notch that caused 0.4mm wall breakage!
         for (dx = [-1, 1]) {
             for (dz = [-1, 1]) {
                 x_pos = dx * (hole_pitch / 2);
                 z_pos = pcb_z_center + dz * (hole_pitch / 2);
                 translate([x_pos, 0, z_pos]) {
                     rotate([-90, 0, 0]) {
-                        // Through-hole passing completely from outer front wall to PCB mount face
                         translate([0, 0, -5.0])
-                            cylinder(r=1.7, h=65.0);
-                        // Counterbore on front outer dome surface
-                        // Leaves a rigid 14.5mm solid clamping shoulder (fits standard M3x20mm~30mm screws!)
-                        translate([0, 0, 18.0])
-                            cylinder(r=3.4, h=45.0);
+                            cylinder(r=1.45, h=65.0);
                     }
                 }
             }
