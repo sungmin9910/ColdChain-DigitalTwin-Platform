@@ -299,15 +299,16 @@ module apple_rear_shell() {
         }
         
         // A. 4x Rear Magnet Pockets (D=6.24mm, depth=1.80mm -> 1.2mm of magnet protrudes as alignment pin!)
+        // Includes 45-deg self-supporting conical vault above the stop ring so 0% support is needed inside the hole!
         for (pt = screw_pts) {
             translate([pt[0], 0, pt[1]]) {
                 rotate([90, 0, 0]) {
-                    // Main D6x3mm magnet recess (depth 1.8mm from Y=0)
+                    // Main D6x3mm magnet recess (depth 1.80mm from Y=0)
                     translate([0, 0, -0.1])
                         cylinder(r=mag_r_rear, h=mag_h_rear + 0.1);
-                    // Glue relief micro-hole at pocket floor
-                    translate([0, 0, mag_h_rear - 0.1])
-                        cylinder(r=1.2, h=2.5);
+                    // 45-deg self-supporting conical vault (acts as glue relief + prevents ceiling sag without support!)
+                    translate([0, 0, mag_h_rear - 0.05])
+                        cylinder(r1=2.3, r2=0.0, h=2.3);
                 }
             }
         }
@@ -408,13 +409,21 @@ module apple_front_shell() {
                     }
                         
                     // Inner Antenna Pocket Cavity (21.6mm long in Z x 5.8mm wide in X x 9.5mm deep in Y)
-                    // Holds 20x5x7mm antenna snugly!
-                    translate([gps_x_center, 4.75 - 0.1, gps_z_center])
-                        cube([5.8, 9.6, gps_len_z], center=true);
+                    // With 45-deg self-supporting vaulted ceiling so 0% support is ever generated inside the pocket!
+                    hull() {
+                        translate([gps_x_center, 4.75 - 0.1, gps_z_center])
+                            cube([5.8, 9.6, gps_len_z], center=true);
+                        translate([gps_x_center, 12.0, gps_z_center])
+                            cube([0.8, 0.5, gps_len_z - 4.0], center=true);
+                    }
                         
                     // Central Wider Relief Channel (7.8mm wide in X) for rear solder bump or 7mm orientation
-                    translate([gps_x_center, 4.75 - 0.1, gps_z_center])
-                        cube([7.8, 9.6, gps_len_z - 5.0], center=true);
+                    hull() {
+                        translate([gps_x_center, 4.75 - 0.1, gps_z_center])
+                            cube([7.8, 9.6, gps_len_z - 5.0], center=true);
+                        translate([gps_x_center, 12.5, gps_z_center])
+                            cube([0.8, 0.5, gps_len_z - 8.0], center=true);
+                    }
                         
                     // Lead-in Entry Chamfer at Y=0 mouth for effortless thumb insertion
                     translate([gps_x_center, 0.7, gps_z_center])
@@ -442,9 +451,9 @@ module apple_front_shell() {
                     // Main magnet + dowel socket (depth 4.30mm)
                     translate([0, 0, -0.1])
                         cylinder(r=mag_r_front, h=mag_h_front + 0.1);
-                    // Glue relief micro-hole at pocket floor (blind, never pierces outer shell!)
-                    translate([0, 0, mag_h_front - 0.1])
-                        cylinder(r=1.2, h=2.5);
+                    // 45-deg self-supporting conical vault (prevents ceiling sag without support + glue pocket!)
+                    translate([0, 0, mag_h_front - 0.05])
+                        cylinder(r1=2.3, r2=0.0, h=2.3);
                 }
             }
         }
