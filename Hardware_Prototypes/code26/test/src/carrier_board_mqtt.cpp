@@ -26,8 +26,17 @@
 // MQTT 브로커 및 토픽
 const char* mqtt_server = "broker.hivemq.com";
 const int mqtt_port = 1883;
-const char* mqtt_topic = "coldchain/truck01/sensor";
-const char* device_id = "carrier-c6-01";
+
+#ifndef MQTT_TOPIC
+#define MQTT_TOPIC "coldchain/truck01/sensor"
+#endif
+
+#ifndef DEVICE_ID
+#define DEVICE_ID "carrier-c6-01"
+#endif
+
+const char* mqtt_topic = MQTT_TOPIC;
+const char* device_id = DEVICE_ID;
 
 // Wi-Fi 네트워크 목록 (다중 AP 자동 접속)
 struct WiFiNetwork {

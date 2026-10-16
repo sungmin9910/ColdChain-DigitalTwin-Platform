@@ -58,6 +58,18 @@ TRUCK_OPTIONS = {
         'name_en': 'Truck 02 (carrier-c6-02)',
         'topic': 'coldchain/truck02/sensor',
         'device_id': 'carrier-c6-02',
+    },
+    'truck03': {
+        'name_ko': '3호차 (truck03 / carrier-c6-03)',
+        'name_en': 'Truck 03 (carrier-c6-03)',
+        'topic': 'coldchain/truck03/sensor',
+        'device_id': 'carrier-c6-03',
+    },
+    'truck04': {
+        'name_ko': '4호차 (truck04 / carrier-c6-04)',
+        'name_en': 'Truck 04 (carrier-c6-04)',
+        'topic': 'coldchain/truck04/sensor',
+        'device_id': 'carrier-c6-04',
     }
 }
 
@@ -332,10 +344,11 @@ data_history = get_data_history()
 # ----------------------------------------------------------------
 def on_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
-        # 단말별 전용 토픽 구독 (와일드카드 없이 각각 개별 구독)
-        client.subscribe("coldchain/truck01/sensor")
-        client.subscribe("coldchain/truck02/sensor")
-        print("Connected to HiveMQ Broker! Subscribed to [coldchain/truck01/sensor, coldchain/truck02/sensor]", flush=True)
+        # 단말별 전용 토픽 구독 (모든 등록 차량 자동 구독)
+        for tinfo in TRUCK_OPTIONS.values():
+            client.subscribe(tinfo['topic'])
+        topics_str = ", ".join([tinfo['topic'] for tinfo in TRUCK_OPTIONS.values()])
+        print(f"Connected to HiveMQ Broker! Subscribed to [{topics_str}]", flush=True)
     else:
         print(f"Failed to connect, return code {rc}", flush=True)
 
@@ -586,7 +599,7 @@ with st.sidebar:
                 tracker['active_run_id'] = None
                 tracker['is_custom'] = False
                 tracker['start_ts_str'] = None
-                st.session_state.run_id = generate_run_id()
+                st.session_state.run_id = generate_run_id(st.session_state.selected_truck_id)
                 st.session_state.session_user_locked = False
             
             # 주행 세션 및 GPS 보정 리셋
