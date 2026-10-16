@@ -31,7 +31,7 @@
 | 부품 파일명 | 용량 | 역할 | 필요 부자재 |
 | :--- | :---: | :--- | :--- |
 | **`22_apple_front_shell.stl`** | 2,704.7 KB | 전면 쉘 (PCB 4점 직결 기둥 + GPS 안테나 홀더 + 자석 소켓 4곳) | M3 볼트 4개(8~12mm), $\varnothing 6\times 3\text{ mm}$ 자석 4개 |
-| **`22_apple_rear_shell.stl`** | 2,478.4 KB | 후면 쉘 (5000mAh 배터리 크래들 + 1-A 채광창 + 돌출형 자석 보스 4곳) | $\varnothing 6\times 3\text{ mm}$ 자석 4개 |
+| **`22_apple_rear_shell.stl`** | 2,428.9 KB | 후면 쉘 (5000mAh 수직 드롭인 배터리 크래들 + 1-A 채광창 + 돌출형 자석 보스 4곳) | $\varnothing 6\times 3\text{ mm}$ 자석 4개 |
 | **`22_apple_stem.stl`** | 940.1 KB | 상단 사과 꼭지 플러그 | - |
 
 ---

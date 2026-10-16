@@ -230,7 +230,7 @@ module functional_cutouts() {
 
 // ==========================================
 // 1. REAR SHELL (MAIN BASE CHASSIS - PURPLE IN PHOTO)
-// - Holds 5000mAh Battery with Dual Retention Lips
+// - Holds 5000mAh Battery in Drop-in Pocket Cradle (Zero Interference)
 // - 4x D6x3mm Magnet Bosses (1.8mm deep -> 1.2mm steel dowel protrusion)
 // - Method 1-A BH1750 Optical Window (at X > 0, Y = -10.0, Z = -12.5)
 // ==========================================
@@ -252,6 +252,8 @@ module apple_rear_shell() {
                 }
                 
                 // 1. Integrated Battery Cradle (Zero-support 3D print)
+                // Drop-in design: Eliminates overhang lips to protect LiPo pouch from puncturing/scraping,
+                // while 4-sided cradle walls (58x73x12mm) prevent all lateral shifting in X and Z.
                 difference() {
                     translate([0, -36.0, bat_z_center])
                         cube([bat_w + 16.0, 27.0, bat_h + 20.0], center=true);
@@ -267,17 +269,6 @@ module apple_rear_shell() {
                     // 3) Finger Pull Extraction Notch
                     translate([0, bat_y_center - bat_t/2, bat_z_center])
                         cube([26.0, 8.0, 34.0], center=true);
-                }
-                
-                // Battery Front Retention Lips (Left & Right edges at Y = -22.5)
-                for (dx = [-1, 1]) {
-                    translate([dx * (bat_w/2 - 1.0), -22.0, bat_z_center]) {
-                        hull() {
-                            cube([3.5, 2.0, bat_h - 10.0], center=true);
-                            translate([-dx * 2.0, -1.0, 0])
-                                cube([2.0, 2.0, bat_h - 14.0], center=true);
-                        }
-                    }
                 }
                 
                 // 2. 4x Wall-Integrated Magnetic Bosses (Enlarged r=6.2mm for D6x3mm Magnets)
