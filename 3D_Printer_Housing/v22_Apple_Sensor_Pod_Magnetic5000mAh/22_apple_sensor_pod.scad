@@ -58,7 +58,7 @@ screw_pts = [
 // Magnet Specifications (D6 x 3mm cylinder)
 mag_r_front = 3.16;    // D=6.32mm pocket in Front Shell (receives magnet + rear protruding magnet)
 mag_h_front = 4.30;    // 3.0mm magnet + 1.3mm recessed alignment socket
-mag_r_rear  = 3.12;    // D=6.24mm press-fit pocket in Rear Shell
+mag_r_rear  = 3.16;    // D=6.32mm pocket in Rear Shell (matched to Front for smooth fit)
 mag_h_rear  = 1.80;    // 1.8mm recessed -> 1.2mm of magnet protrudes as steel alignment pin!
 
 // GPS Ceramic Antenna Specifications (20 x 5 x 7 mm)
@@ -289,11 +289,14 @@ module apple_rear_shell() {
             }
         }
         
-        // A. 4x Rear Magnet Pockets (D=6.24mm, depth=1.80mm -> 1.2mm of magnet protrudes as alignment pin!)
-        // Includes 45-deg self-supporting conical vault above the stop ring so 0% support is needed inside the hole!
+        // A. 4x Rear Magnet Pockets (D=6.32mm, depth=1.80mm -> 1.2mm of magnet protrudes as alignment pin!)
+        // Includes 45-deg entrance chamfer (absorbs bed elephant foot) + 45-deg self-supporting conical vault!
         for (pt = screw_pts) {
             translate([pt[0], 0, pt[1]]) {
                 rotate([90, 0, 0]) {
+                    // Self-centering entrance chamfer at Y=0 (absorbs first-layer bed squish!)
+                    translate([0, 0, -0.1])
+                        cylinder(r1=mag_r_rear + 0.45, r2=mag_r_rear, h=0.9);
                     // Main D6x3mm magnet recess (depth 1.80mm from Y=0)
                     translate([0, 0, -0.1])
                         cylinder(r=mag_r_rear, h=mag_h_rear + 0.1);
