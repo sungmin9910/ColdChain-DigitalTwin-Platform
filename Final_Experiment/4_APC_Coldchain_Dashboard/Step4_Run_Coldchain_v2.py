@@ -555,9 +555,10 @@ with st.sidebar:
     
     static_history = []
     if selected_run == "실시간 주행 (현재 실험)":
-        # 🔴 DB 실시간 저장 제어 (기본값: 스마트 자동 - 주행/터널/충격 시 자동 기록)
+        # 🔴 DB 실시간 저장 제어 (기본값: AWS EC2 자동 수집 - 대시보드 중복 방지)
         db_mode_options = [
-            "🤖 스마트 자동 (주행/터널/충격 시 자동 기록)" if st.session_state.lang == 'KO' else "🤖 Smart Auto (Save on Trip & Shock)",
+            "☁️ AWS EC2 자동 수집 (대시보드 중복 방지 - 권장)" if st.session_state.lang == 'KO' else "☁️ AWS EC2 Cloud Daemon (Prevent Duplicate - Recommended)",
+            "🤖 대시보드 직접 저장 (스마트 자동)" if st.session_state.lang == 'KO' else "🤖 Dashboard Direct Save (Smart Auto)",
             "🔴 항상 저장 (수동 강제 저장)" if st.session_state.lang == 'KO' else "🔴 Always Save (Force ON)",
             "⚪ 저장 안함 (연구실 모니터링)" if st.session_state.lang == 'KO' else "⚪ Do Not Save (Lab Monitoring)"
         ]
@@ -565,10 +566,12 @@ with st.sidebar:
             "💾 DB 저장 모드 설정" if st.session_state.lang == 'KO' else "💾 DB Recording Mode",
             db_mode_options,
             index=0,
-            help="• 스마트 자동 (기본값): 야외 출발 시(GPS Fix/속도 발생) 자동으로 기록을 시작하며, 터널/지하차도에 진입하여 일시적으로 GPS가 끊기더라도 직전 위치를 유지하며 연속 기록합니다. 충격/급변 발생 시 실내외 무관하게 100% 즉시 저장됩니다.\n• 항상 저장: GPS 수신 여부와 관계없이 실시간으로 DB에 저장합니다.\n• 저장 안함: DB 저장을 완전히 차단하고 화면 모니터링만 수행합니다."
+            help="• AWS EC2 자동 수집 (권장): 24시간 상시 가동 중인 AWS EC2 백엔드 데몬이 DB 수집을 전담하여, 대시보드의 중복 저장을 원천 차단합니다.\n• 대시보드 직접 저장: EC2 데몬을 사용하지 않을 때 대시보드가 직접 야외 출발 시(GPS Fix/속도 발생) 자동으로 DB에 기록합니다.\n• 항상 저장: GPS 수신 여부와 관계없이 실시간으로 DB에 저장합니다.\n• 저장 안함: DB 저장을 완전히 차단하고 화면 모니터링만 수행합니다."
         )
-        if "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
-            st.caption("✨ **주행 감지 시 자동 기록** (터널 통과 연속 보존, 실내 대기 저장 차단)")
+        if "AWS EC2" in db_record_mode or "Cloud Daemon" in db_record_mode:
+            st.caption("☁️ **[클라우드 전담 수집]** AWS EC2 데몬이 24시간 DB 저장을 전담합니다 (대시보드 중복 저장 차단).")
+        elif "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
+            st.caption("✨ **주행 감지 시 대시보드 직접 기록** (터널 통과 연속 보존, 실내 대기 저장 차단)")
         elif "항상 저장" in db_record_mode or "Always Save" in db_record_mode:
             st.caption("🔴 **[수동 강제 ON]** 모든 데이터를 즉시 DB에 저장합니다.")
         else:
@@ -930,7 +933,9 @@ while True:
                 time_interval_met = True
 
         should_save_to_db = False
-        if "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
+        if "AWS EC2" in db_record_mode or "Cloud Daemon" in db_record_mode:
+            should_save_to_db = False  # AWS EC2 클라우드 데몬이 24시간 DB 수집을 전담하므로 대시보드 중복 저장 차단
+        elif "스마트 자동" in db_record_mode or "Smart Auto" in db_record_mode:
             # 1. 충격/급변 이상 징후는 터널/실내 무관하게 무조건 즉시 DB 저장!
             if is_anomaly:
                 should_save_to_db = True
