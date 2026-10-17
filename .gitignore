@@ -8,6 +8,8 @@
 .env
 secrets.h
 .streamlit/secrets.toml
+*.pem
+*.key
 
 # Generated QR codes
 *_QR.png
