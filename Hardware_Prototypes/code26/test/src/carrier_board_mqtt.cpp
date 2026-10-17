@@ -781,34 +781,37 @@ void loop() {
     }
   }
 
-  // 4) 고속 가속도 샘플링 (20ms 간격)
+  // 4) 고속 가속도 샘플링 (20ms 간격 = 50Hz)
   if (mpu_ready && (now - lastSampleTime >= SAMPLE_INTERVAL_MS)) {
     lastSampleTime = now;
-    sensors_event_t a, g, temp;
-    mpu.getEvent(&a, &g, &temp);
+    sensors_event_t a = {0}, g = {0}, temp = {0};
+    if (mpu.getEvent(&a, &g, &temp)) {
+      float total_acc = sqrt(a.acceleration.x * a.acceleration.x +
+                             a.acceleration.y * a.acceleration.y +
+                             a.acceleration.z * a.acceleration.z);
+      float g_force = total_acc / 9.80665f;
 
-    float total_acc = sqrt(a.acceleration.x * a.acceleration.x +
-                           a.acceleration.y * a.acceleration.y +
-                           a.acceleration.z * a.acceleration.z);
-    float g_force = total_acc / 9.80665;
+      // 센서 범위(±8G) 초과 통신 노이즈 필터링 (물리적 한계 초과 노이즈 차단)
+      if (g_force <= 12.0f && g_force >= 0.1f) {
+        // 피크 홀드
+        if (g_force > max_g_force) {
+          max_g_force = g_force;
+        }
 
-    // 피크 홀드
-    if (g_force > max_g_force) {
-      max_g_force = g_force;
-    }
+        // 미세 움직임/진동 감지 시 lastMotionTime 갱신 (차량 주행/엔진 진동 vs 책상 위 완전 정지 구분)
+        if (fabs(g_force - 1.0f) > 0.08f) {
+          lastMotionTime = now;
+        }
 
-    // 미세 움직임/진동 감지 시 lastMotionTime 갱신 (차량 주행/엔진 진동 vs 책상 위 완전 정지 구분)
-    if (fabs(g_force - 1.0f) > 0.08f) {
-      lastMotionTime = now;
-    }
-
-    // 급격한 충격 이벤트 발생 시 즉시 전송
-    if (g_force >= SHOCK_THRESHOLD_G) {
-      if (now - lastShockTime >= SHOCK_DEBOUNCE_MS) {
-        lastShockTime = now;
-        Serial.printf("\n🚨 [충격 감지!] 충격량: %.2f G\n", g_force);
-        transmitTelemetry(g_force, "충격");
-        max_g_force = 1.0;
+        // 급격한 충격 이벤트 발생 시 즉시 전송
+        if (g_force >= SHOCK_THRESHOLD_G) {
+          if (now - lastShockTime >= SHOCK_DEBOUNCE_MS) {
+            lastShockTime = now;
+            Serial.printf("\n🚨 [충격 감지!] 충격량: %.2f G\n", g_force);
+            transmitTelemetry(g_force, "충격");
+            max_g_force = 1.0;
+          }
+        }
       }
     }
   }
