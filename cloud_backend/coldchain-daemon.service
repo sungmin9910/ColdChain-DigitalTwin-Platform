@@ -1,0 +1,16 @@
+[Unit]
+Description=ColdChain DigitalTwin 24/7 MQTT to MySQL Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/ColdChain-DigitalTwin-Platform/cloud_backend
+ExecStart=/usr/bin/python3 /home/ubuntu/ColdChain-DigitalTwin-Platform/cloud_backend/mqtt_to_mysql_daemon.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
