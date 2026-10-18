@@ -1,0 +1,1505 @@
+[
+  {
+    "id": 7260,
+    "run_id": "truck04_기록_2026-10-18_20시27분",
+    "timestamp_str": "2026-10-18 20:25:41",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 0.0,
+    "lng": 0.0
+  },
+  {
+    "id": 7261,
+    "run_id": "truck04_기록_2026-10-18_20시27분",
+    "timestamp_str": "2026-10-18 20:25:45",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 0.0,
+    "lng": 0.0
+  },
+  {
+    "id": 7262,
+    "run_id": "truck04_기록_2026-10-18_20시27분",
+    "timestamp_str": "2026-10-18 20:25:54",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 0.0,
+    "lng": 0.0
+  },
+  {
+    "id": 7263,
+    "run_id": "truck04_기록_2026-10-18_20시27분",
+    "timestamp_str": "2026-10-18 20:25:55",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 0.0,
+    "lng": 0.0
+  },
+  {
+    "id": 7264,
+    "run_id": "truck04_기록_2026-10-18_20시27분",
+    "timestamp_str": "2026-10-18 20:26:00",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 0.0,
+    "lng": 0.0
+  },
+  {
+    "id": 7265,
+    "run_id": "truck04_기록_2026-10-18_20시28분",
+    "timestamp_str": "2026-10-18 20:28:27",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 0.0,
+    "lng": 0.0
+  },
+  {
+    "id": 7266,
+    "run_id": "truck04_기록_2026-10-18_20시28분",
+    "timestamp_str": "2026-10-18 20:28:31",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 0.0,
+    "lng": 0.0
+  },
+  {
+    "id": 7267,
+    "run_id": "truck04_기록_2026-10-18_20시28분",
+    "timestamp_str": "2026-10-18 20:28:42",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 0.0,
+    "lng": 0.0
+  },
+  {
+    "id": 7268,
+    "run_id": "truck04_기록_2026-10-18_20시28분",
+    "timestamp_str": "2026-10-18 20:28:47",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 0.0,
+    "lng": 0.0
+  },
+  {
+    "id": 7269,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:30:06",
+    "device": "carrier-c6-04",
+    "speed": 28.7,
+    "lat": 35.8459,
+    "lng": 127.135
+  },
+  {
+    "id": 7270,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:30:11",
+    "device": "carrier-c6-04",
+    "speed": 19.9,
+    "lat": 35.8457,
+    "lng": 127.135
+  },
+  {
+    "id": 7271,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:30:21",
+    "device": "carrier-c6-04",
+    "speed": 28.7,
+    "lat": 35.8449,
+    "lng": 127.135
+  },
+  {
+    "id": 7272,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:30:31",
+    "device": "carrier-c6-04",
+    "speed": 23.3,
+    "lat": 35.8443,
+    "lng": 127.135
+  },
+  {
+    "id": 7273,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:30:36",
+    "device": "carrier-c6-04",
+    "speed": 33.0,
+    "lat": 35.844,
+    "lng": 127.135
+  },
+  {
+    "id": 7274,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:30:46",
+    "device": "carrier-c6-04",
+    "speed": 13.5,
+    "lat": 35.8435,
+    "lng": 127.134
+  },
+  {
+    "id": 7275,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:30:51",
+    "device": "carrier-c6-04",
+    "speed": 15.2,
+    "lat": 35.8435,
+    "lng": 127.134
+  },
+  {
+    "id": 7276,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:30:59",
+    "device": "carrier-c6-04",
+    "speed": 23.8,
+    "lat": 35.8435,
+    "lng": 127.133
+  },
+  {
+    "id": 7277,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:31:06",
+    "device": "carrier-c6-04",
+    "speed": 28.4,
+    "lat": 35.8436,
+    "lng": 127.133
+  },
+  {
+    "id": 7278,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:31:16",
+    "device": "carrier-c6-04",
+    "speed": 38.5,
+    "lat": 35.8437,
+    "lng": 127.132
+  },
+  {
+    "id": 7279,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:31:26",
+    "device": "carrier-c6-04",
+    "speed": 27.6,
+    "lat": 35.8437,
+    "lng": 127.131
+  },
+  {
+    "id": 7280,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:31:36",
+    "device": "carrier-c6-04",
+    "speed": 24.9,
+    "lat": 35.8431,
+    "lng": 127.131
+  },
+  {
+    "id": 7281,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:31:46",
+    "device": "carrier-c6-04",
+    "speed": 25.9,
+    "lat": 35.8425,
+    "lng": 127.131
+  },
+  {
+    "id": 7282,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:31:56",
+    "device": "carrier-c6-04",
+    "speed": 11.6,
+    "lat": 35.8422,
+    "lng": 127.132
+  },
+  {
+    "id": 7283,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:32:01",
+    "device": "carrier-c6-04",
+    "speed": 18.6,
+    "lat": 35.8419,
+    "lng": 127.131
+  },
+  {
+    "id": 7284,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:32:11",
+    "device": "carrier-c6-04",
+    "speed": 27.3,
+    "lat": 35.8412,
+    "lng": 127.132
+  },
+  {
+    "id": 7285,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:32:21",
+    "device": "carrier-c6-04",
+    "speed": 17.5,
+    "lat": 35.8408,
+    "lng": 127.132
+  },
+  {
+    "id": 7286,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:32:31",
+    "device": "carrier-c6-04",
+    "speed": 3.4,
+    "lat": 35.8408,
+    "lng": 127.132
+  },
+  {
+    "id": 7287,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:32:36",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8408,
+    "lng": 127.132
+  },
+  {
+    "id": 7288,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:32:46",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.841,
+    "lng": 127.132
+  },
+  {
+    "id": 7289,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:32:56",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.841,
+    "lng": 127.132
+  },
+  {
+    "id": 7290,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:33:06",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8409,
+    "lng": 127.132
+  },
+  {
+    "id": 7291,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:33:11",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8409,
+    "lng": 127.132
+  },
+  {
+    "id": 7292,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:33:16",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8409,
+    "lng": 127.132
+  },
+  {
+    "id": 7293,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:33:26",
+    "device": "carrier-c6-04",
+    "speed": 28.7,
+    "lat": 35.8406,
+    "lng": 127.132
+  },
+  {
+    "id": 7294,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:33:31",
+    "device": "carrier-c6-04",
+    "speed": 44.2,
+    "lat": 35.8404,
+    "lng": 127.131
+  },
+  {
+    "id": 7295,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:33:41",
+    "device": "carrier-c6-04",
+    "speed": 23.4,
+    "lat": 35.8401,
+    "lng": 127.13
+  },
+  {
+    "id": 7296,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:33:46",
+    "device": "carrier-c6-04",
+    "speed": 7.1,
+    "lat": 35.84,
+    "lng": 127.13
+  },
+  {
+    "id": 7297,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:33:56",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.84,
+    "lng": 127.13
+  },
+  {
+    "id": 7298,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:34:06",
+    "device": "carrier-c6-04",
+    "speed": 48.8,
+    "lat": 35.8394,
+    "lng": 127.129
+  },
+  {
+    "id": 7299,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:34:16",
+    "device": "carrier-c6-04",
+    "speed": 66.6,
+    "lat": 35.8383,
+    "lng": 127.127
+  },
+  {
+    "id": 7300,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:34:26",
+    "device": "carrier-c6-04",
+    "speed": 70.6,
+    "lat": 35.8371,
+    "lng": 127.126
+  },
+  {
+    "id": 7301,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:34:31",
+    "device": "carrier-c6-04",
+    "speed": 66.7,
+    "lat": 35.8365,
+    "lng": 127.125
+  },
+  {
+    "id": 7302,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:34:36",
+    "device": "carrier-c6-04",
+    "speed": 45.2,
+    "lat": 35.8361,
+    "lng": 127.124
+  },
+  {
+    "id": 7303,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:34:41",
+    "device": "carrier-c6-04",
+    "speed": 28.5,
+    "lat": 35.8358,
+    "lng": 127.124
+  },
+  {
+    "id": 7304,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:34:51",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8356,
+    "lng": 127.124
+  },
+  {
+    "id": 7305,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:35:01",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8357,
+    "lng": 127.124
+  },
+  {
+    "id": 7306,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:35:11",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8357,
+    "lng": 127.124
+  },
+  {
+    "id": 7307,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:35:16",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8357,
+    "lng": 127.124
+  },
+  {
+    "id": 7308,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:35:26",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8357,
+    "lng": 127.124
+  },
+  {
+    "id": 7309,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:35:36",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8357,
+    "lng": 127.124
+  },
+  {
+    "id": 7310,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:35:46",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8357,
+    "lng": 127.124
+  },
+  {
+    "id": 7311,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:35:51",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8357,
+    "lng": 127.124
+  },
+  {
+    "id": 7312,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:35:56",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8357,
+    "lng": 127.124
+  },
+  {
+    "id": 7313,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:36:06",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8357,
+    "lng": 127.124
+  },
+  {
+    "id": 7314,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:36:16",
+    "device": "carrier-c6-04",
+    "speed": 13.7,
+    "lat": 35.8356,
+    "lng": 127.124
+  },
+  {
+    "id": 7315,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:36:21",
+    "device": "carrier-c6-04",
+    "speed": 33.7,
+    "lat": 35.8353,
+    "lng": 127.124
+  },
+  {
+    "id": 7316,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:36:31",
+    "device": "carrier-c6-04",
+    "speed": 52.7,
+    "lat": 35.8342,
+    "lng": 127.123
+  },
+  {
+    "id": 7317,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:36:36",
+    "device": "carrier-c6-04",
+    "speed": 53.3,
+    "lat": 35.8336,
+    "lng": 127.123
+  },
+  {
+    "id": 7318,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:36:44",
+    "device": "carrier-c6-04",
+    "speed": 63.3,
+    "lat": 35.8324,
+    "lng": 127.123
+  },
+  {
+    "id": 7319,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:36:51",
+    "device": "carrier-c6-04",
+    "speed": 67.4,
+    "lat": 35.8312,
+    "lng": 127.123
+  },
+  {
+    "id": 7320,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:37:01",
+    "device": "carrier-c6-04",
+    "speed": 56.6,
+    "lat": 35.8297,
+    "lng": 127.123
+  },
+  {
+    "id": 7321,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:37:11",
+    "device": "carrier-c6-04",
+    "speed": 58.6,
+    "lat": 35.8283,
+    "lng": 127.123
+  },
+  {
+    "id": 7322,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:37:16",
+    "device": "carrier-c6-04",
+    "speed": 58.3,
+    "lat": 35.8276,
+    "lng": 127.123
+  },
+  {
+    "id": 7323,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:37:26",
+    "device": "carrier-c6-04",
+    "speed": 59.8,
+    "lat": 35.8261,
+    "lng": 127.123
+  },
+  {
+    "id": 7324,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:37:31",
+    "device": "carrier-c6-04",
+    "speed": 55.0,
+    "lat": 35.8254,
+    "lng": 127.123
+  },
+  {
+    "id": 7325,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:37:41",
+    "device": "carrier-c6-04",
+    "speed": 68.6,
+    "lat": 35.824,
+    "lng": 127.123
+  },
+  {
+    "id": 7326,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:37:46",
+    "device": "carrier-c6-04",
+    "speed": 73.7,
+    "lat": 35.8231,
+    "lng": 127.123
+  },
+  {
+    "id": 7327,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:37:56",
+    "device": "carrier-c6-04",
+    "speed": 65.0,
+    "lat": 35.8213,
+    "lng": 127.123
+  },
+  {
+    "id": 7328,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:38:01",
+    "device": "carrier-c6-04",
+    "speed": 60.7,
+    "lat": 35.8206,
+    "lng": 127.123
+  },
+  {
+    "id": 7329,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:38:06",
+    "device": "carrier-c6-04",
+    "speed": 59.8,
+    "lat": 35.8198,
+    "lng": 127.123
+  },
+  {
+    "id": 7330,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:38:11",
+    "device": "carrier-c6-04",
+    "speed": 61.6,
+    "lat": 35.8191,
+    "lng": 127.123
+  },
+  {
+    "id": 7331,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:38:21",
+    "device": "carrier-c6-04",
+    "speed": 69.9,
+    "lat": 35.8174,
+    "lng": 127.123
+  },
+  {
+    "id": 7332,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:38:26",
+    "device": "carrier-c6-04",
+    "speed": 71.0,
+    "lat": 35.8165,
+    "lng": 127.123
+  },
+  {
+    "id": 7333,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:38:31",
+    "device": "carrier-c6-04",
+    "speed": 70.6,
+    "lat": 35.8156,
+    "lng": 127.123
+  },
+  {
+    "id": 7334,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:38:41",
+    "device": "carrier-c6-04",
+    "speed": 64.1,
+    "lat": 35.8139,
+    "lng": 127.123
+  },
+  {
+    "id": 7335,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:38:51",
+    "device": "carrier-c6-04",
+    "speed": 63.8,
+    "lat": 35.8123,
+    "lng": 127.123
+  },
+  {
+    "id": 7336,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:39:01",
+    "device": "carrier-c6-04",
+    "speed": 61.9,
+    "lat": 35.8108,
+    "lng": 127.123
+  },
+  {
+    "id": 7337,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:39:06",
+    "device": "carrier-c6-04",
+    "speed": 49.0,
+    "lat": 35.8102,
+    "lng": 127.123
+  },
+  {
+    "id": 7338,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:39:16",
+    "device": "carrier-c6-04",
+    "speed": 7.5,
+    "lat": 35.8095,
+    "lng": 127.123
+  },
+  {
+    "id": 7339,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:39:26",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8095,
+    "lng": 127.123
+  },
+  {
+    "id": 7340,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:39:31",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8095,
+    "lng": 127.123
+  },
+  {
+    "id": 7341,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:39:41",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8095,
+    "lng": 127.123
+  },
+  {
+    "id": 7342,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:39:46",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8095,
+    "lng": 127.123
+  },
+  {
+    "id": 7343,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:39:51",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8095,
+    "lng": 127.123
+  },
+  {
+    "id": 7344,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:40:01",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8096,
+    "lng": 127.123
+  },
+  {
+    "id": 7345,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:40:11",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8096,
+    "lng": 127.123
+  },
+  {
+    "id": 7346,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:40:21",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8096,
+    "lng": 127.123
+  },
+  {
+    "id": 7347,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:40:31",
+    "device": "carrier-c6-04",
+    "speed": 39.2,
+    "lat": 35.809,
+    "lng": 127.123
+  },
+  {
+    "id": 7348,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:40:36",
+    "device": "carrier-c6-04",
+    "speed": 47.2,
+    "lat": 35.8084,
+    "lng": 127.123
+  },
+  {
+    "id": 7349,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:40:46",
+    "device": "carrier-c6-04",
+    "speed": 50.0,
+    "lat": 35.8073,
+    "lng": 127.123
+  },
+  {
+    "id": 7350,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:40:51",
+    "device": "carrier-c6-04",
+    "speed": 50.6,
+    "lat": 35.8066,
+    "lng": 127.123
+  },
+  {
+    "id": 7351,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:41:01",
+    "device": "carrier-c6-04",
+    "speed": 51.2,
+    "lat": 35.8053,
+    "lng": 127.123
+  },
+  {
+    "id": 7352,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:41:06",
+    "device": "carrier-c6-04",
+    "speed": 47.9,
+    "lat": 35.8047,
+    "lng": 127.124
+  },
+  {
+    "id": 7353,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:41:11",
+    "device": "carrier-c6-04",
+    "speed": 52.2,
+    "lat": 35.8041,
+    "lng": 127.124
+  },
+  {
+    "id": 7354,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:41:21",
+    "device": "carrier-c6-04",
+    "speed": 45.9,
+    "lat": 35.8031,
+    "lng": 127.125
+  },
+  {
+    "id": 7355,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:41:31",
+    "device": "carrier-c6-04",
+    "speed": 2.7,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7356,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:41:36",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7357,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:41:46",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7358,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:41:51",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7359,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:42:01",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7360,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:42:06",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7361,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:42:11",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7362,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:42:21",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7363,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:42:31",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7364,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:42:36",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7365,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:42:41",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7366,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:42:51",
+    "device": "carrier-c6-04",
+    "speed": 6.8,
+    "lat": 35.8027,
+    "lng": 127.125
+  },
+  {
+    "id": 7367,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:42:56",
+    "device": "carrier-c6-04",
+    "speed": 25.0,
+    "lat": 35.8025,
+    "lng": 127.125
+  },
+  {
+    "id": 7368,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:43:01",
+    "device": "carrier-c6-04",
+    "speed": 42.4,
+    "lat": 35.8021,
+    "lng": 127.126
+  },
+  {
+    "id": 7369,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:43:06",
+    "device": "carrier-c6-04",
+    "speed": 48.7,
+    "lat": 35.8016,
+    "lng": 127.126
+  },
+  {
+    "id": 7370,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:43:16",
+    "device": "carrier-c6-04",
+    "speed": 60.4,
+    "lat": 35.8006,
+    "lng": 127.127
+  },
+  {
+    "id": 7371,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:43:21",
+    "device": "carrier-c6-04",
+    "speed": 60.7,
+    "lat": 35.8,
+    "lng": 127.128
+  },
+  {
+    "id": 7372,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:43:31",
+    "device": "carrier-c6-04",
+    "speed": 57.7,
+    "lat": 35.7989,
+    "lng": 127.129
+  },
+  {
+    "id": 7373,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:43:41",
+    "device": "carrier-c6-04",
+    "speed": 55.7,
+    "lat": 35.7978,
+    "lng": 127.13
+  },
+  {
+    "id": 7374,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:43:51",
+    "device": "carrier-c6-04",
+    "speed": 51.3,
+    "lat": 35.7969,
+    "lng": 127.131
+  },
+  {
+    "id": 7375,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:43:56",
+    "device": "carrier-c6-04",
+    "speed": 46.2,
+    "lat": 35.7964,
+    "lng": 127.132
+  },
+  {
+    "id": 7376,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:44:06",
+    "device": "carrier-c6-04",
+    "speed": 14.2,
+    "lat": 35.7959,
+    "lng": 127.132
+  },
+  {
+    "id": 7377,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:44:11",
+    "device": "carrier-c6-04",
+    "speed": 2.0,
+    "lat": 35.7958,
+    "lng": 127.132
+  },
+  {
+    "id": 7378,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:44:21",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7958,
+    "lng": 127.132
+  },
+  {
+    "id": 7379,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:44:31",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7958,
+    "lng": 127.132
+  },
+  {
+    "id": 7380,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:44:41",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7958,
+    "lng": 127.132
+  },
+  {
+    "id": 7381,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:44:46",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7958,
+    "lng": 127.132
+  },
+  {
+    "id": 7382,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:44:51",
+    "device": "carrier-c6-04",
+    "speed": 6.2,
+    "lat": 35.7958,
+    "lng": 127.132
+  },
+  {
+    "id": 7383,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:45:01",
+    "device": "carrier-c6-04",
+    "speed": 34.1,
+    "lat": 35.7951,
+    "lng": 127.132
+  },
+  {
+    "id": 7384,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:45:11",
+    "device": "carrier-c6-04",
+    "speed": 0.9,
+    "lat": 35.795,
+    "lng": 127.132
+  },
+  {
+    "id": 7385,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:45:21",
+    "device": "carrier-c6-04",
+    "speed": 10.8,
+    "lat": 35.7948,
+    "lng": 127.132
+  },
+  {
+    "id": 7386,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:45:26",
+    "device": "carrier-c6-04",
+    "speed": 7.5,
+    "lat": 35.7948,
+    "lng": 127.132
+  },
+  {
+    "id": 7387,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:45:31",
+    "device": "carrier-c6-04",
+    "speed": 3.4,
+    "lat": 35.7947,
+    "lng": 127.132
+  },
+  {
+    "id": 7388,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:45:36",
+    "device": "carrier-c6-04",
+    "speed": 17.0,
+    "lat": 35.7945,
+    "lng": 127.132
+  },
+  {
+    "id": 7389,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:45:46",
+    "device": "carrier-c6-04",
+    "speed": 0.1,
+    "lat": 35.7944,
+    "lng": 127.132
+  },
+  {
+    "id": 7390,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:45:51",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7944,
+    "lng": 127.132
+  },
+  {
+    "id": 7391,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:45:56",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7944,
+    "lng": 127.132
+  },
+  {
+    "id": 7392,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:46:01",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7944,
+    "lng": 127.132
+  },
+  {
+    "id": 7393,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:46:06",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7944,
+    "lng": 127.132
+  },
+  {
+    "id": 7394,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:02:14",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7944,
+    "lng": 127.132
+  },
+  {
+    "id": 7395,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:46:21",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7944,
+    "lng": 127.132
+  },
+  {
+    "id": 7396,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:52:49",
+    "device": "carrier-c6-04",
+    "speed": 14.5,
+    "lat": 35.7938,
+    "lng": 127.131
+  },
+  {
+    "id": 7397,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:56:40",
+    "device": "carrier-c6-04",
+    "speed": 17.7,
+    "lat": 35.7928,
+    "lng": 127.123
+  },
+  {
+    "id": 7398,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:56:41",
+    "device": "carrier-c6-04",
+    "speed": 17.7,
+    "lat": 35.7928,
+    "lng": 127.123
+  },
+  {
+    "id": 7399,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:56:44",
+    "device": "carrier-c6-04",
+    "speed": 17.7,
+    "lat": 35.7928,
+    "lng": 127.123
+  },
+  {
+    "id": 7400,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:56:46",
+    "device": "carrier-c6-04",
+    "speed": 17.7,
+    "lat": 35.7928,
+    "lng": 127.123
+  },
+  {
+    "id": 7401,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:57:01",
+    "device": "carrier-c6-04",
+    "speed": 3.8,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7402,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 20:57:06",
+    "device": "carrier-c6-04",
+    "speed": 3.6,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7403,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:02:35",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7404,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:02:40",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7405,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:02:49",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7406,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:02:59",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7407,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:03:04",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7408,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:03:14",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7409,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:03:19",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7410,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:03:24",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7411,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:03:34",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7412,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:03:44",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7413,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:03:54",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7414,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:03:59",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7415,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:04:04",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7416,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:04:14",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7417,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:04:19",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7418,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:04:24",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7419,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:04:29",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7420,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:04:34",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7421,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:04:39",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7422,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:04:44",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7423,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:05:03",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7424,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:05:08",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7425,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:05:18",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  },
+  {
+    "id": 7426,
+    "run_id": "truck04_주행_2026-10-18_20시30분",
+    "timestamp_str": "2026-10-18 21:05:26",
+    "device": "carrier-c6-04",
+    "speed": 0.0,
+    "lat": 35.7925,
+    "lng": 127.122
+  }
+]

@@ -734,20 +734,69 @@ void loop() {
 
   unsigned long now = millis();
 
-  // 3) Wi-Fi 및 MQTT 연결 유지 (비블로킹 & 고속 IMU 샘플링 보호)
-  // 주행 중(trip_active)에는 50Hz 고속 충격 감지 및 GPS 수신 보호를 위해 스캔 주기를 20초로 완화
-  unsigned long wifi_scan_interval = trip_active ? 20000 : 8000;
-  static unsigned long lastWifiScanTime = 0;
+  // 3) 스마트 비동기 Wi-Fi 및 MQTT 자동 복구 루틴 (Non-blocking & Self-healing Radio Reset)
+  // 핫스팟이 중간에 꺼지거나 끊겨도, 보드 전원 재부팅 없이 Wi-Fi 라디오 모듈만 소프트웨어적으로 재시작하여 100% 자동 재연결
+  static unsigned long lastWifiAttemptTime = 0;
+  static int wifi_retry_count = 0;
+  static bool prev_wifi_state = false;
+
   bool wifi_connected = (WiFi.status() == WL_CONNECTED);
-  if (!wifi_connected && (now - lastWifiScanTime >= wifi_scan_interval)) {
-    lastWifiScanTime = now;
-    wifi_connected = (wifiMulti.run() == WL_CONNECTED);
+
+  // 상태 변화 감지 (온라인 -> 오프라인 전환)
+  if (prev_wifi_state && !wifi_connected) {
+    Serial.println("\n⚠️ [Wi-Fi 단절 감지] 핫스팟 연결 끊김 -> 소켓 정리 및 재연결 준비");
+    client.disconnect();
+    espClient.stop();
+    WiFi.disconnect(true, true); // 이전 BSSID/채널 캐시 완전 삭제 (Stale 상태 방지)
+    wifi_retry_count = 0;
   }
+  prev_wifi_state = wifi_connected;
+
+  if (!wifi_connected) {
+    // 주행 중 충격 감지 및 GPS NMEA 수신을 방해하지 않도록 스캔 간격 분배
+    unsigned long retry_interval = trip_active ? 15000 : 8000;
+    if (now - lastWifiAttemptTime >= retry_interval) {
+      lastWifiAttemptTime = now;
+      wifi_retry_count++;
+
+      // [핵심] 재연결 실패가 3회 이상 지속되면 Wi-Fi 라디오 서브시스템만 소프트웨어 재부팅!
+      // MCU/센서/GPS/LittleFS는 1초도 안 끊기고 계속 작동하면서 무선 칩셋만 깨끗하게 초기화
+      if (wifi_retry_count >= 3) {
+        Serial.printf("\n🔄 [Wi-Fi 라디오 소프트웨어 재시작] %d회 미연결 감지 -> Wi-Fi 모듈 Power Cycle (보드 리셋 불필요)\n", wifi_retry_count);
+        WiFi.disconnect(true, true);
+        WiFi.mode(WIFI_OFF);
+        delay(80);
+        WiFi.mode(WIFI_STA);
+        // AP 재등록
+        for (int i = 0; i < num_wifi_networks; i++) {
+          if (wifi_networks[i].password == NULL || strlen(wifi_networks[i].password) == 0) {
+            wifiMulti.addAP(wifi_networks[i].ssid);
+          } else {
+            wifiMulti.addAP(wifi_networks[i].ssid, wifi_networks[i].password);
+          }
+        }
+        wifi_retry_count = 0;
+      }
+
+      Serial.println("  📡 [Wi-Fi 탐색] 모바일 핫스팟 / 등록 AP 재연결 시도 중...");
+      if (wifiMulti.run() == WL_CONNECTED) {
+        wifi_connected = true;
+        wifi_retry_count = 0;
+        Serial.printf("  ✅ [Wi-Fi 재연결 성공!] SSID: %s, IP: %s\n", 
+                      WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+      }
+    }
+  }
+
   if (wifi_connected) {
     if (!client.connected()) {
-      reconnectMQTT();
+      if (reconnectMQTT()) {
+        // 온라인 복구 즉시 누적된 오프라인 버퍼 전송 (무손실 백필)
+        flushOfflineBuffer();
+      }
+    } else {
+      client.loop();
     }
-    client.loop();
   }
 
   // SHT 온습도 센서 미연결 상태일 경우 3초마다 재시도

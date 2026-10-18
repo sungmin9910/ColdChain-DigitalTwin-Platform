@@ -517,7 +517,11 @@ with st.sidebar:
             dt_tag = f"[{start_ts[5:10]} {start_ts[11:16]}]" if len(start_ts) >= 16 else ""
 
             # 1) 유명 핵심 기준 세션 매핑
-            if "departure" in session_id:
+            if "2026-10-18" in session_id:
+                return f"🚗 [10-18 야간주행] 20:24 자택복귀 (395건, 최고 {max_spd:.0f}km/h)"
+            elif "2026-10-16" in session_id:
+                return f"🚗 [10-16 야간실증] 21:13 02호차 주행 ({cnt}건, 최고 {max_spd:.0f}km/h)"
+            elif "departure" in session_id:
                 return f"🚗 [10-02 편도출발] 전주 ➔ 대전 (89km, {cnt:,}건)"
             elif "return" in session_id:
                 return f"🚗 [10-02 편도복귀] 대전 ➔ 전주 (85km, {cnt:,}건)"
@@ -530,7 +534,7 @@ with st.sidebar:
 
             # 2) 지능형 자동 분류 (주행 vs 급랭/챔버 vs 정적실험)
             clean_name = session_id
-            for pfx in ["run_", "주행_"]:
+            for pfx in ["truck01_", "truck02_", "truck03_", "truck04_", "run_", "주행_"]:
                 if clean_name.startswith(pfx):
                     clean_name = clean_name[len(pfx):]
             if len(clean_name) > 20:
@@ -605,6 +609,9 @@ with st.sidebar:
                 st.session_state.run_id = generate_run_id(st.session_state.selected_truck_id)
                 st.session_state.session_user_locked = False
             
+            st.session_state.explicit_user_reset = True
+            st.session_state.preloaded_run_id = None
+
             # 주행 세션 및 GPS 보정 리셋
             st.session_state.trip_started = False
             st.session_state.last_valid_gps = (0.0, 0.0)
@@ -731,6 +738,55 @@ with col_log_h2:
                 msg_queue.queue.clear()
             st.rerun()
 log_container = st.empty()
+
+# ----------------------------------------------------------------
+# 3-1. 실시간 주행 모드 최근 궤적 자동 복원 (Preload Active Trip)
+# 새로고침이나 중간 접속 시 오던 길이 사라지지 않고 연속 렌더링되도록 보장
+# ----------------------------------------------------------------
+if selected_run == "실시간 주행 (현재 실험)":
+    if 'preloaded_run_id' not in st.session_state:
+        st.session_state.preloaded_run_id = None
+
+    if len(data_history) == 0 and not st.session_state.get('explicit_user_reset', False):
+        conn = get_mysql_connection()
+        if conn:
+            try:
+                with conn.cursor() as cursor:
+                    # 최근 6시간 이내에 생성된 가장 최신의 주행 세션 검색 (유효 레코드 3건 이상)
+                    cursor.execute("""
+                        SELECT run_id, MAX(created_at) as last_time, COUNT(*) as cnt
+                        FROM sensor_data
+                        WHERE (device = %s OR (device = 'truck01' AND %s = 'carrier-c6-01'))
+                          AND run_id IS NOT NULL
+                          AND created_at >= NOW() - INTERVAL 6 HOUR
+                        GROUP BY run_id
+                        HAVING cnt >= 3
+                        ORDER BY last_time DESC
+                        LIMIT 1
+                    """, (EXPECTED_DEVICE, EXPECTED_DEVICE))
+                    latest_active = cursor.fetchone()
+                    if latest_active and latest_active['run_id']:
+                        active_id = latest_active['run_id']
+                        if st.session_state.preloaded_run_id != active_id:
+                            pre_data = load_run_data(active_id, device=EXPECTED_DEVICE)
+                            if pre_data:
+                                data_history.extend(pre_data)
+                                st.session_state.run_id = active_id
+                                st.session_state.preloaded_run_id = active_id
+                                tracker = get_session_tracker()
+                                tracker['active_run_id'] = active_id
+                                
+                                # 마지막 유효 GPS 위치 및 주행 플래그 복원
+                                for d in reversed(pre_data):
+                                    if d.get('lat') and d.get('lng') and float(d['lat']) != 0.0:
+                                        st.session_state.last_valid_gps = (float(d['lat']), float(d['lng']))
+                                        st.session_state.trip_started = True
+                                        break
+                                print(f"✨ [실시간 궤적 자동 복원] 최근 주행 세션 '{active_id}'의 {len(pre_data)}건 데이터를 화면에 복원했습니다.")
+            except Exception as e:
+                print(f"최근 주행 궤적 자동 복원 에러: {e}")
+            finally:
+                conn.close()
 
 # ----------------------------------------------------------------
 # 4. 실시간 루프
