@@ -207,24 +207,16 @@ apple_inner_profile = [
   [  0.00,  34.22]
 ];
 
-// Outer solid with clean flat bed-adhesion pad at |Y| = bed_flat_y (48.0mm, D=28mm flat base)
+// 100% Pure, Un-flattened Apple Outer Surface (No flat spot on dome poles!)
 module apple_solid_outer() {
-    intersection() {
-        rotate_extrude(angle=360, $fn=72) {
-            polygon(concat([[0, apple_outer_profile[0][1]]], apple_outer_profile, [[0, apple_outer_profile[len(apple_outer_profile)-1][1]]]));
-        }
-        // Flatten extreme poles at |Y| = 48.0mm so both shells sit on a stable D=28mm flat circle at Z=0!
-        cube([140, 2 * bed_flat_y, 140], center=true);
+    rotate_extrude(angle=360, $fn=72) {
+        polygon(concat([[0, apple_outer_profile[0][1]]], apple_outer_profile, [[0, apple_outer_profile[len(apple_outer_profile)-1][1]]]));
     }
 }
 
 module apple_solid_inner() {
-    intersection() {
-        rotate_extrude(angle=360, $fn=72) {
-            polygon(concat([[0, apple_inner_profile[0][1]]], apple_inner_profile, [[0, apple_inner_profile[len(apple_inner_profile)-1][1]]]));
-        }
-        // Ensure a solid 3.0mm flat floor at both poles (|Y| <= 45.0mm)
-        cube([140, 2 * (bed_flat_y - 3.0), 140], center=true);
+    rotate_extrude(angle=360, $fn=72) {
+        polygon(concat([[0, apple_inner_profile[0][1]]], apple_inner_profile, [[0, apple_inner_profile[len(apple_inner_profile)-1][1]]]));
     }
 }
 
@@ -308,16 +300,19 @@ module apple_rear_shell() {
         }
         
         // A. 4x Rear Magnet Pockets (D=6.24mm, depth=1.80mm -> 1.2mm of magnet protrudes as alignment pin!)
-        // In Bowl-Up orientation, the pocket floor faces UP (100% supported by solid boss below!)
+        // Includes 45-deg self-supporting conical ceiling so 0% support enters the magnet holes in Dome-Up print!
         for (pt = screw_pts) {
             translate([pt[0], 0, pt[1]]) {
                 rotate([90, 0, 0]) {
+                    // Self-centering entrance chamfer at Y=0
+                    translate([0, 0, -0.1])
+                        cylinder(r1=mag_r_rear + 0.35, r2=mag_r_rear, h=0.7);
                     // Main D6x3mm magnet recess (depth 1.80mm from Y=0)
                     translate([0, 0, -0.1])
                         cylinder(r=mag_r_rear, h=mag_h_rear + 0.1);
-                    // Shallow central glue reservoir dimple
-                    translate([0, 0, mag_h_rear - 0.05])
-                        cylinder(r1=1.6, r2=0.8, h=1.2);
+                    // 45-deg self-supporting conical vault roof (prevents slicer support inside magnet hole!)
+                    translate([0, 0, mag_h_rear - 0.02])
+                        cylinder(r1=mag_r_rear, r2=0.0, h=mag_r_rear);
                 }
             }
         }
@@ -390,13 +385,12 @@ module apple_front_shell() {
                                 translate([0, 0, pcb_y_mount])
                                     cylinder(r=4.0, h=46.0);
                                     
-                                // B. Direct Wall-Anchor Rib along Red Arrows
-                                translate([0, 0, pcb_y_mount + 1.5]) {
-                                    hull() {
-                                        cylinder(r=4.0, h=44.5);
-                                        translate([rib_x, rib_y, 0])
-                                            cylinder(r=4.2, h=44.5);
-                                    }
+                                // B. Direct Wall-Anchor Rib along Red Arrows (with 45-deg self-supporting ramp from Y=0 wall!)
+                                hull() {
+                                    translate([0, 0, pcb_y_mount + 5.0])
+                                        cylinder(r=4.0, h=41.0);
+                                    translate([rib_x, rib_y, 0.0])
+                                        cylinder(r=4.2, h=46.0);
                                 }
                             }
                         }
@@ -404,10 +398,8 @@ module apple_front_shell() {
                 }
                 
                 // 4) INTEGRATED GPS CERAMIC ANTENNA HOLDER (For 20 x 5 x 7 mm Antenna)
-                // Engineered with a 32-deg gradual base ramp (from Y=26mm up to Y=11mm) so in Bowl-Up
-                // printing it grows smoothly out of the side wall with 0% support!
                 difference() {
-                    // Outer solid body fused into -X shell wall with 32-deg self-supporting base ramp
+                    // Outer solid body fused into -X shell wall
                     hull() {
                         translate([-40.5, 5.5, gps_z_center])
                             cube([19.0, 11.0, gps_len_z + 2*gps_wall], center=true);
@@ -416,13 +408,21 @@ module apple_front_shell() {
                     }
                         
                     // Inner Antenna Pocket Cavity (21.6mm long in Z x 5.8mm wide in X x 9.5mm deep in Y)
-                    // Flat upward-facing floor at Y=9.5mm when printed Bowl-Up!
-                    translate([gps_x_center, 4.75 - 0.1, gps_z_center])
-                        cube([5.8, 9.6, gps_len_z], center=true);
+                    // Includes 45-deg self-supporting gable roof at Y=9.5mm so 0% support enters in Dome-Up print!
+                    hull() {
+                        translate([gps_x_center, 4.75 - 0.1, gps_z_center])
+                            cube([5.8, 9.6, gps_len_z], center=true);
+                        translate([gps_x_center, 9.5 + 2.7, gps_z_center])
+                            cube([0.4, 0.2, gps_len_z - 3.0], center=true);
+                    }
                         
                     // Central Wider Relief Channel (7.8mm wide in X) for rear solder bump or 7mm orientation
-                    translate([gps_x_center, 4.75 - 0.1, gps_z_center])
-                        cube([7.8, 9.6, gps_len_z - 5.0], center=true);
+                    hull() {
+                        translate([gps_x_center, 4.75 - 0.1, gps_z_center])
+                            cube([7.8, 9.6, gps_len_z - 5.0], center=true);
+                        translate([gps_x_center, 9.5 + 3.5, gps_z_center])
+                            cube([0.4, 0.2, gps_len_z - 8.0], center=true);
+                    }
                         
                     // Lead-in Entry Chamfer at Y=0 mouth for effortless thumb insertion
                     translate([gps_x_center, 0.7, gps_z_center])
@@ -440,7 +440,7 @@ module apple_front_shell() {
         // ==========================================
         
         // A. 4x Front Recessed Magnet Sockets (D=6.32mm, depth=4.30mm from Y=0)
-        // In Bowl-Up orientation, the socket floor at Y=4.30mm faces UP (100% supported from below!)
+        // Includes 45-deg self-supporting conical ceiling so 0% support enters the magnet holes in Dome-Up print!
         for (pt = screw_pts) {
             translate([pt[0], 0, pt[1]]) {
                 rotate([-90, 0, 0]) {
@@ -450,9 +450,9 @@ module apple_front_shell() {
                     // Main magnet + dowel socket (depth 4.30mm)
                     translate([0, 0, -0.1])
                         cylinder(r=mag_r_front, h=mag_h_front + 0.1);
-                    // Shallow central glue reservoir dimple
-                    translate([0, 0, mag_h_front - 0.05])
-                        cylinder(r1=1.6, r2=0.8, h=1.2);
+                    // 45-deg self-supporting conical vault roof (prevents slicer support inside magnet hole!)
+                    translate([0, 0, mag_h_front - 0.02])
+                        cylinder(r1=mag_r_front, r2=0.0, h=mag_r_front);
                 }
             }
         }
@@ -589,20 +589,20 @@ else if (render_part == "part_rear_shell") {
     apple_rear_shell();
 }
 else if (render_part == "front_shell") {
-    // Pre-oriented for Sindoh 3DWOX 2X: Bowl-Up (open cavity facing +Z, flat base pad on bed Z=0.0!)
-    translate([0, 0, bed_flat_y]) rotate([-90, 0, 0]) apple_front_shell();
+    // Pre-oriented DOME-UP (180-deg flipped: flat rim Y=0 sits on bed Z=0.0, 100% round apple dome faces +Z!)
+    rotate([90, 0, 0]) apple_front_shell();
 }
 else if (render_part == "rear_shell") {
-    // Pre-oriented for Sindoh 3DWOX 2X: Bowl-Up (open cavity facing +Z, flat base pad on bed Z=0.0!)
-    translate([0, 0, bed_flat_y]) rotate([90, 0, 0]) apple_rear_shell();
+    // Pre-oriented DOME-UP (180-deg flipped: flat rim Y=0 sits on bed Z=0.0, 100% round apple dome faces +Z!)
+    rotate([-90, 0, 0]) apple_rear_shell();
 }
 else if (render_part == "stem") {
     // Pre-oriented with stem plug base at Z=0.0!
     translate([0, -1.5, -29.0]) apple_stem();
 }
 else if (render_part == "print_all") {
-    // Ready-to-print bed layout (Z >= 0, Bowl-Up, 0% support!)
-    translate([-55, 0, bed_flat_y]) rotate([ 90, 0, 0]) apple_rear_shell();
-    translate([ 55, 0, bed_flat_y]) rotate([-90, 0, 0]) apple_front_shell();
+    // Ready-to-print Dome-Up bed layout (flat rim on Z=0, 100% spherical apple exterior facing +Z!)
+    translate([-55, 0, 0]) rotate([-90, 0, 0]) apple_rear_shell();
+    translate([ 55, 0, 0]) rotate([ 90, 0, 0]) apple_front_shell();
     translate([  0, 45, -29.0]) apple_stem();
 }
