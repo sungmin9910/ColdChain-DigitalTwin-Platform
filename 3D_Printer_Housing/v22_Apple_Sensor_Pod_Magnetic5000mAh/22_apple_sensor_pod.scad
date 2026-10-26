@@ -58,11 +58,11 @@ screw_pts = [
     [ 34.0, -23.0]     // Bottom-right (in SCAD Z-up) / Bottom-Left in user photo
 ];
 
-// Magnet Specifications (D6 x 3mm cylinder)
-mag_r_front = 3.16;    // D=6.32mm pocket in Front Shell (receives magnet + rear protruding magnet)
-mag_h_front = 4.30;    // 3.0mm magnet + 1.3mm recessed alignment socket
-mag_r_rear  = 3.12;    // D=6.24mm press-fit pocket in Rear Shell
-mag_h_rear  = 1.80;    // 1.8mm recessed -> 1.2mm of magnet protrudes as steel alignment pin!
+// Magnet Specifications (D6 x 3mm cylinder - Generous clearance in both diameter & depth!)
+mag_r_front = 3.35;    // D=6.70mm pocket in Front Shell (+0.70mm diameter clearance for D6mm magnet)
+mag_h_front = 3.60;    // 3.60mm depth (+0.60mm height clearance for 3.0mm magnet, flat upward-facing floor)
+mag_r_rear  = 3.35;    // D=6.70mm pocket in Rear Shell (+0.70mm diameter clearance for D6mm magnet)
+mag_h_rear  = 3.60;    // 3.60mm depth (+0.60mm height clearance for 3.0mm magnet, flat upward-facing floor)
 
 // GPS Ceramic Antenna Specifications (20 x 5 x 7 mm)
 gps_len_z = 21.6;      // 20.0mm antenna length + 1.6mm clearance
@@ -256,32 +256,12 @@ module apple_rear_shell() {
                     }
                 }
                 
-                // 1. Integrated Battery Cradle (100% Flat Velcro Floor, Zero-support 3D print)
-                difference() {
-                    translate([0, -36.0, bat_z_center])
-                        cube([bat_w + 16.0, 27.0, bat_h + 20.0], center=true);
-                        
-                    // 1) Main Battery Pocket (From Y = -34.5 to Y = -22.5, completely flat floor!)
-                    translate([0, bat_y_center + 10.0, bat_z_center])
-                        cube([bat_w, bat_t + 20.0, bat_h], center=true);
-                        
-                    // 2) Battery Wire Passage Notch at Top-Left
-                    translate([-bat_w/2 + 8.0, bat_y_center + 10.0, bat_z_center + bat_h/2])
-                        cube([16.0, 30.0, 16.0], center=true);
-                }
+                // 1. Wide-Open Flat Velcro Battery Platform at Y = -34.5mm
+                // (All battery cradle walls and retention lips completely removed for 100% unobstructed Velcro mounting!)
+                translate([0, -45.0, 0])
+                    cube([140, 21.0, 140], center=true);
                 
-                // Self-Supporting Battery Front Retention Lips (33-deg gradual slope in Bowl-Up print!)
-                for (dx = [-1, 1]) {
-                    translate([dx * (bat_w/2 - 1.0), -22.0, bat_z_center]) {
-                        hull() {
-                            cube([3.5, 2.0, bat_h - 10.0], center=true);
-                            translate([-dx * 2.0, -3.5, 0])
-                                cube([1.5, 1.0, bat_h - 14.0], center=true);
-                        }
-                    }
-                }
-                
-                // 2. 4x Wall-Integrated Magnetic Bosses (Enlarged r=6.2mm for D6x3mm Magnets)
+                // 2. 4x Wall-Integrated Magnetic Bosses (Enlarged r=6.8mm for generous D=6.70mm Magnet Holes)
                 for (pt = screw_pts) {
                     norm_len = sqrt(pt[0]*pt[0] + pt[1]*pt[1]);
                     dir_x = pt[0] / norm_len;
@@ -289,9 +269,9 @@ module apple_rear_shell() {
                     translate([pt[0], 0, pt[1]]) {
                         rotate([90, 0, 0]) {
                             hull() {
-                                cylinder(r=6.2, h=42.0);
+                                cylinder(r=6.8, h=42.0);
                                 translate([dir_x * 12.0, dir_z * 12.0, 0])
-                                    cylinder(r=5.5, h=42.0);
+                                    cylinder(r=6.0, h=42.0);
                             }
                         }
                     }
@@ -299,20 +279,16 @@ module apple_rear_shell() {
             }
         }
         
-        // A. 4x Rear Magnet Pockets (D=6.24mm, depth=1.80mm -> 1.2mm of magnet protrudes as alignment pin!)
-        // Includes 45-deg self-supporting conical ceiling so 0% support enters the magnet holes in Dome-Up print!
+        // A. 4x Rear Magnet Pockets (Generous D=6.70mm, depth=3.60mm, flat floor facing UP in Bowl-Up print!)
         for (pt = screw_pts) {
             translate([pt[0], 0, pt[1]]) {
                 rotate([90, 0, 0]) {
-                    // Self-centering entrance chamfer at Y=0
+                    // Wide entrance chamfer at Y=0 for easy magnet insertion
                     translate([0, 0, -0.1])
-                        cylinder(r1=mag_r_rear + 0.35, r2=mag_r_rear, h=0.7);
-                    // Main D6x3mm magnet recess (depth 1.80mm from Y=0)
+                        cylinder(r1=mag_r_rear + 0.45, r2=mag_r_rear, h=0.9);
+                    // Generous D=6.70mm x 3.60mm deep cylindrical magnet pocket (flat floor, 0% overhang in Bowl-Up!)
                     translate([0, 0, -0.1])
                         cylinder(r=mag_r_rear, h=mag_h_rear + 0.1);
-                    // 45-deg self-supporting conical vault roof (prevents slicer support inside magnet hole!)
-                    translate([0, 0, mag_h_rear - 0.02])
-                        cylinder(r1=mag_r_rear, r2=0.0, h=mag_r_rear);
                 }
             }
         }
@@ -332,7 +308,7 @@ module apple_rear_shell() {
 // ==========================================
 // 2. FRONT SHELL (INTEGRATED PCB CARRIER CHASSIS - YELLOW IN PHOTO)
 // - 4x Red-Arrow Standoffs with Blind M3 Holes (Zero holes on front dome!)
-// - 4x D6x3mm Recessed Magnet Pockets (depth=4.3mm)
+// - 4x Generous D=6.70mm x 3.60mm Magnet Pockets
 // - Integrated 20x5x7mm GPS Ceramic Antenna Pocket with 32-deg Self-Supporting Base Ramp
 // ==========================================
 module apple_front_shell() {
@@ -353,7 +329,7 @@ module apple_front_shell() {
                     }
                 }
                 
-                // 2) 4x Wall-Integrated Magnetic Bosses (Enlarged r=6.2mm for D6x3mm Magnets)
+                // 2) 4x Wall-Integrated Magnetic Bosses (Enlarged r=6.8mm for generous D=6.70mm Magnet Holes)
                 for (pt = screw_pts) {
                     norm_len = sqrt(pt[0]*pt[0] + pt[1]*pt[1]);
                     dir_x = pt[0] / norm_len;
@@ -361,9 +337,9 @@ module apple_front_shell() {
                     translate([pt[0], 0, pt[1]]) {
                         rotate([-90, 0, 0]) {
                             hull() {
-                                cylinder(r=6.2, h=50.0);
+                                cylinder(r=6.8, h=50.0);
                                 translate([dir_x * 14.0, dir_z * 14.0, 0])
-                                    cylinder(r=5.5, h=50.0);
+                                    cylinder(r=6.0, h=50.0);
                             }
                         }
                     }
@@ -385,12 +361,13 @@ module apple_front_shell() {
                                 translate([0, 0, pcb_y_mount])
                                     cylinder(r=4.0, h=46.0);
                                     
-                                // B. Direct Wall-Anchor Rib along Red Arrows (with 45-deg self-supporting ramp from Y=0 wall!)
-                                hull() {
-                                    translate([0, 0, pcb_y_mount + 5.0])
-                                        cylinder(r=4.0, h=41.0);
-                                    translate([rib_x, rib_y, 0.0])
-                                        cylinder(r=4.2, h=46.0);
+                                // B. Direct Wall-Anchor Rib along Red Arrows
+                                translate([0, 0, pcb_y_mount + 1.5]) {
+                                    hull() {
+                                        cylinder(r=4.0, h=44.5);
+                                        translate([rib_x, rib_y, 0])
+                                            cylinder(r=4.2, h=44.5);
+                                    }
                                 }
                             }
                         }
@@ -399,7 +376,7 @@ module apple_front_shell() {
                 
                 // 4) INTEGRATED GPS CERAMIC ANTENNA HOLDER (For 20 x 5 x 7 mm Antenna)
                 difference() {
-                    // Outer solid body fused into -X shell wall
+                    // Outer solid body fused into -X shell wall with 32-deg self-supporting base ramp for Bowl-Up print
                     hull() {
                         translate([-40.5, 5.5, gps_z_center])
                             cube([19.0, 11.0, gps_len_z + 2*gps_wall], center=true);
@@ -408,21 +385,13 @@ module apple_front_shell() {
                     }
                         
                     // Inner Antenna Pocket Cavity (21.6mm long in Z x 5.8mm wide in X x 9.5mm deep in Y)
-                    // Includes 45-deg self-supporting gable roof at Y=9.5mm so 0% support enters in Dome-Up print!
-                    hull() {
-                        translate([gps_x_center, 4.75 - 0.1, gps_z_center])
-                            cube([5.8, 9.6, gps_len_z], center=true);
-                        translate([gps_x_center, 9.5 + 2.7, gps_z_center])
-                            cube([0.4, 0.2, gps_len_z - 3.0], center=true);
-                    }
+                    // Flat upward-facing floor at Y=9.5mm when printed Bowl-Up!
+                    translate([gps_x_center, 4.75 - 0.1, gps_z_center])
+                        cube([5.8, 9.6, gps_len_z], center=true);
                         
                     // Central Wider Relief Channel (7.8mm wide in X) for rear solder bump or 7mm orientation
-                    hull() {
-                        translate([gps_x_center, 4.75 - 0.1, gps_z_center])
-                            cube([7.8, 9.6, gps_len_z - 5.0], center=true);
-                        translate([gps_x_center, 9.5 + 3.5, gps_z_center])
-                            cube([0.4, 0.2, gps_len_z - 8.0], center=true);
-                    }
+                    translate([gps_x_center, 4.75 - 0.1, gps_z_center])
+                        cube([7.8, 9.6, gps_len_z - 5.0], center=true);
                         
                     // Lead-in Entry Chamfer at Y=0 mouth for effortless thumb insertion
                     translate([gps_x_center, 0.7, gps_z_center])
@@ -439,20 +408,16 @@ module apple_front_shell() {
         // SUBTRACTIONS (ZERO HOLES ON FRONT APPLE EXTERIOR!)
         // ==========================================
         
-        // A. 4x Front Recessed Magnet Sockets (D=6.32mm, depth=4.30mm from Y=0)
-        // Includes 45-deg self-supporting conical ceiling so 0% support enters the magnet holes in Dome-Up print!
+        // A. 4x Front Magnet Pockets (Generous D=6.70mm, depth=3.60mm, flat floor facing UP in Bowl-Up print!)
         for (pt = screw_pts) {
             translate([pt[0], 0, pt[1]]) {
                 rotate([-90, 0, 0]) {
-                    // Self-centering entrance chamfer at Y=0
+                    // Wide entrance chamfer at Y=0 for easy magnet insertion
                     translate([0, 0, -0.1])
                         cylinder(r1=mag_r_front + 0.45, r2=mag_r_front, h=0.9);
-                    // Main magnet + dowel socket (depth 4.30mm)
+                    // Generous D=6.70mm x 3.60mm deep cylindrical magnet pocket (flat floor, 0% overhang in Bowl-Up!)
                     translate([0, 0, -0.1])
                         cylinder(r=mag_r_front, h=mag_h_front + 0.1);
-                    // 45-deg self-supporting conical vault roof (prevents slicer support inside magnet hole!)
-                    translate([0, 0, mag_h_front - 0.02])
-                        cylinder(r1=mag_r_front, r2=0.0, h=mag_r_front);
                 }
             }
         }
@@ -589,20 +554,20 @@ else if (render_part == "part_rear_shell") {
     apple_rear_shell();
 }
 else if (render_part == "front_shell") {
-    // Pre-oriented DOME-UP (180-deg flipped: flat rim Y=0 sits on bed Z=0.0, 100% round apple dome faces +Z!)
-    rotate([90, 0, 0]) apple_front_shell();
+    // Pre-oriented BOWL-UP (open cavity facing +Z, 100% un-flattened spherical apple bottom at Z=0.0 for bed-only support!)
+    translate([0, 0, 50.0]) rotate([-90, 0, 0]) apple_front_shell();
 }
 else if (render_part == "rear_shell") {
-    // Pre-oriented DOME-UP (180-deg flipped: flat rim Y=0 sits on bed Z=0.0, 100% round apple dome faces +Z!)
-    rotate([-90, 0, 0]) apple_rear_shell();
+    // Pre-oriented BOWL-UP (open cavity facing +Z, 100% un-flattened spherical apple bottom at Z=0.0 for bed-only support!)
+    translate([0, 0, 50.0]) rotate([90, 0, 0]) apple_rear_shell();
 }
 else if (render_part == "stem") {
     // Pre-oriented with stem plug base at Z=0.0!
     translate([0, -1.5, -29.0]) apple_stem();
 }
 else if (render_part == "print_all") {
-    // Ready-to-print Dome-Up bed layout (flat rim on Z=0, 100% spherical apple exterior facing +Z!)
-    translate([-55, 0, 0]) rotate([-90, 0, 0]) apple_rear_shell();
-    translate([ 55, 0, 0]) rotate([ 90, 0, 0]) apple_front_shell();
+    // Ready-to-print Bowl-Up bed layout (open cavity facing +Z, 100% spherical bottom at Z=0.0!)
+    translate([-55, 0, 50.0]) rotate([ 90, 0, 0]) apple_rear_shell();
+    translate([ 55, 0, 50.0]) rotate([-90, 0, 0]) apple_front_shell();
     translate([  0, 45, -29.0]) apple_stem();
 }
