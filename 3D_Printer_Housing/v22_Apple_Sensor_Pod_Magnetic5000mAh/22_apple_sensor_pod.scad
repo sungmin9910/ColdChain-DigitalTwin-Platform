@@ -265,10 +265,6 @@ module apple_rear_shell() {
                     // 2) Battery Wire Passage Notch at Top-Left
                     translate([-bat_w/2 + 8.0, bat_y_center + 10.0, bat_z_center + bat_h/2])
                         cube([16.0, 30.0, 16.0], center=true);
-                        
-                    // 3) Finger Pull Extraction Notch
-                    translate([0, bat_y_center - bat_t/2, bat_z_center])
-                        cube([26.0, 8.0, 34.0], center=true);
                 }
                 
                 // 2. 4x Wall-Integrated Magnetic Bosses (Enlarged r=6.2mm for D6x3mm Magnets)
