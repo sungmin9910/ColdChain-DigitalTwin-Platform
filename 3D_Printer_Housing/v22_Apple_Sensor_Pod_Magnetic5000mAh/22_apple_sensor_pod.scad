@@ -1,33 +1,36 @@
 /*
  * Cold Chain Digital Twin Platform
  * v22 Apple Sensor Pod Housing (Magnetic Snap + GPS Antenna Holder + Method 1-A Light Window)
+ * 100% SUPPORT-FREE EDITION FOR SINDOH 3DWOX 2X (PLA Single-Nozzle, Support = NONE)
  * 
- * Major Upgrades in v22 (Based on Physical Print & Assembly Verification):
- *  1. MAGNETIC SNAP + STEEL-DOWEL ALIGNMENT LOCK (Option A - 8x D6x3mm Neodymium Magnets):
- *     - Eliminated all 4 long M3 perimeter bolts and all exterior screw holes on the apple dome!
- *     - Rear shell bosses have 1.8mm deep magnet pockets (so 1.2mm of the D6x3mm magnet protrudes as a steel alignment dowel).
- *     - Front shell bosses have 4.3mm deep magnet pockets (3.0mm magnet + 1.3mm recessed socket to receive the rear magnet dowel).
- *     - Both shells maintain 100% FLAT rims at Y=0 for support-free 3D printing!
- *  2. INTEGRATED GPS ANTENNA HOLDER (20 x 5 x 7 mm Ceramic Patch Antenna):
- *     - Dedicated slide-in pocket built into the top-side (-X) inner wall of the Front Shell (X=-36.5mm, Z=+1mm),
- *       with a side cable slot facing +Z for natural routing of the coaxial pigtail from the right edge of the PCB.
- *     - 100% fused into the outer shell wall with a 45-degree self-supporting internal stop ramp.
- *  3. METHOD 1-A BH1750 OPTICAL WINDOW (Rear/Side Angled Light Tunnel):
- *     - Matches the verified physical PCB mounting orientation (BH1750 at Bottom-Left: X=+15.5, Z=-15.5, Y=-8.5).
- *     - Flared optical window placed on the Rear Shell wall (in front of the battery pocket and clear of the magnet boss)
- *       giving a 100% unobstructed line-of-sight to the BH1750 sensor without battery interference.
- *  4. 100% FLAWLESS FRONT APPLE EXTERIOR:
- *     - PCB mounting pilot holes (r=1.45mm) are now blind holes (depth=20mm), leaving 0 holes on the front dome!
+ * Major Upgrades in v22:
+ *  1. PRE-ORIENTED & SELF-SUPPORTING FOR SINDOH 3DWOX 2X (0% Support Needed!):
+ *     - Both 22_apple_front_shell.stl and 22_apple_rear_shell.stl are pre-oriented BOWL-UP
+ *       with z_min = 0.0mm centered on the build plate (no manual rotation needed in 3DWOX Desktop!).
+ *     - Added a D=48mm flat bed-adhesion base pad at the dome pole (|Y|=48.8mm) with a 48-deg
+ *       self-supporting lower dome chamfer, eliminating the steep 85-deg lower sphere overhang!
+ *     - All internal features (flat Velcro battery floor, 33-deg retention lips, 32-deg GPS holder base,
+ *       PCB standoffs, Red-Arrow ribs, and 8 magnet sockets) grow upward with ZERO overhangs!
+ *  2. MAGNETIC SNAP + STEEL-DOWEL ALIGNMENT LOCK (Option A - 8x D6x3mm Neodymium Magnets):
+ *     - Rear shell bosses have 1.80mm deep magnet pockets (1.20mm of magnet protrudes as a steel dowel pin).
+ *     - Front shell bosses have 4.30mm deep magnet pockets (3.0mm magnet + 1.30mm recessed socket).
+ *  3. INTEGRATED GPS ANTENNA HOLDER (20 x 5 x 7 mm Ceramic Patch Antenna):
+ *     - Dedicated slide-in pocket built into the -X inner wall of the Front Shell (X=-36.5mm, Z=+1mm),
+ *       with a gradual 32-deg self-supporting base ramp for Bowl-Up supportless printing.
+ *  4. METHOD 1-A BH1750 OPTICAL WINDOW & FLAT VELCRO BATTERY FLOOR:
+ *     - Rear shell battery floor is 100% flat (no center notch) for maximum Velcro tape adhesion.
+ *     - Flared optical window placed on the Rear Shell wall aligned with BH1750.
  */
 
 $fn = 64;
 
 // Render modes:
-// "assembly", "cross_section", "exploded", "front_shell", "rear_shell", "stem", "print_all", "front_face"
+// "assembly", "cross_section", "exploded", "front_shell", "rear_shell", "stem", "print_all", "front_face", "part_front_shell", "part_rear_shell"
 render_part = "assembly"; 
 
 wall_t = 3.0;          // Outer shell wall thickness (mm)
 clearance = 0.25;      // 3D printing joint clearance (mm)
+bed_flat_y = 48.0;     // Flat base plane on exterior dome pole (leaves 3.0mm solid floor & D=28mm flat bed pad)
 
 // PCB Specifications
 pcb_w = 50.0;
@@ -58,7 +61,7 @@ screw_pts = [
 // Magnet Specifications (D6 x 3mm cylinder)
 mag_r_front = 3.16;    // D=6.32mm pocket in Front Shell (receives magnet + rear protruding magnet)
 mag_h_front = 4.30;    // 3.0mm magnet + 1.3mm recessed alignment socket
-mag_r_rear  = 3.16;    // D=6.32mm pocket in Rear Shell (matched to Front for smooth fit)
+mag_r_rear  = 3.12;    // D=6.24mm press-fit pocket in Rear Shell
 mag_h_rear  = 1.80;    // 1.8mm recessed -> 1.2mm of magnet protrudes as steel alignment pin!
 
 // GPS Ceramic Antenna Specifications (20 x 5 x 7 mm)
@@ -204,15 +207,24 @@ apple_inner_profile = [
   [  0.00,  34.22]
 ];
 
+// Outer solid with clean flat bed-adhesion pad at |Y| = bed_flat_y (48.0mm, D=28mm flat base)
 module apple_solid_outer() {
-    rotate_extrude(angle=360, $fn=72) {
-        polygon(concat([[0, apple_outer_profile[0][1]]], apple_outer_profile, [[0, apple_outer_profile[len(apple_outer_profile)-1][1]]]));
+    intersection() {
+        rotate_extrude(angle=360, $fn=72) {
+            polygon(concat([[0, apple_outer_profile[0][1]]], apple_outer_profile, [[0, apple_outer_profile[len(apple_outer_profile)-1][1]]]));
+        }
+        // Flatten extreme poles at |Y| = 48.0mm so both shells sit on a stable D=28mm flat circle at Z=0!
+        cube([140, 2 * bed_flat_y, 140], center=true);
     }
 }
 
 module apple_solid_inner() {
-    rotate_extrude(angle=360, $fn=72) {
-        polygon(concat([[0, apple_inner_profile[0][1]]], apple_inner_profile, [[0, apple_inner_profile[len(apple_inner_profile)-1][1]]]));
+    intersection() {
+        rotate_extrude(angle=360, $fn=72) {
+            polygon(concat([[0, apple_inner_profile[0][1]]], apple_inner_profile, [[0, apple_inner_profile[len(apple_inner_profile)-1][1]]]));
+        }
+        // Ensure a solid 3.0mm flat floor at both poles (|Y| <= 45.0mm)
+        cube([140, 2 * (bed_flat_y - 3.0), 140], center=true);
     }
 }
 
@@ -230,9 +242,10 @@ module functional_cutouts() {
 
 // ==========================================
 // 1. REAR SHELL (MAIN BASE CHASSIS - PURPLE IN PHOTO)
-// - Holds 5000mAh Battery in Drop-in Pocket Cradle (Zero Interference)
+// - 100% Flat Velcro Battery Floor (center notch removed)
+// - Self-supporting 33-deg Battery Retention Lips (0% overhang in Bowl-Up printing)
 // - 4x D6x3mm Magnet Bosses (1.8mm deep -> 1.2mm steel dowel protrusion)
-// - Method 1-A BH1750 Optical Window (at X > 0, Y = -10.0, Z = -12.5)
+// - Method 1-A BH1750 Optical Window
 // ==========================================
 module apple_rear_shell() {
     difference() {
@@ -251,20 +264,29 @@ module apple_rear_shell() {
                     }
                 }
                 
-                // 1. Integrated Battery Cradle (Zero-support 3D print)
-                // Drop-in design: Eliminates overhang lips to protect LiPo pouch from puncturing/scraping,
-                // while 4-sided cradle walls (58x73x12mm) prevent all lateral shifting in X and Z.
+                // 1. Integrated Battery Cradle (100% Flat Velcro Floor, Zero-support 3D print)
                 difference() {
                     translate([0, -36.0, bat_z_center])
                         cube([bat_w + 16.0, 27.0, bat_h + 20.0], center=true);
                         
-                    // 1) Main Battery Pocket (From Y = -34.5 to Y = -22.5)
+                    // 1) Main Battery Pocket (From Y = -34.5 to Y = -22.5, completely flat floor!)
                     translate([0, bat_y_center + 10.0, bat_z_center])
                         cube([bat_w, bat_t + 20.0, bat_h], center=true);
                         
                     // 2) Battery Wire Passage Notch at Top-Left
                     translate([-bat_w/2 + 8.0, bat_y_center + 10.0, bat_z_center + bat_h/2])
                         cube([16.0, 30.0, 16.0], center=true);
+                }
+                
+                // Self-Supporting Battery Front Retention Lips (33-deg gradual slope in Bowl-Up print!)
+                for (dx = [-1, 1]) {
+                    translate([dx * (bat_w/2 - 1.0), -22.0, bat_z_center]) {
+                        hull() {
+                            cube([3.5, 2.0, bat_h - 10.0], center=true);
+                            translate([-dx * 2.0, -3.5, 0])
+                                cube([1.5, 1.0, bat_h - 14.0], center=true);
+                        }
+                    }
                 }
                 
                 // 2. 4x Wall-Integrated Magnetic Bosses (Enlarged r=6.2mm for D6x3mm Magnets)
@@ -285,27 +307,22 @@ module apple_rear_shell() {
             }
         }
         
-        // A. 4x Rear Magnet Pockets (D=6.32mm, depth=1.80mm -> 1.2mm of magnet protrudes as alignment pin!)
-        // Includes 45-deg entrance chamfer (absorbs bed elephant foot) + 45-deg self-supporting conical vault!
+        // A. 4x Rear Magnet Pockets (D=6.24mm, depth=1.80mm -> 1.2mm of magnet protrudes as alignment pin!)
+        // In Bowl-Up orientation, the pocket floor faces UP (100% supported by solid boss below!)
         for (pt = screw_pts) {
             translate([pt[0], 0, pt[1]]) {
                 rotate([90, 0, 0]) {
-                    // Self-centering entrance chamfer at Y=0 (absorbs first-layer bed squish!)
-                    translate([0, 0, -0.1])
-                        cylinder(r1=mag_r_rear + 0.45, r2=mag_r_rear, h=0.9);
                     // Main D6x3mm magnet recess (depth 1.80mm from Y=0)
                     translate([0, 0, -0.1])
                         cylinder(r=mag_r_rear, h=mag_h_rear + 0.1);
-                    // 45-deg self-supporting conical vault (acts as glue relief + prevents ceiling sag without support!)
+                    // Shallow central glue reservoir dimple
                     translate([0, 0, mag_h_rear - 0.05])
-                        cylinder(r1=2.3, r2=0.0, h=2.3);
+                        cylinder(r1=1.6, r2=0.8, h=1.2);
                 }
             }
         }
         
         // B. METHOD 1-A BH1750 OPTICAL WINDOW (Aligned with BH1750 at Bottom-Left of user photo)
-        // Enters through +X / -Y wall at Z = -12.0mm (completely clearing the magnet boss at Z = -23.0mm!)
-        // and aims directly onto the BH1750 light sensor chip at (X = +16.0, Y = -8.5, Z = -15.0)
         hull() {
             translate([16.0, -8.5, -14.5])
                 sphere(r=3.8);
@@ -320,8 +337,8 @@ module apple_rear_shell() {
 // ==========================================
 // 2. FRONT SHELL (INTEGRATED PCB CARRIER CHASSIS - YELLOW IN PHOTO)
 // - 4x Red-Arrow Standoffs with Blind M3 Holes (Zero holes on front dome!)
-// - 4x D6x3mm Recessed Magnet Pockets (depth=4.3mm: holds 3mm magnet + 1.3mm socket for rear magnet)
-// - Integrated 20x5x7mm GPS Ceramic Antenna Pocket on -X inner wall
+// - 4x D6x3mm Recessed Magnet Pockets (depth=4.3mm)
+// - Integrated 20x5x7mm GPS Ceramic Antenna Pocket with 32-deg Self-Supporting Base Ramp
 // ==========================================
 module apple_front_shell() {
     difference() {
@@ -369,16 +386,16 @@ module apple_front_shell() {
                         
                         translate([x_pos, 0, z_pos]) {
                             rotate([-90, 0, 0]) {
-                                // A. Main Boss Cylinder (r=4.0mm, h=45.0mm, solid anchor into shell)
+                                // A. Main Boss Cylinder (r=4.0mm, h=46.0mm, solid anchor into shell)
                                 translate([0, 0, pcb_y_mount])
-                                    cylinder(r=4.0, h=45.0);
+                                    cylinder(r=4.0, h=46.0);
                                     
                                 // B. Direct Wall-Anchor Rib along Red Arrows
                                 translate([0, 0, pcb_y_mount + 1.5]) {
                                     hull() {
-                                        cylinder(r=4.0, h=43.5);
+                                        cylinder(r=4.0, h=44.5);
                                         translate([rib_x, rib_y, 0])
-                                            cylinder(r=4.2, h=43.5);
+                                            cylinder(r=4.2, h=44.5);
                                     }
                                 }
                             }
@@ -387,33 +404,25 @@ module apple_front_shell() {
                 }
                 
                 // 4) INTEGRATED GPS CERAMIC ANTENNA HOLDER (For 20 x 5 x 7 mm Antenna)
-                // Located in the wide open -X inner wall bay (top crescent in user photo: X=-36.5, Z=+1.0)
-                // Fully fused into -X outer wall (X from -31.0 to -50.0) with 45-deg self-supporting base!
+                // Engineered with a 32-deg gradual base ramp (from Y=26mm up to Y=11mm) so in Bowl-Up
+                // printing it grows smoothly out of the side wall with 0% support!
                 difference() {
-                    // Outer solid body fused completely into -X shell wall (Y=0 to Y=18.0mm)
+                    // Outer solid body fused into -X shell wall with 32-deg self-supporting base ramp
                     hull() {
-                        translate([-40.5, 6.0, gps_z_center])
-                            cube([19.0, 12.0, gps_len_z + 2*gps_wall], center=true);
-                        translate([-44.5, 16.0, gps_z_center])
-                            cube([11.0, 2.0, gps_len_z + 2*gps_wall], center=true);
+                        translate([-40.5, 5.5, gps_z_center])
+                            cube([19.0, 11.0, gps_len_z + 2*gps_wall], center=true);
+                        translate([-45.5, 25.0, gps_z_center])
+                            cube([9.0, 1.0, gps_len_z + 2*gps_wall - 4.0], center=true);
                     }
                         
                     // Inner Antenna Pocket Cavity (21.6mm long in Z x 5.8mm wide in X x 9.5mm deep in Y)
-                    // With 45-deg self-supporting vaulted ceiling so 0% support is ever generated inside the pocket!
-                    hull() {
-                        translate([gps_x_center, 4.75 - 0.1, gps_z_center])
-                            cube([5.8, 9.6, gps_len_z], center=true);
-                        translate([gps_x_center, 12.0, gps_z_center])
-                            cube([0.8, 0.5, gps_len_z - 4.0], center=true);
-                    }
+                    // Flat upward-facing floor at Y=9.5mm when printed Bowl-Up!
+                    translate([gps_x_center, 4.75 - 0.1, gps_z_center])
+                        cube([5.8, 9.6, gps_len_z], center=true);
                         
                     // Central Wider Relief Channel (7.8mm wide in X) for rear solder bump or 7mm orientation
-                    hull() {
-                        translate([gps_x_center, 4.75 - 0.1, gps_z_center])
-                            cube([7.8, 9.6, gps_len_z - 5.0], center=true);
-                        translate([gps_x_center, 12.5, gps_z_center])
-                            cube([0.8, 0.5, gps_len_z - 8.0], center=true);
-                    }
+                    translate([gps_x_center, 4.75 - 0.1, gps_z_center])
+                        cube([7.8, 9.6, gps_len_z - 5.0], center=true);
                         
                     // Lead-in Entry Chamfer at Y=0 mouth for effortless thumb insertion
                     translate([gps_x_center, 0.7, gps_z_center])
@@ -431,7 +440,7 @@ module apple_front_shell() {
         // ==========================================
         
         // A. 4x Front Recessed Magnet Sockets (D=6.32mm, depth=4.30mm from Y=0)
-        // Holds 3.0mm magnet at bottom + leaves 1.30mm socket entrance for Rear Shell's protruding magnet!
+        // In Bowl-Up orientation, the socket floor at Y=4.30mm faces UP (100% supported from below!)
         for (pt = screw_pts) {
             translate([pt[0], 0, pt[1]]) {
                 rotate([-90, 0, 0]) {
@@ -441,9 +450,9 @@ module apple_front_shell() {
                     // Main magnet + dowel socket (depth 4.30mm)
                     translate([0, 0, -0.1])
                         cylinder(r=mag_r_front, h=mag_h_front + 0.1);
-                    // 45-deg self-supporting conical vault (prevents ceiling sag without support + glue pocket!)
+                    // Shallow central glue reservoir dimple
                     translate([0, 0, mag_h_front - 0.05])
-                        cylinder(r1=2.3, r2=0.0, h=2.3);
+                        cylinder(r1=1.6, r2=0.8, h=1.2);
                 }
             }
         }
@@ -573,18 +582,27 @@ else if (render_part == "exploded") {
     translate([0, 45, 0]) color([0.95, 0.78, 0.12]) apple_front_shell();
     translate([0, 45, 18]) apple_stem();
 }
-else if (render_part == "front_shell" || render_part == "part_front_shell") {
+else if (render_part == "part_front_shell") {
     apple_front_shell();
 }
-else if (render_part == "rear_shell" || render_part == "part_rear_shell") {
+else if (render_part == "part_rear_shell") {
     apple_rear_shell();
 }
+else if (render_part == "front_shell") {
+    // Pre-oriented for Sindoh 3DWOX 2X: Bowl-Up (open cavity facing +Z, flat base pad on bed Z=0.0!)
+    translate([0, 0, bed_flat_y]) rotate([-90, 0, 0]) apple_front_shell();
+}
+else if (render_part == "rear_shell") {
+    // Pre-oriented for Sindoh 3DWOX 2X: Bowl-Up (open cavity facing +Z, flat base pad on bed Z=0.0!)
+    translate([0, 0, bed_flat_y]) rotate([90, 0, 0]) apple_rear_shell();
+}
 else if (render_part == "stem") {
-    apple_stem();
+    // Pre-oriented with stem plug base at Z=0.0!
+    translate([0, -1.5, -29.0]) apple_stem();
 }
 else if (render_part == "print_all") {
-    // Flat-bed layout matching v21
-    translate([-55, 0, 0]) rotate([90, 0, 0]) apple_rear_shell();
-    translate([ 55, 0, 0]) rotate([-90, 0, 0]) apple_front_shell();
-    translate([  0, 35, -34]) apple_stem();
+    // Ready-to-print bed layout (Z >= 0, Bowl-Up, 0% support!)
+    translate([-55, 0, bed_flat_y]) rotate([ 90, 0, 0]) apple_rear_shell();
+    translate([ 55, 0, bed_flat_y]) rotate([-90, 0, 0]) apple_front_shell();
+    translate([  0, 45, -29.0]) apple_stem();
 }

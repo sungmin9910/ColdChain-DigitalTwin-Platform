@@ -1,10 +1,39 @@
 import os
 import subprocess
 import time
+import struct
 
 openscad = r"C:\Program Files\OpenSCAD\openscad.com"
 v22_dir = r"c:\Users\korea\Desktop\1hsm\hanhanhan\ColdChain-DigitalTwin-Platform\3D_Printer_Housing\v22_Apple_Sensor_Pod_Magnetic5000mAh"
 scad_file = os.path.join(v22_dir, "22_apple_sensor_pod.scad")
+
+def get_stl_bounds(path):
+    with open(path, "rb") as f:
+        header = f.read(80)
+        count_bytes = f.read(4)
+        if len(count_bytes) < 4:
+            return None
+        count = struct.unpack("<I", count_bytes)[0]
+        if header.startswith(b"solid") and os.path.getsize(path) != 84 + count * 50:
+            f.seek(0)
+            xs, ys, zs = [], [], []
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) == 4 and parts[0] == b"vertex":
+                    xs.append(float(parts[1]))
+                    ys.append(float(parts[2]))
+                    zs.append(float(parts[3]))
+            return (min(xs), max(xs), min(ys), max(ys), min(zs), max(zs))
+        else:
+            xs, ys, zs = [], [], []
+            for _ in range(count):
+                data = f.read(50)
+                vals = struct.unpack("<12fH", data)
+                for i in (3, 6, 9):
+                    xs.append(vals[i])
+                    ys.append(vals[i+1])
+                    zs.append(vals[i+2])
+            return (min(xs), max(xs), min(ys), max(ys), min(zs), max(zs))
 
 renders = [
     {
@@ -62,6 +91,13 @@ renders = [
         "cam": "0,0,0,65,0,215,420",
         "size": "1024,1024",
         "scheme": "Tomorrow Night"
+    },
+    {
+        "out": "22_print_layout_view.png",
+        "part": "print_all",
+        "cam": "0,0,20,60,0,35,340",
+        "size": "1024,1024",
+        "scheme": "Cornfield"
     }
 ]
 
@@ -98,6 +134,7 @@ for stl_name, part_name in stls:
     res = subprocess.run([openscad, "-o", stl_path, "-D", f'render_part="{part_name}"', scad_file], capture_output=True, text=True)
     if res.returncode == 0:
         sz = os.path.getsize(stl_path) / 1024
-        print(f"OK ({sz:.1f} KB, {time.time()-t0:.1f}s)")
+        b = get_stl_bounds(stl_path)
+        print(f"OK ({sz:.1f} KB, {time.time()-t0:.1f}s) | Bounds: X[{b[0]:.1f},{b[1]:.1f}] Y[{b[2]:.1f},{b[3]:.1f}] Z[{b[4]:.2f},{b[5]:.2f}]")
     else:
         print(f"FAILED!\n{res.stderr}")
