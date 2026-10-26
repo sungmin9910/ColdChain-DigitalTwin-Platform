@@ -256,12 +256,13 @@ module apple_rear_shell() {
                     }
                 }
                 
-                // 1. Wide-Open Flat Velcro Battery Platform at Y = -34.5mm
-                // (All battery cradle walls and retention lips completely removed for 100% unobstructed Velcro mounting!)
-                translate([0, -45.0, 0])
-                    cube([140, 21.0, 140], center=true);
+                // 1. Wide-Open Flat Velcro Battery Platform at Y = -24.5mm
+                // Fills Y <= -24.5mm so the floor is wide enough for the 55x68mm rectangular battery!
+                translate([0, -38.0, 0])
+                    cube([140, 27.0, 140], center=true);
                 
-                // 2. 4x Wall-Integrated Magnetic Bosses (Enlarged r=6.8mm for generous D=6.70mm Magnet Holes)
+                // 2. 4x Compact Wall-Integrated Magnetic Bosses (r=5.5mm -> 57.0mm clearance between bosses!)
+                // Only at top rim Y=0 to -13.5mm with 45-deg self-supporting taper into outer wall!
                 for (pt = screw_pts) {
                     norm_len = sqrt(pt[0]*pt[0] + pt[1]*pt[1]);
                     dir_x = pt[0] / norm_len;
@@ -269,9 +270,30 @@ module apple_rear_shell() {
                     translate([pt[0], 0, pt[1]]) {
                         rotate([90, 0, 0]) {
                             hull() {
-                                cylinder(r=6.8, h=42.0);
-                                translate([dir_x * 12.0, dir_z * 12.0, 0])
-                                    cylinder(r=6.0, h=42.0);
+                                // Upper boss body around the 3.60mm deep magnet pocket (Y = 0 to -6.5mm)
+                                cylinder(r=5.5, h=6.5);
+                                translate([dir_x * 10.0, dir_z * 10.0, 0])
+                                    cylinder(r=6.0, h=6.5);
+                                // 45-deg self-supporting taper into the outer wall (at Y = -13.5mm)
+                                translate([dir_x * 7.5, dir_z * 7.5, 13.5])
+                                    cylinder(r=4.0, h=0.5);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 0. Rectangular Battery Corner-Clearance Bay above Y = -24.5mm (56.4mm wide x 70.4mm tall, r=2.2mm corners)
+        // Ensures the 4 corners of the 55x68mm 5000mAh battery NEVER hit the curved apple wall or float in the air!
+        translate([0, 0, -0.5]) {
+            rotate([90, 0, 0]) {
+                translate([0, 0, -1.0]) {
+                    hull() {
+                        for (cx = [-26.0, 26.0]) {
+                            for (cz = [-33.0, 33.0]) {
+                                translate([cx, cz, 0])
+                                    cylinder(r=2.2, h=25.5);
                             }
                         }
                     }
@@ -466,10 +488,10 @@ module apple_stem() {
 // VIRTUAL HARDWARE MOCKUP (MATCHING USER PHOTO ORIENTATION)
 // ==========================================
 module hardware_mockup() {
-    // 1. JRF PL105568 5000mAh Battery (Seated inside Rear Shell Cradle)
+    // 1. JRF PL105568 5000mAh Battery (55x68x10mm seated 100% flat on Y = -24.5mm Velcro floor!)
     color([0.2, 0.45, 0.9]) {
-        translate([0, -25.0, bat_z_center])
-            cube([54.0, 9.5, 65.0], center=true);
+        translate([0, -19.5, -0.5])
+            cube([55.0, 10.0, 68.0], center=true);
     }
     
     // 2. CarrierBoard PCB Substrate (50x50x1.6mm at Y = +1.9 to +3.5)
