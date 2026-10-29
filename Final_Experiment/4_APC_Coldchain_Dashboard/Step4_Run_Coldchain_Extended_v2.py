@@ -648,7 +648,7 @@ while True:
                     # 1) 왼쪽 Y축: 온도 (-10°C ~ +40°C)
                     if show_temp:
                         temp_line = alt.Chart(df_reset).mark_line(
-                            strokeWidth=3.0
+                            strokeWidth=4.0
                         ).encode(
                             x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
                             y=alt.Y(
@@ -677,7 +677,7 @@ while True:
                     if show_humi:
                         humi_orient = 'right' if is_dual else 'left'
                         humi_line = alt.Chart(df_reset).mark_line(
-                            strokeWidth=2.8
+                            strokeWidth=3.8
                         ).encode(
                             x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
                             y=alt.Y(
@@ -732,7 +732,7 @@ while True:
                     df_reset['Metric'] = metric_label
                     y_title = '조도 (Lux)' if st.session_state.lang == 'KO' else 'Lux'
                     
-                    chart = alt.Chart(df_reset).mark_area(opacity=0.75, line={'strokeWidth': 2.8}).encode(
+                    chart = alt.Chart(df_reset).mark_area(opacity=0.75, line={'strokeWidth': 3.8}).encode(
                         x=alt.X('timestamp:T', axis=alt.Axis(labels=False, ticks=False), title=None),
                         y=alt.Y('lux:Q', scale=alt.Scale(zero=False), title=y_title),
                         color=alt.Color('Metric:N', 
@@ -770,7 +770,7 @@ while True:
                         
                     df_long['Metric'] = df_long['Metric'].map(metric_labels)
                     
-                    chart = alt.Chart(df_long).mark_line(strokeWidth=2.8).encode(
+                    chart = alt.Chart(df_long).mark_line(strokeWidth=3.8).encode(
                         x=alt.X('timestamp:T', axis=alt.Axis(labels=False, ticks=False), title=None),
                         y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title=y_title),
                         color=alt.Color('Metric:N',
