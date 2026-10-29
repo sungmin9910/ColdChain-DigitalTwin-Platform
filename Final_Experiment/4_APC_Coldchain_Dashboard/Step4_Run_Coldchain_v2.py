@@ -1258,7 +1258,7 @@ while True:
                     # 1) 온도 레이어 (범위: -10°C ~ +40°C)
                     if show_temp:
                         temp_line = alt.Chart(df_reset).mark_line(
-                            strokeWidth=2.4
+                            strokeWidth=3.0
                         ).encode(
                             x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
                             y=alt.Y(
@@ -1287,7 +1287,7 @@ while True:
                     if show_humi:
                         humi_orient = 'right' if is_dual else 'left'
                         humi_line = alt.Chart(df_reset).mark_line(
-                            strokeWidth=2.2
+                            strokeWidth=2.8
                         ).encode(
                             x=alt.X('timestamp:T', axis=axis_x_compact, title=None),
                             y=alt.Y(
@@ -1354,7 +1354,10 @@ while True:
                         gridOpacity=0.25
                     )
                     
-                    chart = alt.Chart(df_reset).mark_area().encode(
+                    chart = alt.Chart(df_reset).mark_area(
+                        opacity=0.75,
+                        line={'strokeWidth': 2.8}
+                    ).encode(
                         x=alt.X('timestamp:T', axis=axis_x_lux, title=None),
                         y=alt.Y('lux:Q', scale=alt.Scale(zero=False), title=y_title),
                         color=alt.Color('Metric:N', 
@@ -1406,7 +1409,7 @@ while True:
                     if show_g:
                         y_g_title = '충격량 (G-Force)' if is_ko else 'Impact (G-Force)'
                         gforce_line = alt.Chart(df_reset).mark_line(
-                            color='#E74C3C', strokeWidth=2.2
+                            color='#E74C3C', strokeWidth=2.8
                         ).encode(
                             x=alt.X('timestamp:T', axis=axis_x_gforce, title=None),
                             y=alt.Y('g_force:Q', axis=alt.Axis(title=y_g_title, titleColor='#E74C3C', grid=True), scale=alt.Scale(zero=False)),
@@ -1442,7 +1445,7 @@ while True:
                             {'level': 3.0, 'label': lbl_3g}
                         ])
                         rules = alt.Chart(thresh_df).mark_rule(
-                            strokeDash=[4, 4], strokeWidth=1.5, opacity=0.85
+                            strokeDash=[4, 4], strokeWidth=1.8, opacity=0.85
                         ).encode(
                             y=alt.Y('level:Q'),
                             color=alt.Color('label:N', 
@@ -1456,7 +1459,7 @@ while True:
                         y_spd_title = '차량 속도 (km/h)' if is_ko else 'Speed (km/h)'
                         spd_orient = 'right' if is_g_dual else 'left'
                         speed_layer = alt.Chart(df_reset).mark_line(
-                            color='#2ECC71', strokeWidth=2.2 if not is_g_dual else 1.5, opacity=1.0 if not is_g_dual else 0.7
+                            color='#2ECC71', strokeWidth=2.8 if not is_g_dual else 2.0, opacity=1.0 if not is_g_dual else 0.75
                         ).encode(
                             x=alt.X('timestamp:T', axis=axis_x_gforce, title=None),
                             y=alt.Y('speed:Q', axis=alt.Axis(title=y_spd_title, titleColor='#2ECC71', orient=spd_orient, grid=(not is_g_dual)), scale=alt.Scale(zero=True)),

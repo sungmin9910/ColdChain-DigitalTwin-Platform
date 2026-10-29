@@ -429,20 +429,20 @@ def render_gforce_module(df_chart, container, height=450):
         df_c['timestamp'] = pd.to_datetime(df_c['timestamp'], errors='coerce', format='mixed')
         df_c = df_c.dropna(subset=['timestamp'])
 
-        g_line = alt.Chart(df_c).mark_line(color='#ff5252', strokeWidth=3.0).encode(
+        g_line = alt.Chart(df_c).mark_line(color='#ff5252', strokeWidth=3.5).encode(
             x=alt.X('timestamp:T', axis=alt.Axis(labels=False, title=None)),
             y=alt.Y('g_force:Q', scale=alt.Scale(domain=[0.8, max(3.5, df_c['g_force'].max() + 0.3)]), title='충격량 (G)')
         )
 
-        r2 = alt.Chart(pd.DataFrame({'y': [2.0]})).mark_rule(color='#ffaa00', strokeDash=[4, 4], strokeWidth=2).encode(y='y:Q')
-        r3 = alt.Chart(pd.DataFrame({'y': [3.0]})).mark_rule(color='#ff1744', strokeDash=[2, 2], strokeWidth=2.5).encode(y='y:Q')
+        r2 = alt.Chart(pd.DataFrame({'y': [2.0]})).mark_rule(color='#ffaa00', strokeDash=[4, 4], strokeWidth=2.3).encode(y='y:Q')
+        r3 = alt.Chart(pd.DataFrame({'y': [3.0]})).mark_rule(color='#ff1744', strokeDash=[2, 2], strokeWidth=2.8).encode(y='y:Q')
 
         shock_pts = alt.Chart(df_c[df_c['g_force'] >= 1.8]).mark_circle(size=80, color='#ff1744').encode(
             x='timestamp:T', y='g_force:Q',
             tooltip=['timestamp:T', 'g_force:Q', 'speed:Q']
         )
 
-        speed_line = alt.Chart(df_c).mark_line(color='#00e676', strokeWidth=1.8, opacity=0.65).encode(
+        speed_line = alt.Chart(df_c).mark_line(color='#00e676', strokeWidth=2.3, opacity=0.7).encode(
             x='timestamp:T',
             y=alt.Y('speed:Q', scale=alt.Scale(domain=[0, 130]), title='속도 (km/h)')
         )
@@ -465,7 +465,7 @@ def render_env_module(df_chart, container, height=450):
         df_long = df_c.melt(id_vars=['timestamp'], value_vars=['temperature', 'humidity'], var_name='Metric', value_name='Value')
         df_long['Metric'] = df_long['Metric'].map({'temperature': '온도 (°C)', 'humidity': '습도 (%)'})
 
-        chart = alt.Chart(df_long).mark_line(strokeWidth=2.8).encode(
+        chart = alt.Chart(df_long).mark_line(strokeWidth=3.3).encode(
             x=alt.X('timestamp:T', axis=alt.Axis(labels=False, title=None)),
             y=alt.Y('Value:Q', scale=alt.Scale(zero=False), title='온도 / 습도'),
             color=alt.Color('Metric:N', scale=alt.Scale(domain=['온도 (°C)', '습도 (%)'], range=['#f97316', '#38bdf8']), legend=alt.Legend(orient='top', title=None))
@@ -484,11 +484,11 @@ def render_lux_module(df_chart, container, height=450):
         df_c['timestamp'] = pd.to_datetime(df_c['timestamp'], errors='coerce', format='mixed')
         df_c = df_c.dropna(subset=['timestamp'])
 
-        chart = alt.Chart(df_c).mark_area(color='#facc15', opacity=0.35, line={'color': '#facc15', 'width': 2.5}).encode(
+        chart = alt.Chart(df_c).mark_area(color='#facc15', opacity=0.35, line={'color': '#facc15', 'strokeWidth': 3.0}).encode(
             x=alt.X('timestamp:T', axis=alt.Axis(labels=False, title=None)),
             y=alt.Y('lux:Q', scale=alt.Scale(zero=True), title='조도 (Lux)')
         )
-        rule_open = alt.Chart(pd.DataFrame({'y': [500]})).mark_rule(color='#ef4444', strokeDash=[4, 4], strokeWidth=2).encode(y='y:Q')
+        rule_open = alt.Chart(pd.DataFrame({'y': [500]})).mark_rule(color='#ef4444', strokeDash=[4, 4], strokeWidth=2.3).encode(y='y:Q')
         st.altair_chart((chart + rule_open).properties(height=height), use_container_width=True)
 
 # ----------------------------------------------------------------
