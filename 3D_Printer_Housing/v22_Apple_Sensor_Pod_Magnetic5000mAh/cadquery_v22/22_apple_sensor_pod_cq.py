@@ -16,6 +16,13 @@ from pathlib import Path
 import cadquery as cq
 
 # ============================================================================
+# 0. CQ-Editor 화면 표시 모드 설정 (CQ-Editor에서 F5 누를 때 적용됨!)
+# 옵션: "assembly" (반투명 조립+부품), "exploded" (분해도), "print_layout" (출력배치),
+#       "front_shell" (전면쉘 단품), "rear_shell" (후면쉘 단품), "stem" (꼭지 단품)
+# ============================================================================
+VIEW_MODE = "assembly"
+
+# ============================================================================
 # 1. 설계 파라미터 정의 (22_apple_sensor_pod.scad 와 100% 동일 치수)
 # ============================================================================
 WALL_T = 3.0
@@ -408,7 +415,83 @@ def measure_exact_mesh_bounds(part: cq.Workplane) -> tuple[float, float, float, 
 
 
 # ============================================================================
-# 6. 출력 정렬 (Bowl-Up) 및 STEP / STL 일괄 빌드 실행부
+# 6. 내부 하드웨어 가상 목업 (CQ-Editor 조립 간섭 확인용)
+# ============================================================================
+def build_hardware_mockup() -> dict[str, tuple[cq.Workplane, str]]:
+    """부품명: (Workplane 솔리드, HEX 색상코드) 딕셔너리 반환"""
+    battery = cq.Workplane("XY").transformed(offset=(0.0, -19.5, -0.5)).box(55.0, 10.0, 68.0)
+    pcb = cq.Workplane("XY").transformed(offset=(0.0, (PCB_Y_MOUNT + PCB_Y_BACK) / 2.0, PCB_Z_CENTER)).box(PCB_W, PCB_T, PCB_H)
+    bh1750 = cq.Workplane("XY").transformed(offset=(15.5, PCB_Y_BACK - 5.0, -15.0)).box(18.0, 10.0, 14.0)
+    esp32 = cq.Workplane("XY").transformed(offset=(16.0, PCB_Y_BACK - 5.0, -1.0)).box(20.5, 10.0, 25.0)
+    gps_mod = cq.Workplane("XY").transformed(offset=(4.0, PCB_Y_MOUNT + 5.0, 18.0)).box(16.0, 10.0, 16.0)
+    gps_ant = cq.Workplane("XY").transformed(offset=(GPS_X_CENTER, 4.5, GPS_Z_CENTER)).box(5.0, 7.0, 20.0)
+
+    magnets: cq.Workplane | None = None
+    for px, pz in SCREW_PTS:
+        m_rear = cq.Workplane("XZ").workplane(offset=1.8).center(px, pz).circle(3.0).extrude(-3.0)
+        m_front = cq.Workplane("XZ").workplane(offset=-1.2).center(px, pz).circle(3.0).extrude(-3.0)
+        pair = m_rear.union(m_front)
+        magnets = pair if magnets is None else magnets.union(pair)
+
+    assert magnets is not None
+    return {
+        "Battery_5000mAh": (battery, "#3373e6"),
+        "CarrierBoard_PCB": (pcb, "#148c40"),
+        "BH1750_Sensor": (bh1750, "#2673f2"),
+        "ESP32_C6_MCU": (esp32, "#2e2e2e"),
+        "ATGM336H_GPS": (gps_mod, "#ccbf66"),
+        "GPS_Ceramic_Antenna": (gps_ant, "#e09e6b"),
+        "Neodymium_Magnets_8x": (magnets, "#ccd4e0"),
+    }
+
+
+def render_for_cq_editor(show_fn) -> None:
+    """CQ-Editor에서 F5(Render) 실행 시 VIEW_MODE에 맞춰 3D 뷰포트와 Objects 트리에 출력"""
+    outer = make_revolved_apple(APPLE_OUTER_PROFILE, use_spline=False)
+    inner = make_revolved_apple(APPLE_INNER_PROFILE, use_spline=False)
+    hollow_apple = outer.cut(inner)
+
+    if VIEW_MODE == "rear_shell":
+        show_fn(build_rear_shell(outer, hollow_apple), name="Rear_Shell", options={"color": "#9e2ebf"})
+        return
+    if VIEW_MODE == "front_shell":
+        show_fn(build_front_shell(outer, hollow_apple), name="Front_Shell", options={"color": "#f2c71f"})
+        return
+    if VIEW_MODE == "stem":
+        show_fn(build_stem(), name="Apple_Stem", options={"color": "#47a638"})
+        return
+
+    rear_shell = build_rear_shell(outer, hollow_apple)
+    front_shell = build_front_shell(outer, hollow_apple)
+    stem = build_stem()
+
+    if VIEW_MODE == "exploded":
+        show_fn(rear_shell.translate((0.0, -45.0, 0.0)), name="Rear_Shell", options={"color": "#9e2ebf"})
+        show_fn(front_shell.translate((0.0, 45.0, 0.0)), name="Front_Shell", options={"color": "#f2c71f"})
+        show_fn(stem.translate((0.0, 45.0, 18.0)), name="Apple_Stem", options={"color": "#47a638"})
+        for hw_name, (hw_part, hw_color) in build_hardware_mockup().items():
+            show_fn(hw_part, name=hw_name, options={"color": hw_color})
+    elif VIEW_MODE == "print_layout":
+        rear_rot = rear_shell.rotate((0, 0, 0), (1, 0, 0), 90.0)
+        _, _, _, r_zmin, _ = measure_exact_mesh_bounds(rear_rot)
+        front_rot = front_shell.rotate((0, 0, 0), (1, 0, 0), -90.0)
+        _, _, _, f_zmin, _ = measure_exact_mesh_bounds(front_rot)
+        _, _, _, s_zmin, _ = measure_exact_mesh_bounds(stem)
+
+        show_fn(rear_rot.translate((-55.0, 0.0, -r_zmin)), name="Rear_BowlUp", options={"color": "#9e2ebf"})
+        show_fn(front_rot.translate((55.0, 0.0, -f_zmin)), name="Front_BowlUp", options={"color": "#f2c71f"})
+        show_fn(stem.translate((0.0, 45.0, -s_zmin)), name="Stem_Print", options={"color": "#47a638"})
+    else:
+        # 기본 "assembly": 반투명 전/후면 쉘 + 꼭지 + 내부 하드웨어 전체 표시
+        show_fn(rear_shell, name="Rear_Shell", options={"color": "#9e2ebf", "alpha": 0.45})
+        show_fn(front_shell, name="Front_Shell", options={"color": "#f2c71f", "alpha": 0.40})
+        show_fn(stem, name="Apple_Stem", options={"color": "#47a638"})
+        for hw_name, (hw_part, hw_color) in build_hardware_mockup().items():
+            show_fn(hw_part, name=hw_name, options={"color": hw_color})
+
+
+# ============================================================================
+# 7. 출력 정렬 (Bowl-Up) 및 STEP / STL 일괄 빌드 실행부 (터미널 실행 시)
 # ============================================================================
 def export_all(out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -461,10 +544,16 @@ def export_all(out_dir: Path) -> None:
         )
 
     assy_step_path = out_dir / "22_apple_assembly_cq.step"
-    assy.export(str(assy_step_path))
+    if hasattr(assy, "export"):
+        assy.export(str(assy_step_path))
+    else:
+        assy.save(str(assy_step_path))
     print(f"  -> 조립체 STEP 저장 완료: {assy_step_path.name}")
 
 
-if __name__ == "__main__":
+# CQ-Editor 내부에서 실행(F5)하면 show_object가 전역에 자동 주입됨!
+if "show_object" in globals():
+    render_for_cq_editor(globals()["show_object"])  # type: ignore[name-defined]
+elif __name__ == "__main__":
     target_dir = Path(__file__).resolve().parent
     export_all(target_dir)
