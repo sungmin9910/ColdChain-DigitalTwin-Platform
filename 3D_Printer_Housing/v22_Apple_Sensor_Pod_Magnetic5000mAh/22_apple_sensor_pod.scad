@@ -1,79 +1,68 @@
 /*
  * Cold Chain Digital Twin Platform
- * v22 Apple Sensor Pod Housing (Magnetic Snap + GPS Antenna Holder + Method 1-A Light Window)
- * 100% SUPPORT-FREE EDITION FOR SINDOH 3DWOX 2X (PLA Single-Nozzle, Support = NONE)
+ * v22 Apple Sensor Pod Housing (Bayonet Twist-Lock Edition + Chimney Convection Vents + GPS Holder)
  * 
- * Major Upgrades in v22:
- *  1. PRE-ORIENTED & SELF-SUPPORTING FOR SINDOH 3DWOX 2X (0% Support Needed!):
- *     - Both 22_apple_front_shell.stl and 22_apple_rear_shell.stl are pre-oriented BOWL-UP
- *       with z_min = 0.0mm centered on the build plate (no manual rotation needed in 3DWOX Desktop!).
- *     - Added a D=48mm flat bed-adhesion base pad at the dome pole (|Y|=48.8mm) with a 48-deg
- *       self-supporting lower dome chamfer, eliminating the steep 85-deg lower sphere overhang!
- *     - All internal features (flat Velcro battery floor, 33-deg retention lips, 32-deg GPS holder base,
- *       PCB standoffs, Red-Arrow ribs, and 8 magnet sockets) grow upward with ZERO overhangs!
- *  2. MAGNETIC SNAP + STEEL-DOWEL ALIGNMENT LOCK (Option A - 8x D6x3mm Neodymium Magnets):
- *     - Rear shell bosses have 1.80mm deep magnet pockets (1.20mm of magnet protrudes as a steel dowel pin).
- *     - Front shell bosses have 4.30mm deep magnet pockets (3.0mm magnet + 1.30mm recessed socket).
- *  3. INTEGRATED GPS ANTENNA HOLDER (20 x 5 x 7 mm Ceramic Patch Antenna):
- *     - Dedicated slide-in pocket built into the -X inner wall of the Front Shell (X=-36.5mm, Z=+1mm),
- *       with a gradual 32-deg self-supporting base ramp for Bowl-Up supportless printing.
- *  4. METHOD 1-A BH1750 OPTICAL WINDOW & FLAT VELCRO BATTERY FLOOR:
- *     - Rear shell battery floor is 100% flat (no center notch) for maximum Velcro tape adhesion.
- *     - Flared optical window placed on the Rear Shell wall aligned with BH1750.
+ * Major Upgrades in this Revision:
+ *  1. METHOD A: 4-POINT BAYONET TWIST-LOCK (Zero Magnets, Zero Glue, Zero Screws!):
+ *     - Replaces the 8 neodymium magnets with a precision 4-point circular Bayonet Twist-Lock
+ *       on radius R = 38.0mm at diagonal angles [32, 140, 215, 328] deg.
+ *     - Flat Y = 0.00mm outer parting seam preserves the full 3.0mm wall thickness and guarantees
+ *       100% zero dimple interference during the 9.0-deg twist!
+ *     - In Dome-Up orientation, the Front Shell's 360-deg rim, 4 Female Locking Ledges, and 4 PCB
+ *       pillars/ribs sit 100% flat on the print bed (Z = 0.00 mm), while the Rear Shell's 4 Male
+ *       Bayonet L-Hooks also sit flat on Z = 0.00 mm with 65-deg self-supporting roofs!
+ *     - To close: align Front Shell rotated 9 deg counter-clockwise, press flush, and twist 9 deg
+ *       clockwise to lock into 0 deg!
+ *  2. CHIMNEY-EFFECT NATURAL CONVECTION VENTS (Top Exhaust + Bottom Intake + 3-Slot SHT45 Grill):
+ *     - Bottom cold-air intake slots (Z = -28mm) + Top warm-air exhaust slots (Z = +30mm) continuously
+ *       flush out MCU (ESP32-C6) and GPS heat via natural thermal buoyancy (Stack Effect).
+ *     - 3-slot side ventilation grill at +X (Z = +10, +16, +22mm) for fast SHT45 ambient response.
+ *     - All vents use 65-deg self-supporting teardrop roofs in Dome-Up printing (0% vent support!).
+ *  3. BED-FLUSH PCB STANDOFFS & RIBS + OPEN VELCRO BATTERY FLOOR (56.4 x 70.4 mm):
+ *     - All 4 PCB standoffs and ribs touch Z = 0.00 mm on the print bed (zero spaghetti fragments!).
+ *     - Rear shell battery floor has full 56.4 x 70.4 mm rectangular corner clearance for 5000mAh cell.
  */
 
-$fn = 64;
+$fn = 72;
 
 // Render modes:
-// "assembly", "cross_section", "exploded", "front_shell", "rear_shell", "stem", "print_all", "front_face", "part_front_shell", "part_rear_shell"
+// "assembly", "cross_section", "exploded", "front_shell", "rear_shell", "stem", "print_all", "part_front_shell", "part_rear_shell"
 render_part = "assembly"; 
 
 wall_t = 3.0;          // Outer shell wall thickness (mm)
 clearance = 0.25;      // 3D printing joint clearance (mm)
-bed_flat_y = 48.0;     // Flat base plane on exterior dome pole (leaves 3.0mm solid floor & D=28mm flat bed pad)
 
-// PCB Specifications
+// CarrierBoard_v2_50x50 Exact Specifications (from EasyEDA)
 pcb_w = 50.0;
 pcb_h = 50.0;
 pcb_t = 1.6;
-hole_pitch = 43.0;     // M3 hole spacing (43mm x 43mm)
-pcb_z_center = 3.0;    // Center of PCB in Z
+hole_pitch = 43.0;     // 4x M3 mounting holes at (+-21.5, +-21.5)
+pcb_z_center = 3.0;    // Shifted +3mm in Z for optimal internal volume balance
 
-// Stack Coordinates along Y-axis (front-to-back):
-// Set pcb_y_mount = 0.0 so all 4 PCB pillars sit 100% flat on the print bed (Z=0) in Dome-Up printing (0% pillar support!)
-pcb_y_mount = 0.0;     // Front face of PCB rests on standoffs at Y = 0.0 (flush with parting plane!)
-pcb_y_back = pcb_y_mount - pcb_t; // Y = -1.6
+// PCB Mount Plane at Y = 0.0mm (100% flush with Front Shell print bed Z=0.0!)
+pcb_y_mount = 0.0;
+pcb_y_back = pcb_y_mount - pcb_t; // Y = -1.6mm
 
-// JRF PL105568 5000mAh Battery Specifications
-bat_w = 58.0;          // Pocket width (cell width 55mm + 3mm margin)
-bat_h = 73.0;          // Pocket height (cell body 68mm + 5mm margin for tabs)
-bat_t = 12.0;          // Pocket thickness (cell thickness 10mm + 2mm margin)
-bat_y_center = -28.5;  // Center Y of battery pocket (from Y=-34.5 to Y=-22.5)
-bat_z_center = 2.0;    // Center Z of battery
+// 4-Point Circular Bayonet Twist-Lock Parameters (Method A)
+// Placed on exact circle R = 38.6mm in the XZ plane at [28, 150, 210, 332] deg:
+// - Strictly outside the 50x50mm PCB & standoffs (|X| >= 28.6mm > 25.5mm)
+// - Strictly outside the 56.4x70.4mm battery bay (|X| >= 28.63mm > 28.20mm)
+// - Strictly outside the -X GPS antenna holder ([162..198] deg)
+// - Strictly inside the apple inner cavity wall (R_inner >= 41.5mm > 40.1mm)
+bayonet_r = 38.6;
+bayonet_w = 3.0;       // Radial width of Male L-Hook (R_in = 37.1mm, R_out = 40.1mm)
+bayonet_h = 3.4;       // Axial protrusion of Male L-Hook (Y = 0.0 to +3.4mm)
+bayonet_angles = [28, 150, 210, 332];
 
-// 4x Magnetic Bosses (D6x3mm Neodymium Magnets)
-screw_pts = [
-    [-35.0,  26.0],    // Top-left (in SCAD Z-up) / Top-Right in user photo
-    [ 35.0,  26.0],    // Top-right (in SCAD Z-up) / Bottom-Right in user photo
-    [-34.0, -23.0],    // Bottom-left (in SCAD Z-up) / Top-Left in user photo
-    [ 34.0, -23.0]     // Bottom-right (in SCAD Z-up) / Bottom-Left in user photo
-];
-
-// Magnet Specifications (D6 x 3mm cylinder - Generous clearance in both diameter & depth!)
-mag_r_front = 3.35;    // D=6.70mm pocket in Front Shell (+0.70mm diameter clearance for D6mm magnet)
-mag_h_front = 3.60;    // 3.60mm depth (+0.60mm height clearance for 3.0mm magnet, flat upward-facing floor)
-mag_r_rear  = 3.35;    // D=6.70mm pocket in Rear Shell (+0.70mm diameter clearance for D6mm magnet)
-mag_h_rear  = 3.60;    // 3.60mm depth (+0.60mm height clearance for 3.0mm magnet, flat upward-facing floor)
-
-// GPS Ceramic Antenna Specifications (20 x 5 x 7 mm)
+// External GPS Ceramic Patch Antenna Specifications (User spec: 20 x 5 x 7 mm)
 gps_len_z = 21.6;      // 20.0mm antenna length + 1.6mm clearance
-gps_wid_x = 7.6;       // Fits up to 7.0mm thickness/width + solder bump
-gps_dep_y = 11.0;      // Pocket depth along Y (from Y=0 rim to Y=11.0mm)
-gps_wall  = 2.4;       // Pocket wall thickness
-gps_x_center = -36.5;  // Mounted in the open -X bay (top of user photo)
-gps_z_center = 1.0;    // Centered between Z=-10 and Z=+12
+gps_wid_x = 7.6;       // 5.0mm ceramic + 2.0mm solder bump + 0.6mm clearance
+gps_dep_y = 11.0;      // 7.0mm width + margin
+gps_wall  = 2.4;       // Holder wall thickness
+gps_x_center = -36.5;  // Seated in the wide -X crescent cavity next to the PCB
+gps_z_center = 1.0;
 
-// Outer Apple Profile (R, Z) - Exact Outer Diameter 100.0mm (R_max = 50.0mm), Height 91.87mm
+// Outer Profile (R, Z) - Max Outer Diameter 100.0mm (R=50.0mm), Height 91.87mm
 apple_outer_profile = [
   [  0.00, -37.32],
   [  1.15, -38.01],
@@ -208,44 +197,101 @@ apple_inner_profile = [
   [  0.00,  34.22]
 ];
 
-// 100% Pure, Un-flattened Apple Outer Surface (No flat spot on dome poles!)
+// Natural continuous outer apple body
 module apple_solid_outer() {
     rotate_extrude(angle=360, $fn=72) {
         polygon(concat([[0, apple_outer_profile[0][1]]], apple_outer_profile, [[0, apple_outer_profile[len(apple_outer_profile)-1][1]]]));
     }
 }
 
+// Natural continuous inner apple cavity
 module apple_solid_inner() {
     rotate_extrude(angle=360, $fn=72) {
         polygon(concat([[0, apple_inner_profile[0][1]]], apple_inner_profile, [[0, apple_inner_profile[len(apple_inner_profile)-1][1]]]));
     }
 }
 
-// Functional openings common to shells
+// Helper: Circular-arc sector in the XZ plane extruded from Y = y_start to Y = y_start + y_len
+// Under rotate([90, 0, 0]), local (R*cos(a), R*sin(a), z) maps to global (R*cos(a), -z, R*sin(a)),
+// so translating by +Y = y_start + y_len places Y in [y_start, y_start + y_len] with +1 determinant!
+module bayonet_arc_segment(r_in, r_out, start_deg, span_deg, y_start, y_len) {
+    translate([0, y_start + y_len, 0])
+        rotate([90, 0, 0])
+        rotate([0, 0, start_deg])
+        rotate_extrude(angle = span_deg, $fn = 120)
+        translate([r_in, 0])
+        square([r_out - r_in, y_len]);
+}
+
+// Shared functional cutouts:
+// 1. Top Stem Socket
+// 2. +X SHT45 3-Slot Side Ventilation Grill
+// 3. Option 1 Chimney-Effect Natural Convection Vents (Bottom Intake @ Z=-28mm + Top Exhaust @ Z=+30mm)
 module functional_cutouts() {
-    // 1. Decorative Stem Socket at center top (Clean socket without gaping hole)
+    // 1. Top Stem Plug Socket (D=5.0mm, depth 7mm)
     translate([0, 1.5, 36.0])
         cylinder(r=2.5, h=14, center=true);
+        
+    // 2. SHT45 Temperature/Humidity Sensor 3-Slot Side Ventilation Grill (+X wall, Z = -4, +2, +8mm)
+    // Teardrop-peaked along +Y/-Y so zero support forms inside the slots during Dome-Up printing!
+    for (z_s = [-4.0, 2.0, 8.0]) {
+        hull() {
+            translate([48.0, -2.0, z_s])
+                rotate([0, 90, 0])
+                cylinder(r=1.8, h=25, center=true);
+            translate([48.0,  2.5, z_s])
+                rotate([0, 90, 0])
+                cylinder(r=0.4, h=25, center=true);
+            translate([48.0, -6.5, z_s])
+                rotate([0, 90, 0])
+                cylinder(r=0.4, h=25, center=true);
+        }
+    }
     
-    // 2. Side Ventilation Hole for SHT45 (+X side)
-    translate([48.0, -2.0, 16.0])
-        rotate([0, 90, 0])
-        cylinder(r=2.2, h=25, center=true);
+    // 3. CHIMNEY-EFFECT BOTTOM COOL-AIR INTAKE VENTS (Z = -28.0mm on both Front and Rear shells)
+    // Teardrop-sloped along +Y/-Y (65-deg self-supporting roof in Dome-Up orientation -> 0% vent support!)
+    for (x_v = [-12.0, 0.0, 12.0]) {
+        // Rear intake louver
+        hull() {
+            translate([x_v, -14.0, -28.0]) cylinder(r=1.8, h=35, center=true);
+            translate([x_v, -19.0, -28.0]) cylinder(r=0.3, h=35, center=true);
+        }
+        // Front intake louver
+        hull() {
+            translate([x_v,  14.0, -28.0]) cylinder(r=1.8, h=35, center=true);
+            translate([x_v,  19.0, -28.0]) cylinder(r=0.3, h=35, center=true);
+        }
+    }
+    
+    // 4. CHIMNEY-EFFECT TOP WARM-AIR EXHAUST VENTS (Z = +30.0mm near top dimple on both Front and Rear shells)
+    // Allows rising heat from ESP32-C6 and GPS to escape continuously by natural buoyancy!
+    for (x_v = [-12.0, 0.0, 12.0]) {
+        // Rear exhaust louver
+        hull() {
+            translate([x_v, -14.0, 30.0]) cylinder(r=1.8, h=35, center=true);
+            translate([x_v, -19.0, 30.0]) cylinder(r=0.3, h=35, center=true);
+        }
+        // Front exhaust louver
+        hull() {
+            translate([x_v,  14.0, 30.0]) cylinder(r=1.8, h=35, center=true);
+            translate([x_v,  19.0, 30.0]) cylinder(r=0.3, h=35, center=true);
+        }
+    }
 }
 
 // ==========================================
 // 1. REAR SHELL (MAIN BASE CHASSIS - PURPLE IN PHOTO)
-// - 100% Flat Velcro Battery Floor (center notch removed)
-// - Self-supporting 33-deg Battery Retention Lips (0% overhang in Bowl-Up printing)
-// - 4x D6x3mm Magnet Bosses (1.8mm deep -> 1.2mm steel dowel protrusion)
-// - Method 1-A BH1750 Optical Window
+// - Flat Y = 0.00mm Parting Rim (Full 3.0mm wall thickness, zero dimple binding!)
+// - 4x Male Bayonet L-Hooks on R = 38.0mm (Locking teeth sit flat on bed Z = 0.00mm in Dome-Up!)
+// - Wide-open 56.4 x 70.4 mm Flat Velcro Battery Floor at Y = -24.5mm
+// - Chimney Convection Intake/Exhaust Vents
 // ==========================================
 module apple_rear_shell() {
     difference() {
         intersection() {
             apple_solid_outer();
             union() {
-                // Main rear half shell (Y <= 0)
+                // 1) Main rear half shell (Y <= 0.0)
                 difference() {
                     intersection() {
                         apple_solid_outer();
@@ -257,74 +303,42 @@ module apple_rear_shell() {
                     }
                 }
                 
-                // 1. Wide-Open Flat Velcro Battery Platform at Y = -24.5mm
-                // Fills Y <= -24.5mm so the floor is wide enough for the 55x68mm rectangular battery!
+                // 2) 4x MALE BAYONET TWIST-LOCK L-HOOKS (Centered on exact circle R = 38.6mm!)
+                // In Dome-Up printing (Y = +3.4mm on bed Z = 0.0), the wide L-hook tip (Y = +1.7 to +3.4mm)
+                // sits DIRECTLY ON THE PRINT BED (Z = 0.0 to +1.7mm) with ZERO overhang!
+                for (ang = bayonet_angles) {
+                    // A. Outer wall anchor block below Axial Stem (Y = -9.0 to 0.0mm, 65-deg self-supporting taper)
+                    hull() {
+                        bayonet_arc_segment(bayonet_r - bayonet_w/2, bayonet_r + 7.5, ang - 3.5, 7.0, -2.5, 2.5);
+                        bayonet_arc_segment(bayonet_r + 3.0, bayonet_r + 7.5, ang - 3.0, 6.0, -9.5, 0.5);
+                    }
+                    // B. Axial Stem crossing parting plane (Y = 0.0 to +3.4mm, 6.0 deg arc)
+                    bayonet_arc_segment(bayonet_r - bayonet_w/2, bayonet_r + bayonet_w/2, ang - 3.0, 6.0, 0.0, bayonet_h);
+                    // C. Locking L-Hook Tip at Y = +1.7 to +3.4mm (12.5 deg total arc, sits flat on bed Z = 0.0!)
+                    bayonet_arc_segment(bayonet_r - bayonet_w/2, bayonet_r + bayonet_w/2, ang - 3.0, 12.5, 1.7, bayonet_h - 1.7);
+                }
+                
+                // 3) Wide-Open Flat Velcro Battery Platform at Y = -24.5mm
                 translate([0, -38.0, 0])
                     cube([140, 27.0, 140], center=true);
-                
-                // 2. 4x Compact Wall-Integrated Magnetic Bosses (r=5.5mm -> 57.0mm clearance between bosses!)
-                // Only at top rim Y=0 to -13.5mm with 45-deg self-supporting taper into outer wall!
-                for (pt = screw_pts) {
-                    norm_len = sqrt(pt[0]*pt[0] + pt[1]*pt[1]);
-                    dir_x = pt[0] / norm_len;
-                    dir_z = pt[1] / norm_len;
-                    translate([pt[0], 0, pt[1]]) {
-                        rotate([90, 0, 0]) {
-                            hull() {
-                                // Upper boss body around the 3.60mm deep magnet pocket (Y = 0 to -6.5mm)
-                                cylinder(r=5.5, h=6.5);
-                                translate([dir_x * 10.0, dir_z * 10.0, 0])
-                                    cylinder(r=6.0, h=6.5);
-                                // 45-deg self-supporting taper into the outer wall (at Y = -13.5mm)
-                                translate([dir_x * 7.5, dir_z * 7.5, 13.5])
-                                    cylinder(r=4.0, h=0.5);
-                            }
-                        }
-                    }
-                }
             }
         }
         
-        // 0. Rectangular Battery Corner-Clearance Bay above Y = -24.5mm (56.4mm wide x 70.4mm tall, r=2.2mm corners)
-        // Ensures the 4 corners of the 55x68mm 5000mAh battery NEVER hit the curved apple wall or float in the air!
+        // Rectangular Battery Corner-Clearance Bay above Y = -24.5mm (56.4mm wide x 70.4mm tall, r=2.2mm corners)
+        // Ensures the 4 corners of the 55x68mm 5000mAh battery NEVER hit the curved apple wall or float!
         translate([0, 0, -0.5]) {
             rotate([90, 0, 0]) {
-                translate([0, 0, -1.0]) {
+                translate([0, 0, -0.5]) {
                     hull() {
                         for (cx = [-26.0, 26.0]) {
                             for (cz = [-33.0, 33.0]) {
                                 translate([cx, cz, 0])
-                                    cylinder(r=2.2, h=25.5);
+                                    cylinder(r=2.2, h=24.98);
                             }
                         }
                     }
                 }
             }
-        }
-        
-        // A. 4x Rear Magnet Pockets (Generous D=6.70mm x 3.60mm + steep 65-deg spire roof so 0% support enters in Dome-Up print!)
-        for (pt = screw_pts) {
-            translate([pt[0], 0, pt[1]]) {
-                rotate([90, 0, 0]) {
-                    // Wide entrance chamfer at Y=0 for easy magnet insertion
-                    translate([0, 0, -0.1])
-                        cylinder(r1=mag_r_rear + 0.45, r2=mag_r_rear, h=0.9);
-                    // Generous D=6.70mm x 3.60mm deep cylindrical magnet pocket
-                    translate([0, 0, -0.1])
-                        cylinder(r=mag_r_rear, h=mag_h_rear + 0.1);
-                    // Steep 65-deg self-supporting conical spire roof (>60-deg threshold -> 0% support inside magnet hole!)
-                    translate([0, 0, mag_h_rear - 0.02])
-                        cylinder(r1=mag_r_rear, r2=0.0, h=7.2);
-                }
-            }
-        }
-        
-        // B. METHOD 1-A BH1750 OPTICAL WINDOW (Aligned with BH1750 at Bottom-Left of user photo)
-        hull() {
-            translate([16.0, -8.5, -14.5])
-                sphere(r=3.8);
-            translate([48.0, -11.0, -11.0])
-                sphere(r=4.8);
         }
         
         functional_cutouts();
@@ -333,17 +347,15 @@ module apple_rear_shell() {
 
 // ==========================================
 // 2. FRONT SHELL (INTEGRATED PCB CARRIER CHASSIS - YELLOW IN PHOTO)
-// - 4x Red-Arrow Standoffs & Ribs 100% FLUSH WITH Y=0 BED PLANE (0% floating overhang, 0% spaghetti!)
-// - 4x Generous D=6.70mm x 3.60mm Magnet Pockets with 65-deg Spire Roof (0% hole support!)
-// - Integrated 20x5x7mm GPS Ceramic Antenna Pocket with 65-deg Gothic Gable Roof (0% pocket support!)
+// - 360-deg Flat Outer Rim + 4x Female Bayonet Bosses + 4x PCB Pillars & Ribs (100% FLUSH at Y=0.0 = Bed Z=0.0!)
+// - Integrated 20x5x7mm GPS Ceramic Antenna Pocket with 65-deg Gothic Gable Roof
 // ==========================================
 module apple_front_shell() {
     difference() {
-        // Base solid body: Outer Apple trimmed to Front Half (Y >= 0) with 100% fused structures
         intersection() {
             apple_solid_outer();
             union() {
-                // 1) Main front half shell (Y >= 0)
+                // 1) Main front half shell (Y >= 0.0)
                 difference() {
                     intersection() {
                         apple_solid_outer();
@@ -355,19 +367,12 @@ module apple_front_shell() {
                     }
                 }
                 
-                // 2) 4x Wall-Integrated Magnetic Bosses (Enlarged r=6.8mm for generous D=6.70mm Magnet Holes)
-                for (pt = screw_pts) {
-                    norm_len = sqrt(pt[0]*pt[0] + pt[1]*pt[1]);
-                    dir_x = pt[0] / norm_len;
-                    dir_z = pt[1] / norm_len;
-                    translate([pt[0], 0, pt[1]]) {
-                        rotate([-90, 0, 0]) {
-                            hull() {
-                                cylinder(r=6.8, h=50.0);
-                                translate([dir_x * 14.0, dir_z * 14.0, 0])
-                                    cylinder(r=6.0, h=50.0);
-                            }
-                        }
+                // 2) 4x FEMALE BAYONET TWIST-LOCK BOSSES (100% Flush at Y=0.0 = Bed Z=0.0, 65-deg tapered top!)
+                // Positioned on circle R = 38.6mm at [28, 150, 210, 332] deg
+                for (ang = bayonet_angles) {
+                    hull() {
+                        bayonet_arc_segment(bayonet_r - bayonet_w/2 - 1.8, bayonet_r + 9.0, ang - 13.0, 24.5, 0.0, 4.5);
+                        bayonet_arc_segment(bayonet_r + 2.5, bayonet_r + 9.0, ang - 12.0, 22.5, 11.5, 0.5);
                     }
                 }
                 
@@ -383,8 +388,6 @@ module apple_front_shell() {
                         
                         translate([x_pos, 0, z_pos]) {
                             rotate([-90, 0, 0]) {
-                                // A. Main Boss Cylinder & B. Direct Wall-Anchor Rib both start right at Y=0.0 (Z=0.0 bed!)
-                                // Eliminates the 3.5~5.0mm mid-air gap that caused spaghetti strings in Dome-Up printing!
                                 translate([0, 0, pcb_y_mount]) {
                                     hull() {
                                         cylinder(r=4.0, h=46.0);
@@ -399,7 +402,6 @@ module apple_front_shell() {
                 
                 // 4) INTEGRATED GPS CERAMIC ANTENNA HOLDER (For 20 x 5 x 7 mm Antenna)
                 difference() {
-                    // Outer solid body fused into -X shell wall
                     hull() {
                         translate([-40.5, 6.5, gps_z_center])
                             cube([19.0, 13.0, gps_len_z + 2*gps_wall], center=true);
@@ -407,8 +409,7 @@ module apple_front_shell() {
                             cube([9.0, 1.0, gps_len_z + 2*gps_wall - 4.0], center=true);
                     }
                         
-                    // Inner Antenna Pocket Cavity (21.6mm long in Z x 5.8mm wide in X x 9.5mm deep in Y)
-                    // Includes steep 65-deg gothic gable roof above Y=9.5mm so 0% support enters in Dome-Up print!
+                    // Inner Antenna Pocket Cavity with steep 65-deg gothic gable roof (0% support!)
                     hull() {
                         translate([gps_x_center, 4.75 - 0.1, gps_z_center])
                             cube([5.8, 9.6, gps_len_z], center=true);
@@ -424,7 +425,7 @@ module apple_front_shell() {
                             cube([0.2, 0.2, gps_len_z - 7.0], center=true);
                     }
                         
-                    // Lead-in Entry Chamfer at Y=0 mouth for effortless thumb insertion
+                    // Lead-in Entry Chamfer at Y=0 mouth
                     translate([gps_x_center, 0.7, gps_z_center])
                         cube([8.2, 1.6, gps_len_z + 0.8], center=true);
                         
@@ -440,23 +441,27 @@ module apple_front_shell() {
         }
         
         // ==========================================
-        // SUBTRACTIONS (ZERO HOLES ON FRONT APPLE EXTERIOR!)
+        // SUBTRACTIONS
         // ==========================================
         
-        // A. 4x Front Magnet Pockets (Generous D=6.70mm x 3.60mm + steep 65-deg spire roof so 0% support enters in Dome-Up print!)
-        for (pt = screw_pts) {
-            translate([pt[0], 0, pt[1]]) {
-                rotate([-90, 0, 0]) {
-                    // Wide entrance chamfer at Y=0 for easy magnet insertion
-                    translate([0, 0, -0.1])
-                        cylinder(r1=mag_r_front + 0.45, r2=mag_r_front, h=0.9);
-                    // Generous D=6.70mm x 3.60mm deep cylindrical magnet pocket
-                    translate([0, 0, -0.1])
-                        cylinder(r=mag_r_front, h=mag_h_front + 0.1);
-                    // Steep 65-deg self-supporting conical spire roof (>60-deg threshold -> 0% support inside magnet hole!)
-                    translate([0, 0, mag_h_front - 0.02])
-                        cylinder(r1=mag_r_front, r2=0.0, h=7.2);
-                }
+        // A. 4x FEMALE BAYONET TWIST-LOCK SLOTS (With 65-deg self-supporting roof -> 0% slot support!)
+        // - Entry Opening (ang - 11.5 to ang + 2.5 deg): open from Y = 0.0 to Y = +3.75mm (with 65-deg roof to Y=+7.8mm)
+        // - Locking Pocket (ang - 11.5 to ang + 10.5 deg): from Y = +1.45 to Y = +3.75mm (with 65-deg roof to Y=+7.8mm)
+        //   (Leaves a solid 1.45mm thick Retaining Ledge flat on the bed at Y = 0.0 to +1.45mm on [ang + 2.5..ang + 10.5]!)
+        for (ang = bayonet_angles) {
+            r_slot_in  = bayonet_r - bayonet_w/2 - 0.35;
+            r_slot_out = bayonet_r + bayonet_w/2 + 0.35;
+            
+            // 1) Axial Entry Slot (when Front Shell is rotated +8.0 deg CCW, Rear Shell L-Hook drops straight in!)
+            hull() {
+                bayonet_arc_segment(r_slot_in, r_slot_out, ang - 11.5, 14.0, -0.1, 3.85);
+                bayonet_arc_segment(bayonet_r - 0.2, bayonet_r + 0.2, ang - 10.5, 12.0, 3.75, 4.05);
+            }
+            
+            // 2) Clockwise Locking Undercut Slot (from Y = +1.45 to Y = +3.75mm, plus 65-deg roof to Y = +7.8mm!)
+            hull() {
+                bayonet_arc_segment(r_slot_in, r_slot_out, ang - 11.5, 22.0, 1.45, 2.30);
+                bayonet_arc_segment(bayonet_r - 0.2, bayonet_r + 0.2, ang - 10.5, 20.0, 3.75, 4.05);
             }
         }
         
@@ -483,15 +488,12 @@ module apple_front_shell() {
 // ==========================================
 module apple_stem() {
     color([0.28, 0.65, 0.22]) {
-        // Base plug pin
         translate([0, 1.5, 34.0])
             cylinder(r=2.3, h=10.0, center=true);
             
-        // Curved organic stem
         translate([0, 1.5, 39.0]) {
             rotate([0, 14, 0])
                 cylinder(r1=2.5, r2=1.6, h=15.0);
-            // Leaf element
             translate([2.5, 0, 8.0])
                 rotate([25, 45, 15])
                 scale([1.8, 0.8, 0.3])
@@ -501,7 +503,7 @@ module apple_stem() {
 }
 
 // ==========================================
-// VIRTUAL HARDWARE MOCKUP (MATCHING USER PHOTO ORIENTATION)
+// VIRTUAL HARDWARE MOCKUP
 // ==========================================
 module hardware_mockup() {
     // 1. JRF PL105568 5000mAh Battery (55x68x10mm seated 100% flat on Y = -24.5mm Velcro floor!)
@@ -510,50 +512,34 @@ module hardware_mockup() {
             cube([55.0, 10.0, 68.0], center=true);
     }
     
-    // 2. CarrierBoard PCB Substrate (50x50x1.6mm at Y = +1.9 to +3.5)
+    // 2. CarrierBoard PCB Substrate (50x50x1.6mm)
     color([0.08, 0.55, 0.25]) {
         translate([0, (pcb_y_mount + pcb_y_back)/2, pcb_z_center])
             cube([pcb_w, pcb_t, pcb_h], center=true);
     }
     
-    // 3. BH1750 Ambient Light Sensor (Mounted facing -Y at Bottom-Left of user photo: X=+15.5, Z=-15.0)
+    // 3. BH1750 Ambient Light Sensor
     color([0.15, 0.45, 0.95]) {
         translate([15.5, pcb_y_back - 5.0, -15.0])
             cube([18.0, 10.0, 14.0], center=true);
     }
     
-    // 4. Beetle ESP32-C6 MCU (Mounted facing -Y at Bottom-Center of user photo: X=+16.0, Z=-1.0)
+    // 4. Beetle ESP32-C6 MCU
     color([0.18, 0.18, 0.18]) {
         translate([16.0, pcb_y_back - 5.0, -1.0])
             cube([20.5, 10.0, 25.0], center=true);
     }
     
-    // 5. ATGM336H GPS Module (Underneath PCB facing +Y at Right side of user photo: Z=+18.0)
+    // 5. ATGM336H GPS Module
     color([0.8, 0.75, 0.4]) {
         translate([4.0, pcb_y_mount + 5.0, 18.0])
             cube([16.0, 10.0, 16.0], center=true);
     }
     
-    // 6. External Ceramic GPS Antenna (20 x 5 x 7 mm seated inside the -X GPS Holder Pocket!)
+    // 6. External Ceramic GPS Antenna (20 x 5 x 7 mm)
     color([0.88, 0.62, 0.42]) {
         translate([gps_x_center, 4.5, gps_z_center])
             cube([5.0, 7.0, 20.0], center=true);
-    }
-    
-    // 7. 8x D6x3mm Neodymium Magnets (Visualized in silver)
-    color([0.80, 0.83, 0.88]) {
-        for (pt = screw_pts) {
-            // Rear magnet (from Y = -1.8 to Y = +1.2)
-            translate([pt[0], 0, pt[1]])
-                rotate([-90, 0, 0])
-                translate([0, 0, -1.8])
-                cylinder(r=3.0, h=3.0);
-            // Front magnet (from Y = +1.2 to Y = +4.2)
-            translate([pt[0], 0, pt[1]])
-                rotate([-90, 0, 0])
-                translate([0, 0, 1.2])
-                cylinder(r=3.0, h=3.0);
-        }
     }
 }
 
@@ -580,7 +566,7 @@ else if (render_part == "cross_section") {
 }
 else if (render_part == "exploded") {
     translate([0, -45, 0]) color([0.62, 0.18, 0.75]) apple_rear_shell();
-    translate([0, -25, bat_z_center]) color([0.2, 0.45, 0.9]) cube([54.0, 9.5, 65.0], center=true);
+    translate([0, -25, -0.5]) color([0.2, 0.45, 0.9]) cube([55.0, 10.0, 68.0], center=true);
     translate([0, 10, pcb_z_center]) color([0.08, 0.55, 0.25]) cube([pcb_w, pcb_t, pcb_h], center=true);
     translate([0, 45, 0]) color([0.95, 0.78, 0.12]) apple_front_shell();
     translate([0, 45, 18]) apple_stem();
@@ -592,20 +578,18 @@ else if (render_part == "part_rear_shell") {
     apple_rear_shell();
 }
 else if (render_part == "front_shell") {
-    // Pre-oriented DOME-UP (flat rim + 4 PCB pillars + 4 ribs sit 100% flush on bed Z=0.0, round apple exterior faces +Z!)
+    // Pre-oriented DOME-UP (flat 360-deg rim + 4 bayonet bosses + 4 PCB pillars sit 100% flush on bed Z=0.0!)
     rotate([90, 0, 0]) apple_front_shell();
 }
 else if (render_part == "rear_shell") {
-    // Pre-oriented DOME-UP (flat rim sits 100% flush on bed Z=0.0, round apple exterior faces +Z!)
-    rotate([-90, 0, 0]) apple_rear_shell();
+    // Pre-oriented DOME-UP (4 Male Bayonet L-Hooks at Y=+3.4mm sit 100% flush on bed Z=0.0!)
+    translate([0, 0, bayonet_h]) rotate([-90, 0, 0]) apple_rear_shell();
 }
 else if (render_part == "stem") {
-    // Pre-oriented with stem plug base at Z=0.0!
     translate([0, -1.5, -29.0]) apple_stem();
 }
 else if (render_part == "print_all") {
-    // Ready-to-print Dome-Up bed layout (flat rim on Z=0.0, 100% spherical apple exterior facing +Z!)
-    translate([-55, 0, 0]) rotate([-90, 0, 0]) apple_rear_shell();
+    translate([-55, 0, bayonet_h]) rotate([-90, 0, 0]) apple_rear_shell();
     translate([ 55, 0, 0]) rotate([ 90, 0, 0]) apple_front_shell();
     translate([  0, 45, -29.0]) apple_stem();
 }

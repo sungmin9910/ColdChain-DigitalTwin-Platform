@@ -1,10 +1,12 @@
 import os
+import shutil
 import subprocess
 import time
 import struct
 
 openscad = r"C:\Program Files\OpenSCAD\openscad.com"
 v22_dir = r"c:\Users\korea\Desktop\1hsm\hanhanhan\ColdChain-DigitalTwin-Platform\3D_Printer_Housing\v22_Apple_Sensor_Pod_Magnetic5000mAh"
+cq_dir = os.path.join(v22_dir, "cadquery_v22")
 scad_file = os.path.join(v22_dir, "22_apple_sensor_pod.scad")
 
 def get_stl_bounds(path):
@@ -133,6 +135,9 @@ for stl_name, part_name in stls:
     print(f"Exporting {stl_name}...", end=" ", flush=True)
     res = subprocess.run([openscad, "-o", stl_path, "-D", f'render_part="{part_name}"', scad_file], capture_output=True, text=True)
     if res.returncode == 0:
+        cq_stl = os.path.join(cq_dir, stl_name.replace(".stl", "_cq.stl"))
+        if os.path.exists(cq_dir):
+            shutil.copy2(stl_path, cq_stl)
         sz = os.path.getsize(stl_path) / 1024
         b = get_stl_bounds(stl_path)
         print(f"OK ({sz:.1f} KB, {time.time()-t0:.1f}s) | Bounds: X[{b[0]:.1f},{b[1]:.1f}] Y[{b[2]:.1f},{b[3]:.1f}] Z[{b[4]:.2f},{b[5]:.2f}]")
