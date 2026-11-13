@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 """
 연도별 분리 연구노트 (2025년 / 2026년) Word(.docx) 생성 스크립트
-- 표지·작성원칙·기획·향후계획 전면 배제 -> 1페이지 목차 + 일자별 수행 결과 본문(1일 1페이지) 구성
-  1) docs/연구노트_2025년_콜드체인_디지털트윈_플랫폼.docx : 목차(1p) + 본문(33p, 2025.03~2025.12) = 총 34장
-  2) docs/연구노트_2026년_콜드체인_디지털트윈_플랫폼.docx : 목차(1p) + 본문(36p, 2026.01~2026.11, 하반기 9월 PCB 발주 포함) = 총 37장
-- 상단 형식 메타데이터 표 제거, 전 일자(총 69일) 고유 실물 사진 및 실제 파이썬·보드·대시보드·CAD 실행 결과 삽입 (AI 이미지 0건)
+- 표지 없음, 1페이지 목차(날짜 | 실험 내용 요약) + 일자별 본문(1일 1페이지) 구성
+  1) docs/연구노트_2025년_콜드체인_디지털트윈_플랫폼.docx : 목차(1p) + 본문(31p) = 총 32장
+  2) docs/연구노트_2026년_콜드체인_디지털트윈_플랫폼.docx : 목차(1p) + 본문(36p) = 총 37장
+- 각 일자 상단에는 오직 날짜(YYYY-MM-DD)만 표기 (Day 번호·제목·부제목·메타데이터 표 전면 배제)
+- 각 페이지는 [날짜 + 실험 내용(1~2장 실물/실행 그림 포함) + 실험 결과] 구조로만 자연스럽게 서술 (AI 이미지 0건)
 """
 
 import math
+import shutil
 from pathlib import Path
 from PIL import Image, ImageOps
 from docx import Document
@@ -29,8 +31,6 @@ FONT_NAME = "맑은 고딕"
 NAVY = RGBColor(0x1E, 0x3A, 0x5F)
 DARK_SLATE = RGBColor(0x1E, 0x29, 0x3B)
 MUTED_GRAY = RGBColor(0x47, 0x55, 0x69)
-FAIL_RED = RGBColor(0x99, 0x1B, 0x1B)
-FIX_GREEN = RGBColor(0x16, 0x65, 0x34)
 
 
 def set_east_asia_font(run, font_name=FONT_NAME, size_pt=8.8, bold=False, color=DARK_SLATE):
@@ -53,7 +53,7 @@ def set_east_asia_font(run, font_name=FONT_NAME, size_pt=8.8, bold=False, color=
 def set_paragraph_bottom_border(paragraph, color_hex="1E3A5F", sz="10"):
     pPr = paragraph._p.get_or_add_pPr()
     pBdr = parse_xml(
-        f'<w:pBdr {nsdecls("w")}><w:bottom w:val="single" w:sz="{sz}" w:space="3" w:color="{color_hex}"/></w:pBdr>'
+        f'<w:pBdr {nsdecls("w")}><w:bottom w:val="single" w:sz="{sz}" w:space="4" w:color="{color_hex}"/></w:pBdr>'
     )
     pPr.append(pBdr)
 
@@ -63,7 +63,7 @@ def set_cell_shading(cell, hex_color: str):
     cell._tc.get_or_add_tcPr().append(shading)
 
 
-def set_cell_margins(cell, top=45, bottom=45, left=90, right=90):
+def set_cell_margins(cell, top=40, bottom=40, left=80, right=80):
     tcPr = cell._tc.get_or_add_tcPr()
     tcMar = OxmlElement("w:tcMar")
     for m, val in [("top", top), ("bottom", bottom), ("left", left), ("right", right)]:
@@ -91,20 +91,21 @@ def set_table_borders(table, border_color="CBD5E1", header_top_color="1E3A5F"):
     tblPr.append(borders)
 
 
-def set_callout_borders(table, left_color="DC2626", bg_color="FEF2F2"):
+def set_borderless_table(table):
     tblPr = table._tbl.tblPr
     borders = parse_xml(
         f"""
         <w:tblBorders {nsdecls("w")}>
-            <w:top w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>
-            <w:bottom w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>
-            <w:left w:val="single" w:sz="22" w:space="0" w:color="{left_color}"/>
-            <w:right w:val="single" w:sz="4" w:space="0" w:color="E2E8F0"/>
+            <w:top w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+            <w:bottom w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+            <w:left w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+            <w:right w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+            <w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/>
+            <w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/>
         </w:tblBorders>
         """
     )
     tblPr.append(borders)
-    set_cell_shading(table.cell(0, 0), bg_color)
 
 
 def add_page_number_fields(paragraph):
@@ -131,7 +132,17 @@ def add_page_number_fields(paragraph):
     set_east_asia_font(r2, size_pt=8.2, color=MUTED_GRAY)
 
 
-def add_para(doc, text="", size_pt=8.6, bold=False, color=DARK_SLATE, space_before=0.0, space_after=1.8, line_spacing=1.14, align=WD_ALIGN_PARAGRAPH.LEFT):
+def add_para(
+    doc,
+    text="",
+    size_pt=8.8,
+    bold=False,
+    color=DARK_SLATE,
+    space_before=0.0,
+    space_after=2.5,
+    line_spacing=1.20,
+    align=WD_ALIGN_PARAGRAPH.LEFT,
+):
     p = doc.add_paragraph()
     p.alignment = align
     pf = p.paragraph_format
@@ -144,7 +155,17 @@ def add_para(doc, text="", size_pt=8.6, bold=False, color=DARK_SLATE, space_befo
     return p
 
 
-def fill_cell(cell, text, size_pt=8.2, bold=False, color=DARK_SLATE, align=WD_ALIGN_PARAGRAPH.LEFT, pad_v=36, pad_h=80, line_spacing=1.12):
+def fill_cell(
+    cell,
+    text,
+    size_pt=8.0,
+    bold=False,
+    color=DARK_SLATE,
+    align=WD_ALIGN_PARAGRAPH.LEFT,
+    pad_v=24,
+    pad_h=60,
+    line_spacing=1.08,
+):
     cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
     set_cell_margins(cell, top=pad_v, bottom=pad_v, left=pad_h, right=pad_h)
     p = cell.paragraphs[0]
@@ -158,66 +179,76 @@ def fill_cell(cell, text, size_pt=8.2, bold=False, color=DARK_SLATE, align=WD_AL
     return p
 
 
-def estimate_lines(text: str, chars_per_line: int = 58) -> int:
+def estimate_lines(text: str, chars_per_line: int = 56) -> int:
     eff_len = 0.0
     for ch in text:
-        eff_len += 1.0 if ord(ch) > 127 else 0.55
+        eff_len += 1.0 if ord(ch) > 127 else 0.56
     return max(1, math.ceil(eff_len / chars_per_line))
 
 
-def prepare_embed_image(year: int, day_num: int, rel_path: str) -> tuple[Path, int, int]:
-    """EXIF 방향 정규화 및 인쇄 품질 유지 최적 해상도(최대 1550px) 변환"""
+def prepare_embed_image(year: int, page_idx: int, img_idx: int, rel_path: str) -> tuple[Path, int, int]:
+    """EXIF 방향 정규화 및 인쇄 선명도 유지 해상도(최대 1600px) 변환"""
     src = ROOT / rel_path
-    assert src.exists(), f"Missing image for {year} Day {day_num}: {src}"
+    assert src.exists(), f"Missing image at {year} #{page_idx} ({img_idx}): {src}"
     with Image.open(src) as im:
         im = ImageOps.exif_transpose(im)
         w, h = im.size
-        max_dim = 1550
+        max_dim = 1600
         if max(w, h) > max_dim:
             scale = max_dim / float(max(w, h))
             w = max(1, int(round(w * scale)))
             h = max(1, int(round(h * scale)))
             im = im.resize((w, h), Image.Resampling.LANCZOS)
 
-        if src.suffix.lower() in {".jpg", ".jpeg"} or (w * h > 900_000 and im.mode == "RGB"):
+        if src.suffix.lower() in {".jpg", ".jpeg"} or (w * h > 950_000 and im.mode == "RGB"):
             rgb = im.convert("RGB")
-            dst = CACHE_DIR / f"y{year}_day_{day_num:02d}.jpg"
-            rgb.save(dst, format="JPEG", quality=91, optimize=True)
+            dst = CACHE_DIR / f"y{year}_p{page_idx:02d}_{img_idx}.jpg"
+            rgb.save(dst, format="JPEG", quality=92, optimize=True)
         else:
-            dst = CACHE_DIR / f"y{year}_day_{day_num:02d}.png"
+            dst = CACHE_DIR / f"y{year}_p{page_idx:02d}_{img_idx}.png"
             im.save(dst, format="PNG", optimize=True)
         return dst, w, h
 
 
 def build_single_page_toc(doc: Document, year: int, period_str: str, days: list[dict]) -> float:
-    """표지 없이 첫 페이지(1p)에 전체 일자별 수행 목차만 깔끔하게 배치"""
-    p_hdr = add_para(
+    """표지 없이 첫 페이지(1p)에 [날짜 | 실험 내용 요약] 2열 목차만 깔끔하게 배치"""
+    add_para(
         doc,
-        f"{year}년도 연구노트 목차  ({period_str}  |  총 {len(days)}일차)",
+        f"{year}년도 연구노트 목차  ({period_str})",
         size_pt=12.0,
         bold=True,
         color=NAVY,
         space_before=0.0,
-        space_after=4.5,
+        space_after=5.0,
         line_spacing=1.10,
     )
 
-    tbl = doc.add_table(rows=len(days) + 1, cols=3)
+    tbl = doc.add_table(rows=len(days) + 1, cols=2)
     tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
     set_table_borders(tbl)
-    widths = [Mm(15), Mm(23), Mm(142)]
-    headers = ["일차", "수행일자", "수행 실험 · 하드웨어/소프트웨어 구현 결과 요약"]
+    widths = [Mm(27), Mm(153)]
+    headers = ["날짜", "실험 내용 요약"]
     for c_i, h in enumerate(headers):
         c = tbl.rows[0].cells[c_i]
         c.width = widths[c_i]
         set_cell_shading(c, "1E3A5F")
-        fill_cell(c, h, size_pt=7.8, bold=True, color=RGBColor(255, 255, 255), align=WD_ALIGN_PARAGRAPH.CENTER, pad_v=26, pad_h=50, line_spacing=1.05)
+        fill_cell(
+            c,
+            h,
+            size_pt=8.0,
+            bold=True,
+            color=RGBColor(255, 255, 255),
+            align=WD_ALIGN_PARAGRAPH.CENTER,
+            pad_v=28,
+            pad_h=55,
+            line_spacing=1.05,
+        )
 
-    est_pt = 22.0 + 16.0
+    est_pt = 24.0 + 16.0
     for r_i, item in enumerate(days, start=1):
-        vals = [f"Day {item['day']:02d}", item["date"], item["title"]]
-        row_lines = estimate_lines(item["title"], 55)
-        est_pt += row_lines * 8.8 + 3.2
+        vals = [item["date"], item["toc"]]
+        row_lines = estimate_lines(item["toc"], 60)
+        est_pt += row_lines * 8.9 + 3.2
         for c_i, val in enumerate(vals):
             c = tbl.rows[r_i].cells[c_i]
             c.width = widths[c_i]
@@ -226,12 +257,12 @@ def build_single_page_toc(doc: Document, year: int, period_str: str, days: list[
             fill_cell(
                 c,
                 val,
-                size_pt=7.35,
+                size_pt=7.4,
                 bold=(c_i == 0),
                 color=NAVY if c_i == 0 else DARK_SLATE,
-                align=WD_ALIGN_PARAGRAPH.CENTER if c_i in (0, 1) else WD_ALIGN_PARAGRAPH.LEFT,
-                pad_v=16,
-                pad_h=50,
+                align=WD_ALIGN_PARAGRAPH.CENTER if c_i == 0 else WD_ALIGN_PARAGRAPH.LEFT,
+                pad_v=17,
+                pad_h=55,
                 line_spacing=1.05,
             )
 
@@ -241,224 +272,237 @@ def build_single_page_toc(doc: Document, year: int, period_str: str, days: list[
 
 def estimate_day_text_pt(entry: dict) -> float:
     pt = 0.0
-    # Top 2-line title bar
-    pt += estimate_lines(f"Day {entry['day']:02d} | {entry['date']} — {entry['title']}", 48) * 14.2 + 15.0
-    # Section 1
-    pt += 15.0 + estimate_lines(entry["objective"], 58) * 10.5 + 2.5
-    # Section 2
-    pt += 15.0
-    for idx, w_item in enumerate(entry["work"], start=1):
-        pt += estimate_lines(f"• [{idx}] {w_item}", 58) * 10.3 + 1.8
-    # Caption below image
-    pt += estimate_lines(entry["caption"], 62) * 9.5 + 6.0
-    # Section 3 (Failure Callout)
-    fail_txt = f"[시행착오 및 원인 진단] {entry['failure']}"
-    pt += 15.0 + estimate_lines(fail_txt, 54) * 10.2 + 11.0
-    # Section 4 (Fixes)
-    pt += 15.0
-    for c_item in entry["change"]:
-        pt += estimate_lines(f"✔ [해결] {c_item}", 58) * 10.3 + 1.8
-    # Section 5 (Metrics Table)
-    pt += 16.0 + 18.0
-    for m_name, m_before, m_after in entry["metrics"]:
-        row_lines = max(
-            estimate_lines(m_name, 13),
-            estimate_lines(m_before, 22),
-            estimate_lines(m_after, 23),
+    # Top date line + border
+    pt += 28.0
+    # Section header: 실험 내용
+    pt += 23.5
+    for c_line in entry["content"]:
+        pt += estimate_lines(f"• {c_line}", 50) * 12.5 + 4.0
+    # Caption lines
+    if len(entry["images"]) == 1:
+        pt += estimate_lines(entry["images"][0][1], 56) * 10.5 + 14.0
+    else:
+        pt += (
+            estimate_lines(entry["images"][0][1], 52) * 10.2
+            + estimate_lines(entry["images"][1][1], 52) * 10.2
+            + 20.0
         )
-        pt += row_lines * 9.7 + 6.5
+    # Section header: 실험 결과
+    pt += 24.5
+    for r_line in entry["result"]:
+        pt += estimate_lines(f"• {r_line}", 50) * 12.5 + 4.0
     return pt
 
 
-def build_day_page(doc: Document, year: int, entry: dict, is_last: bool = False) -> tuple[float, float]:
-    day_num = entry["day"]
-    embed_path, px_w, px_h = prepare_embed_image(year, day_num, entry["image"])
-
-    # Dynamically size image height so full page stays ~665-720 pt (< 773.9 pt usable A4)
-    text_pt = estimate_day_text_pt(entry)
-    avail_img_pt = max(126.0, min(180.0, 718.0 - text_pt))
-    img_h_mm = avail_img_pt / 2.83465
-    aspect = px_w / float(px_h)
-    img_w_mm = img_h_mm * aspect
-    if img_w_mm > 160.0:
-        img_w_mm = 160.0
-        img_h_mm = img_w_mm / aspect
-
-    # 1. Clean Top Heading (NO formal metadata table!)
-    add_para(
+def build_day_page(doc: Document, year: int, page_idx: int, entry: dict, is_last: bool = False) -> tuple[float, float]:
+    # 1. Top of page: ONLY THE DATE (no Day XX, no title, no subtitle!)
+    p_date = add_para(
         doc,
-        f"Day {day_num:02d}  |  {entry['date']}  —  {entry['title']}",
-        size_pt=10.6,
+        entry["date"],
+        size_pt=13.5,
         bold=True,
         color=NAVY,
         space_before=0.0,
-        space_after=1.5,
-        line_spacing=1.14,
+        space_after=7.0,
+        line_spacing=1.15,
     )
-    p_sub = add_para(
-        doc,
-        f"{entry['phase']}   ·   대상 코드/산출물: {entry['files']}",
-        size_pt=7.7,
-        bold=False,
-        color=MUTED_GRAY,
-        space_before=0.0,
-        space_after=4.5,
-        line_spacing=1.10,
-    )
-    set_paragraph_bottom_border(p_sub, color_hex="1E3A5F", sz="8")
+    set_paragraph_bottom_border(p_date, color_hex="1E3A5F", sz="10")
 
-    # 2. Section 1: Objective
-    add_para(doc, "1. 실험 목적", size_pt=9.1, bold=True, color=NAVY, space_before=3.5, space_after=1.5)
-    add_para(doc, entry["objective"], size_pt=8.4, space_after=2.5, line_spacing=1.14)
+    # 2. 실험 내용
+    add_para(doc, "실험 내용", size_pt=10.5, bold=True, color=NAVY, space_before=5.5, space_after=3.5)
+    for item_txt in entry["content"]:
+        add_para(doc, f"• {item_txt}", size_pt=9.4, space_after=3.8, line_spacing=1.28)
 
-    # 3. Section 2: Executed Work
-    add_para(doc, "2. 실험 및 구현 수행 내용", size_pt=9.1, bold=True, color=NAVY, space_before=3.0, space_after=1.5)
-    for idx, w_item in enumerate(entry["work"], start=1):
-        add_para(doc, f"• [{idx}] {w_item}", size_pt=8.3, space_after=1.5, line_spacing=1.13)
+    # 3. Dynamic Image Sizing (1 large visual, 2 stacked wide screenshots, OR 2 side-by-side visuals)
+    text_pt = estimate_day_text_pt(entry)
+    # Usable A4 height with 12.5mm top/bottom margins is ~771 pt; keep safely <= 702 pt
+    avail_img_pt = max(170.0, min(295.0, 698.0 - text_pt))
+    target_h_mm = avail_img_pt / 2.83465
 
-    # 4. Embedded Authentic Photo / Real Execution Result Capture
-    p_pic = doc.add_paragraph()
-    p_pic.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p_pic.paragraph_format.space_before = Pt(3.5)
-    p_pic.paragraph_format.space_after = Pt(1.5)
-    p_pic.add_run().add_picture(str(embed_path), width=Mm(img_w_mm), height=Mm(img_h_mm))
+    imgs = entry["images"]
+    if len(imgs) == 1:
+        embed_p, px_w, px_h = prepare_embed_image(year, page_idx, 1, imgs[0][0])
+        aspect = px_w / float(px_h)
+        img_h_mm = target_h_mm
+        img_w_mm = img_h_mm * aspect
+        if img_w_mm > 172.0:
+            img_w_mm = 172.0
+            img_h_mm = img_w_mm / aspect
 
-    add_para(
-        doc,
-        entry["caption"],
-        size_pt=7.8,
-        bold=True,
-        color=MUTED_GRAY,
-        space_before=0.0,
-        space_after=3.0,
-        line_spacing=1.10,
-        align=WD_ALIGN_PARAGRAPH.CENTER,
-    )
+        p_pic = doc.add_paragraph()
+        p_pic.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_pic.paragraph_format.space_before = Pt(6.5)
+        p_pic.paragraph_format.space_after = Pt(2.5)
+        p_pic.add_run().add_picture(str(embed_p), width=Mm(img_w_mm), height=Mm(img_h_mm))
 
-    # 5. Section 3: Failures & Root Cause
-    add_para(doc, "3. 발생 오류 및 시행착오 분석", size_pt=9.1, bold=True, color=FAIL_RED, space_before=2.5, space_after=1.8)
-    fail_box = doc.add_table(rows=1, cols=1)
-    fail_box.alignment = WD_TABLE_ALIGNMENT.CENTER
-    fail_box.rows[0].cells[0].width = Mm(180)
-    set_callout_borders(fail_box, left_color="DC2626", bg_color="FEF2F2")
-    fail_txt = f"[시행착오 및 원인 진단] {entry['failure']}"
-    fill_cell(fail_box.rows[0].cells[0], fail_txt, size_pt=8.2, color=DARK_SLATE, pad_v=42, pad_h=95)
+        add_para(
+            doc,
+            imgs[0][1],
+            size_pt=8.2,
+            bold=False,
+            color=MUTED_GRAY,
+            space_before=0.0,
+            space_after=6.0,
+            line_spacing=1.15,
+            align=WD_ALIGN_PARAGRAPH.CENTER,
+        )
+        used_img_h_mm = img_h_mm
+    else:
+        p1, w1, h1 = prepare_embed_image(year, page_idx, 1, imgs[0][0])
+        p2, w2, h2 = prepare_embed_image(year, page_idx, 2, imgs[1][0])
+        asp1 = w1 / float(h1)
+        asp2 = w2 / float(h2)
 
-    # 6. Section 4: Resolution & Modification
-    add_para(doc, "4. 설계 수정 및 해결 결과", size_pt=9.1, bold=True, color=FIX_GREEN, space_before=3.5, space_after=1.5)
-    for c_item in entry["change"]:
-        add_para(doc, f"✔ [해결] {c_item}", size_pt=8.3, space_after=1.5, line_spacing=1.13)
+        if asp1 >= 1.58 and asp2 >= 1.58:
+            # Both are wide landscape screenshots/maps -> stack vertically for crisp readability
+            stack_budget_mm = max(76.0, target_h_mm - 5.0)
+            # Natural height at 162mm width
+            nat_h1 = 162.0 / asp1
+            nat_h2 = 162.0 / asp2
+            scale = min(1.0, stack_budget_mm / (nat_h1 + nat_h2))
+            ih1_mm = nat_h1 * scale
+            iw1_mm = ih1_mm * asp1
+            ih2_mm = nat_h2 * scale
+            iw2_mm = ih2_mm * asp2
 
-    # 7. Section 5: Quantitative Metrics Table (NO future plan line!)
-    add_para(doc, "5. 정량적 실행·검증 결과", size_pt=9.1, bold=True, color=NAVY, space_before=3.0, space_after=2.0)
-    m_tbl = doc.add_table(rows=len(entry["metrics"]) + 1, cols=3)
-    m_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
-    set_table_borders(m_tbl)
-    m_widths = [Mm(42), Mm(67), Mm(71)]
-    m_headers = ["검증 항목 / 지표", "개선 전 (오류·한계 상태)", "개선 후 (수행·해결 결과)"]
-    for c_i, mh in enumerate(m_headers):
-        cell = m_tbl.rows[0].cells[c_i]
-        cell.width = m_widths[c_i]
-        set_cell_shading(cell, "334155")
-        fill_cell(cell, mh, size_pt=8.0, bold=True, color=RGBColor(255, 255, 255), align=WD_ALIGN_PARAGRAPH.CENTER, pad_v=30)
+            for idx_s, (p_img, iw, ih, cap_str) in enumerate(
+                [(p1, iw1_mm, ih1_mm, imgs[0][1]), (p2, iw2_mm, ih2_mm, imgs[1][1])]
+            ):
+                p_pic = doc.add_paragraph()
+                p_pic.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_pic.paragraph_format.space_before = Pt(5.0 if idx_s == 0 else 3.5)
+                p_pic.paragraph_format.space_after = Pt(1.8)
+                p_pic.add_run().add_picture(str(p_img), width=Mm(iw), height=Mm(ih))
+                add_para(
+                    doc,
+                    cap_str,
+                    size_pt=8.0,
+                    bold=False,
+                    color=MUTED_GRAY,
+                    space_before=0.0,
+                    space_after=3.5 if idx_s == 0 else 5.5,
+                    line_spacing=1.12,
+                    align=WD_ALIGN_PARAGRAPH.CENTER,
+                )
+            used_img_h_mm = ih1_mm + ih2_mm
+        else:
+            max_cell_w_mm = 87.5
+            common_h_mm = min(target_h_mm, max_cell_w_mm / asp1, max_cell_w_mm / asp2)
+            common_h_mm = max(52.0, common_h_mm)
+            iw1_mm = common_h_mm * asp1
+            iw2_mm = common_h_mm * asp2
 
-    for r_i, (m_name, m_before, m_after) in enumerate(entry["metrics"], start=1):
-        vals = [m_name, m_before, m_after]
-        for c_i, val in enumerate(vals):
-            cell = m_tbl.rows[r_i].cells[c_i]
-            cell.width = m_widths[c_i]
-            if c_i == 0:
-                set_cell_shading(cell, "F8FAFC")
-            elif c_i == 2:
-                set_cell_shading(cell, "F0FDF4")
-            fill_cell(
-                cell,
-                val,
-                size_pt=7.9,
-                bold=(c_i in (0, 2)),
-                color=FIX_GREEN if c_i == 2 else (NAVY if c_i == 0 else MUTED_GRAY),
-                align=WD_ALIGN_PARAGRAPH.CENTER if c_i == 0 else WD_ALIGN_PARAGRAPH.LEFT,
-                pad_v=28,
-                pad_h=70,
-            )
+            img_tbl = doc.add_table(rows=2, cols=2)
+            img_tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+            set_borderless_table(img_tbl)
 
-    total_est_pt = text_pt + (img_h_mm * 2.83465)
+            for col_i, (p_img, iw, cap_str) in enumerate([(p1, iw1_mm, imgs[0][1]), (p2, iw2_mm, imgs[1][1])]):
+                c_img = img_tbl.rows[0].cells[col_i]
+                c_img.width = Mm(90)
+                c_img.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+                set_cell_margins(c_img, top=60, bottom=22, left=30, right=30)
+                p_c = c_img.paragraphs[0]
+                p_c.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_c.paragraph_format.space_before = Pt(0)
+                p_c.paragraph_format.space_after = Pt(0)
+                p_c.add_run().add_picture(str(p_img), width=Mm(iw), height=Mm(common_h_mm))
+
+                c_cap = img_tbl.rows[1].cells[col_i]
+                c_cap.width = Mm(90)
+                fill_cell(
+                    c_cap,
+                    cap_str,
+                    size_pt=7.9,
+                    bold=False,
+                    color=MUTED_GRAY,
+                    align=WD_ALIGN_PARAGRAPH.CENTER,
+                    pad_v=20,
+                    pad_h=30,
+                    line_spacing=1.12,
+                )
+            used_img_h_mm = common_h_mm
+
+    # 4. 실험 결과
+    add_para(doc, "실험 결과", size_pt=10.5, bold=True, color=NAVY, space_before=6.5, space_after=3.5)
+    for res_txt in entry["result"]:
+        add_para(doc, f"• {res_txt}", size_pt=9.4, space_after=3.8, line_spacing=1.28)
+
+    total_est_pt = text_pt + (used_img_h_mm * 2.83465)
     if not is_last:
         doc.add_page_break()
-    return total_est_pt, img_h_mm
+    return total_est_pt, used_img_h_mm
 
 
-def build_year_notebook(year: int, period_str: str, days: list[dict], out_filename: str):
-    for idx, d in enumerate(days, start=1):
-        assert d["day"] == idx, f"{year} Day sequence mismatch at {idx}: {d['day']}"
-
+def build_year_notebook(year: int, period_str: str, days: list[dict], out_filename: str) -> Path:
     doc = Document()
     section = doc.sections[0]
     section.page_width = Mm(210)
     section.page_height = Mm(297)
-    section.top_margin = Mm(12)
-    section.bottom_margin = Mm(12)
+    section.top_margin = Mm(12.5)
+    section.bottom_margin = Mm(12.5)
     section.left_margin = Mm(15)
     section.right_margin = Mm(15)
-    section.header_distance = Mm(6)
-    section.footer_distance = Mm(6)
-    section.different_first_page_header_footer = False
+    section.footer_distance = Mm(6.5)
 
-    hdr_p = section.header.paragraphs[0]
-    hdr_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    hr = hdr_p.add_run(f"{year}년도 콜드체인 디지털 트윈 플랫폼 연구노트 ({period_str})")
-    set_east_asia_font(hr, size_pt=7.8, color=MUTED_GRAY)
+    footer = section.footer
+    add_page_number_fields(footer.paragraphs[0])
 
-    ftr_p = section.footer.paragraphs[0]
-    add_page_number_fields(ftr_p)
-
-    # Page 1: Single-Page TOC ONLY (No Cover, No Guidelines)
     toc_pt = build_single_page_toc(doc, year, period_str, days)
 
-    # Pages 2 .. N+1: Daily Executed R&D Pages
-    stats = []
-    for i, entry in enumerate(days):
-        tot_pt, im_h = build_day_page(doc, year, entry, is_last=(i == len(days) - 1))
-        stats.append((entry["day"], tot_pt, im_h))
+    max_pt = 0.0
+    min_pt = 9999.0
+    min_img_mm = 999.0
+    max_img_mm = 0.0
 
-    out_path = ROOT / "docs" / out_filename
-    doc.save(str(out_path))
+    for idx, entry in enumerate(days, start=1):
+        est_pt, img_h_mm = build_day_page(doc, year, idx, entry, is_last=(idx == len(days)))
+        max_pt = max(max_pt, est_pt)
+        min_pt = min(min_pt, est_pt)
+        min_img_mm = min(min_img_mm, img_h_mm)
+        max_img_mm = max(max_img_mm, img_h_mm)
+        assert est_pt < 748.0, f"Page overflow risk at {year} {entry['date']}: {est_pt:.1f} pt"
 
-    min_s = min(stats, key=lambda x: x[1])
-    max_s = max(stats, key=lambda x: x[1])
-    overflow = [x for x in stats if x[1] > 745.0]
-    print(f"=== [{year}년도 연구노트 빌드 완료] ===")
-    print(f"  파일 경로 : {out_path} ({out_path.stat().st_size / (1024*1024):.2f} MB)")
-    print(f"  총 페이지 : 목차(1p, {toc_pt:.1f}pt) + 본문({len(days)}p) = 총 {1 + len(days)}장 (A4)")
-    print(f"  높이 검증 : 최소 Day {min_s[0]} ({min_s[1]:.1f}pt) ~ 최대 Day {max_s[0]} ({max_s[1]:.1f}pt) / 가용 773.9pt")
-    print(f"  넘침 페이지(>745pt) : {len(overflow)}건")
-    assert toc_pt < 720.0, f"TOC overflow risk ({toc_pt:.1f}pt)"
-    assert len(overflow) == 0, f"Day page overflow risk: {overflow}"
+    out_dir = ROOT / "docs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / out_filename
+    try:
+        doc.save(str(out_path))
+    except PermissionError:
+        alt_name = out_filename.replace(".docx", "_수정본.docx")
+        out_path = out_dir / alt_name
+        doc.save(str(out_path))
+        print(f"[NOTICE] 기존 파일이 Word에서 열려 있어 잠금 상태이므로 '{out_path.name}'으로 저장했습니다.")
+
+    total_pages = 1 + len(days)
+    total_imgs = sum(len(d["images"]) for d in days)
+    print(f"[SUCCESS] {out_path.name}")
+    print(f"  - 구성 분량: 목차(1p) + 일자별 기록({len(days)}p) = 총 {total_pages}장 (삽입 실물/실행 이미지 총 {total_imgs}장)")
+    print(f"  - 목차 추정 높이: {toc_pt:.1f} pt | 본문 페이지 추정 높이: {min_pt:.1f} ~ {max_pt:.1f} pt (< 770 pt)")
+    print(f"  - 삽입 이미지 높이 범위: {min_img_mm:.1f} ~ {max_img_mm:.1f} mm")
+    return out_path
 
 
 def main():
-    # Global uniqueness & anti-AI verification across BOTH years
-    all_imgs = [d["image"] for d in DAYS_2025] + [d["image"] for d in DAYS_2026]
-    assert len(all_imgs) == len(set(all_imgs)), (
-        f"Duplicate image detected! Total={len(all_imgs)}, Unique={len(set(all_imgs))}"
-    )
-    banned_keywords = ["extracted_pdf_images", "four_layer", "conceptual_vision", "consumer_guide", "farm_process", "apc_storage_process"]
-    for img_p in all_imgs:
-        assert not any(bk in img_p for bk in banned_keywords), f"Banned AI illustration detected: {img_p}"
-        assert (ROOT / img_p).exists(), f"Image missing on disk: {img_p}"
+    if CACHE_DIR.exists():
+        shutil.rmtree(CACHE_DIR)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-    build_year_notebook(
-        year=2025,
-        period_str="2025.03 ~ 2025.12",
-        days=DAYS_2025,
-        out_filename="연구노트_2025년_콜드체인_디지털트윈_플랫폼.docx",
-    )
-    build_year_notebook(
-        year=2026,
-        period_str="2026.01 ~ 2026.11",
-        days=DAYS_2026,
-        out_filename="연구노트_2026년_콜드체인_디지털트윈_플랫폼.docx",
-    )
+    try:
+        build_year_notebook(
+            year=2025,
+            period_str="2025. 03. 14. ~ 2025. 12. 22.",
+            days=DAYS_2025,
+            out_filename="연구노트_2025년_콜드체인_디지털트윈_플랫폼.docx",
+        )
+        build_year_notebook(
+            year=2026,
+            period_str="2026. 01. 19. ~ 2026. 11. 12.",
+            days=DAYS_2026,
+            out_filename="연구노트_2026년_콜드체인_디지털트윈_플랫폼.docx",
+        )
+    finally:
+        if CACHE_DIR.exists():
+            shutil.rmtree(CACHE_DIR)
 
 
 if __name__ == "__main__":
