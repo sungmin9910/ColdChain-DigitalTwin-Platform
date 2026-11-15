@@ -1060,7 +1060,7 @@ with tab3:
             pass
         return None
 
-    # 1) 원산지(A00) 좌표
+    # 1) 원산지(A00) 좌표 (실측 1구간 주행 GPS가 있으면 실제 출발 좌표를 최우선 사용하고, 없을 때만 우편번호 대표 좌표 폴백)
     ac_code = str(latest.get("AC", ""))
     origin_coords = {
         "55630": (35.647, 127.521),
@@ -1070,9 +1070,10 @@ with tab3:
         "55634": (35.707, 127.481),
         "55635": (35.696, 127.575),
     }
-    origin_pt = origin_coords.get(ac_code)
-    if not origin_pt and leg1_sensor_pts:
+    if leg1_sensor_pts:
         origin_pt = (float(leg1_sensor_pts[0]["lat"]), float(leg1_sensor_pts[0]["lng"]))
+    else:
+        origin_pt = origin_coords.get(ac_code)
 
     # 2) 단계별 체크포인트 테이블 데이터 구성 & APC 거점 / 도착점 좌표 추출
     map_data = []

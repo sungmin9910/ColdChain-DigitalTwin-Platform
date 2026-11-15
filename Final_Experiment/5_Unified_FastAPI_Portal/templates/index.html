@@ -1295,9 +1295,11 @@
       }
 
       const acCode = String(s.AC || "");
-      let originPt = ORIGIN_COORDS[acCode] || null;
-      if (!originPt && leg1Pts.length > 0) {
+      let originPt = null;
+      if (leg1Pts.length > 0) {
         originPt = [Number(leg1Pts[0].lat), Number(leg1Pts[0].lng)];
+      } else {
+        originPt = ORIGIN_COORDS[acCode] || null;
       }
 
       const mapTableRows = [];
