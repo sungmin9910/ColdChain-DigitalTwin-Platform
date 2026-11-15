@@ -44,3 +44,8 @@ scratch/target_drc_check.json
 scratch/gerber_test/
 scratch/*.bin
 scratch/*.jsonl
+
+# Tunnel binary and runtime logs
+cloudflared.exe
+cloudflared_live.log
+PUBLIC_URL.txt
