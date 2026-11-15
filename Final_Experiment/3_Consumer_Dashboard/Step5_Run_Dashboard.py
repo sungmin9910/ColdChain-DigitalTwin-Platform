@@ -648,19 +648,305 @@ query_params = st.query_params
 fm_id = query_params.get("FmID", None)
 url_grade = query_params.get("grade", None)
 
-# 1. 랜딩 페이지 (FmID가 없을 때)
+# 1. 랜딩 페이지 및 24/7 클라우드 통합 포털 (FmID가 없을 때 또는 mode=admin일 때)
 if not fm_id:
     st.markdown('<div class="landing-container">', unsafe_allow_html=True)
     st.markdown(f'<h1 class="hero-title" style="background:none; -webkit-text-fill-color:initial; color:#2ecc71;">{LANG_DICT[st.session_state.lang]["landing_title"]}</h1>', unsafe_allow_html=True)
     st.markdown(f'<p class="hero-subtitle">{LANG_DICT[st.session_state.lang]["landing_subtitle"]}</p>', unsafe_allow_html=True)
     
-    # 가이드 이미지 표시 (상대 경로로 수정)
     guide_img_path = os.path.join(os.path.dirname(__file__), "consumer_guide.png")
     if os.path.exists(guide_img_path):
         st.image(guide_img_path, use_container_width=True)
     
     st.info(LANG_DICT[st.session_state.lang]["landing_guide"])
     st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- 24/7 상시 클라우드 현장 작업자/관리자 포털 (PC 전원 OFF 상태에서도 스마트폰에서 A00/A12 생성 가능) ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    with st.expander("🔐 현장 작업자 / 관리자 통합 포털 (농가 A00 QR 생성 · APC A12 유색 QR 생성 · 이력 조회)", expanded=(query_params.get("mode") == "admin")):
+        import random
+        import hashlib
+        from urllib.parse import urlencode, urlparse, parse_qs
+        from qrcode.image.styledpil import StyledPilImage
+        from qrcode.image.styles.moduledrawers import RoundedModuleDrawer
+
+        STREAMLIT_BASE_URL = "https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/"
+        STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+        FARM_ICONS = {
+            "Apples": "apple.png",
+            "Pears": "pear.png",
+            "Peaches": "peach.png",
+            "Tangerines": "tangerine.png",
+            "Melons": "koreanmelon.png",
+        }
+        GRADE_ICONS = {
+            "Apples": ["apple4.png", "apple3.png", "apple2.png"],
+            "Pears": ["pear4.png", "pear3.png", "pear2.png"],
+            "Peaches": ["peach4.png", "peach3.png", "peach2.png"],
+            "Tangerines": ["tangerine4.png", "tangerine3.png", "tangerine2.png"],
+            "Melons": ["koreanmelon4.png", "koreanmelon3.png", "koreanmelon2.png"],
+        }
+        VARIETY_OPTIONS = {
+            "Apples": ["Fuji Apple", "Hongro Apple", "Gamhong Apple"],
+            "Pears": ["Shingo Pear", "Wonhwang Pear", "Gamcheon Pear"],
+            "Peaches": ["mibaegdo", "cheonjungdobaegdo", "yumyeongdo"],
+            "Tangerines": ["eunju tangerine", "cheong tangerine", "mandarin"],
+            "Melons": ["net melon", "baegja melon", "cham-oe"],
+        }
+
+        def _make_portal_qr_bytes(qr_url: str, icon_name: str = None, rounded: bool = True) -> bytes:
+            qr_obj = qrcode.QRCode(
+                version=4,
+                error_correction=qrcode.constants.ERROR_CORRECT_H,
+                box_size=10,
+                border=4,
+            )
+            qr_obj.add_data(qr_url)
+            qr_obj.make(fit=True)
+            if rounded:
+                q_img = qr_obj.make_image(image_factory=StyledPilImage, module_drawer=RoundedModuleDrawer()).convert("RGBA")
+            else:
+                q_img = qr_obj.make_image(fill_color="black", back_color="white").convert("RGBA")
+            if icon_name:
+                ic_path = os.path.join(STATIC_DIR, icon_name)
+                if os.path.exists(ic_path):
+                    try:
+                        l_size = int(q_img.size[0] * 0.25)
+                        logo_im = Image.open(ic_path).convert("RGBA").resize((l_size, l_size), Image.LANCZOS)
+                        pos = ((q_img.size[0] - logo_im.size[0]) // 2, (q_img.size[1] - logo_im.size[1]) // 2)
+                        q_img.paste(logo_im, pos, mask=logo_im)
+                    except Exception:
+                        pass
+            buf_io = io.BytesIO()
+            q_img.save(buf_io, format="PNG")
+            return buf_io.getvalue()
+
+        pin_val = st.text_input("🔑 권한 PIN 번호 입력 (0000: 통합관리자 | 1111: 농가 | 2222: APC)", value="0000", type="password")
+        if pin_val not in ("0000", "1111", "2222"):
+            st.warning("올바른 PIN 번호(0000, 1111, 2222)를 입력하세요.")
+            st.stop()
+
+        portal_tabs = []
+        if pin_val in ("0000", "1111"):
+            portal_tabs.append("🌾 1. 농가 수확·무색 QR 생성 (A00)")
+        if pin_val in ("0000", "2222"):
+            portal_tabs.append("🏭 2. APC 선별·유색 QR 생성 (A12)")
+        portal_tabs.append("🔍 3. 소비자 안심 이력 바로 조회")
+
+        selected_ptab = st.radio("작업 모듈 선택", portal_tabs, horizontal=True)
+        st.markdown("---")
+
+        # [모듈 1] 농가 수확 무색 QR 생성 (A00)
+        if selected_ptab.startswith("🌾"):
+            st.subheader("🌾 농가 수확 정보 등록 및 A00 무색 원본 QR 발급")
+            c1, c2 = st.columns(2)
+            with c1:
+                f_ac = st.selectbox("우편번호 (Area Code, AC)", ["55632", "55630", "55631", "55633", "55634", "55635"])
+                f_frt = st.selectbox("과일 종류 (Fruit Type, FrT)", list(VARIETY_OPTIONS.keys()))
+                f_ct = st.text_input("연락처 (Contact Info, Ct)", value="01012345678")
+                f_hn = st.number_input("수확 횟수 (Harvesting No., HN)", min_value=1, max_value=99, value=1)
+                f_hd = st.date_input("수확 일자 (Harvest Date, HD)", value=datetime.now(timezone(timedelta(hours=9))).date())
+                f_dd = st.date_input("출하 예정일 (Deliver Date, DD)", value=datetime.now(timezone(timedelta(hours=9))).date())
+            with c2:
+                f_fmid = st.text_input("농가 고유 번호 (Farmer ID, FmID)", value="86")
+                f_vt = st.selectbox("품종 (Variety, Vt)", VARIETY_OPTIONS[f_frt])
+                f_mt = st.selectbox("재배 방식 (Farming Method, Mt)", ["Organic", "Pesticide-Free", "Conventional", "Natural"])
+                f_qt = st.number_input("총 수확 수량 (Quantity, Qt)", min_value=1, max_value=99999, value=100)
+                f_std = st.date_input("저온 저장일 (Storage Date, StD)", value=datetime.now(timezone(timedelta(hours=9))).date())
+
+            if st.button("🛡️ DB 저장 (A00) + 무색 농가 QR 생성", use_container_width=True, type="primary"):
+                try:
+                    conn_p = get_db_connection()
+                    cur_p = conn_p.cursor()
+                    cur_p.execute("SET time_zone = '+09:00'")
+                    cur_p.execute("SELECT DATE_FORMAT(NOW(), '%H:%i:%s') as srv_t")
+                    srv_t = cur_p.fetchone()["srv_t"]
+                    hd_full_str = f"{f_hd.strftime('%Y-%m-%d')} {srv_t}"
+                    std_str = f_std.strftime("%Y-%m-%d")
+                    dd_str = f_dd.strftime("%Y-%m-%d")
+
+                    cur_p.execute("""
+                        INSERT INTO qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        "A00", f_ac, str(f_fmid).strip(), f_frt, f_vt, f_ct.strip(),
+                        hd_full_str, dd_str, str(f_qt), f_mt, str(f_hn), std_str, None
+                    ))
+                    conn_p.commit()
+                    conn_p.close()
+
+                    q_params = {
+                        "AC": f_ac, "FmID": str(f_fmid).strip(), "Ct": f_ct.strip(), "FrT": f_frt,
+                        "Vt": f_vt, "HD": hd_full_str, "DD": dd_str, "StD": std_str,
+                        "Mt": f_mt, "HN": str(f_hn), "Qt": str(f_qt),
+                    }
+                    farm_qr_url = f"{STREAMLIT_BASE_URL}?{urlencode(q_params)}"
+                    farm_fn = f"{f_ac}{str(f_fmid).strip()}{f_hd.strftime('%y%m%d')}_QR.png"
+                    st.session_state["last_farm_qr"] = {
+                        "bytes": _make_portal_qr_bytes(farm_qr_url, FARM_ICONS.get(f_frt, "apple.png"), rounded=True),
+                        "filename": farm_fn,
+                        "fmid": str(f_fmid).strip(),
+                        "hd_full": hd_full_str,
+                    }
+                except Exception as ex_f:
+                    st.error(f"❌ 농가 QR 생성 오류: {ex_f}")
+
+            if "last_farm_qr" in st.session_state:
+                lf = st.session_state["last_farm_qr"]
+                st.success(f"✅ A00 DB 저장 완료! (FmID={lf['fmid']}, 수확시각={lf['hd_full']}, Rp=NULL)")
+                st.image(lf["bytes"], caption=f"농가 무색 원본 QR ({lf['filename']})", width=260)
+                st.download_button(
+                    label=f"📥 무색 QR 이미지 다운로드 ({lf['filename']})",
+                    data=lf["bytes"],
+                    file_name=lf["filename"],
+                    mime="image/png",
+                    use_container_width=True,
+                )
+
+        # [모듈 2] APC 선별 및 등급별 유색 QR 자동 생성 (A12)
+        elif selected_ptab.startswith("🏭"):
+            st.subheader("🏭 A12 선별 및 등급 판정 (무색 QR 스캔 / FmID 입력 ➔ 난수 배분 ➔ 유색 QR 자동 생성)")
+            st.caption("기존 APC GUI(Step 3)와 100% 동일하게 DB에서 A11(세척 완료) 데이터를 확인한 뒤 난수로 A/B/C 등급을 나누고 즉시 유색 QR 3종을 생성합니다.")
+
+            # A11 완료 후보 조회
+            a11_candidates = []
+            try:
+                conn_c = get_db_connection()
+                cur_c = conn_c.cursor()
+                cur_c.execute("SELECT FmID, FrT, Vt, Qt, APC_WD FROM qr WHERE Lo = 'A11' AND FmID IS NOT NULL ORDER BY APC_WD DESC, id DESC LIMIT 20")
+                seen_f = set()
+                for rc in cur_c.fetchall():
+                    fid = str(rc["FmID"])
+                    if fid not in seen_f:
+                        seen_f.add(fid)
+                        a11_candidates.append(rc)
+                conn_c.close()
+            except Exception:
+                pass
+
+            col_s1, col_s2 = st.columns([2, 1])
+            with col_s1:
+                raw_scan_in = st.text_input("👉 무색(농가) QR URL 스캔 또는 FmID 숫자(예: 85) 직접 입력", placeholder="예: 85 또는 QR 스캐너로 스캔")
+            with col_s2:
+                cand_opts = ["(직접 입력 사용)"] + [f"FmID {c['FmID']} ({c.get('Vt') or c.get('FrT')}, 수량:{c.get('Qt')})" for c in a11_candidates]
+                sel_cand = st.selectbox("또는 A11(세척완료) DB 목록에서 선택", cand_opts)
+
+            if st.button("⚡ A11 조회 + 난수 등급 배분 + A12 유색 QR 3종 즉시 생성", use_container_width=True, type="primary"):
+                target_fmid = ""
+                if sel_cand != "(직접 입력 사용)":
+                    target_fmid = sel_cand.split(" ")[1].strip()
+                else:
+                    s_raw = raw_scan_in.strip()
+                    if "?" in s_raw or s_raw.startswith("http"):
+                        pq = parse_qs(urlparse(s_raw).query)
+                        target_fmid = (pq.get("FmID") or pq.get("fmid") or [""])[0]
+                    else:
+                        target_fmid = s_raw
+
+                if not target_fmid:
+                    st.error("❌ 조회할 FmID를 입력하거나 목록에서 선택해 주세요.")
+                else:
+                    try:
+                        conn_a = get_db_connection()
+                        cur_a = conn_a.cursor()
+                        cur_a.execute("SET time_zone = '+09:00'")
+                        cur_a.execute("SELECT * FROM qr WHERE FmID = %s AND Lo = 'A11' ORDER BY APC_WD DESC, id DESC LIMIT 1", (target_fmid,))
+                        a11_row = cur_a.fetchone()
+                        if not a11_row:
+                            conn_a.close()
+                            st.session_state.pop("last_apc_qrs", None)
+                            st.error(f"❌ DB에서 A11(세척 완료) 데이터를 찾을 수 없음! (FmID={target_fmid}: 이전 단계 A10 입고 및 A11 세척을 먼저 스캔해 주세요)")
+                        else:
+                            tot_qt = int(a11_row.get("Qt") or 0)
+                            if tot_qt > 0:
+                                def_v = random.randint(1, min(3, tot_qt))
+                                rem_d = tot_qt - def_v
+                                a_v = int(tot_qt * random.uniform(0.78, 0.82))
+                                if a_v > rem_d:
+                                    a_v = rem_d
+                                rem_bc = rem_d - a_v
+                                if rem_bc > 0:
+                                    b_v = random.randint(0, rem_bc)
+                                    c_v = rem_bc - b_v
+                                else:
+                                    b_v, c_v = 0, 0
+                                a_v = tot_qt - (b_v + c_v + def_v)
+                            else:
+                                a_v, b_v, c_v, def_v = 0, 0, 0, 0
+
+                            cur_a.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_now")
+                            srv_now = cur_a.fetchone()["srv_now"]
+
+                            ins_dict = dict(a11_row)
+                            ins_dict.update({
+                                "Lo": "A12",
+                                "AGrade": str(a_v),
+                                "BGrade": str(b_v),
+                                "CGrade": str(c_v),
+                                "DefectRate": str(def_v),
+                                "APC_RT": srv_now,
+                            })
+                            cur_a.execute("SHOW COLUMNS FROM qr")
+                            db_cols = {c["Field"] for c in cur_a.fetchall()}
+                            data_ins = {k: v for k, v in ins_dict.items() if k in db_cols and k != "id"}
+                            cols_s = ", ".join(data_ins.keys())
+                            ph_s = ", ".join([f"%({k})s" for k in data_ins.keys()])
+                            cur_a.execute(f"INSERT INTO qr ({cols_s}) VALUES ({ph_s})", data_ins)
+                            conn_a.commit()
+                            conn_a.close()
+
+                            frt_name = str(a11_row.get("FrT") or "Apples")
+                            ac_val = str(a11_row.get("AC") or "")
+                            g_icons = GRADE_ICONS.get(frt_name, GRADE_ICONS["Apples"])
+                            gen_list = []
+                            for idx_g, (g_kr, g_en, g_cnt) in enumerate([("상", "A", a_v), ("중", "B", b_v), ("하", "C", c_v)]):
+                                g_url = f"{STREAMLIT_BASE_URL}?FmID={target_fmid}&grade={g_kr}&AC={ac_val}&FrT={frt_name}"
+                                g_fn = f"{target_fmid}_{g_en}_QR.png"
+                                gen_list.append({
+                                    "grade_en": g_en,
+                                    "grade_kr": g_kr,
+                                    "count": g_cnt,
+                                    "filename": g_fn,
+                                    "bytes": _make_portal_qr_bytes(g_url, g_icons[idx_g], rounded=False),
+                                })
+                            st.session_state["last_apc_qrs"] = {
+                                "fmid": target_fmid,
+                                "apc_rt": srv_now,
+                                "row": a11_row,
+                                "grades": (a_v, b_v, c_v, def_v, tot_qt),
+                                "qrs": gen_list,
+                            }
+                    except Exception as ex_a:
+                        st.error(f"❌ APC 선별 처리 오류: {ex_a}")
+
+            if "last_apc_qrs" in st.session_state:
+                la = st.session_state["last_apc_qrs"]
+                a_v, b_v, c_v, def_v, tot_qt = la["grades"]
+                st.success(f"✅ A12 선별 DB 저장 및 유색 QR 생성 완료! (FmID={la['fmid']} | 총 {tot_qt}박스 ➔ A:{a_v}, B:{b_v}, C:{c_v}, 결점:{def_v} | 시각: {la['apc_rt']})")
+                q_cols = st.columns(3)
+                for idx_c, q_item in enumerate(la["qrs"]):
+                    with q_cols[idx_c]:
+                        st.markdown(f"**{q_item['grade_en']}등급({q_item['grade_kr']}) QR — {q_item['count']}개**")
+                        st.image(q_item["bytes"], use_container_width=True)
+                        st.download_button(
+                            label=f"📥 {q_item['filename']} 저장",
+                            data=q_item["bytes"],
+                            file_name=q_item["filename"],
+                            mime="image/png",
+                            key=f"dl_apc_{q_item['grade_en']}",
+                            use_container_width=True,
+                        )
+
+        # [모듈 3] 소비자 안심 이력 바로 조회
+        else:
+            st.subheader("🔍 소비자 안심 이력 조회")
+            q_fmid = st.text_input("조회할 농가/배치 번호 (FmID)", value="85")
+            q_grade = st.selectbox("조회할 등급", ["상", "중", "하"])
+            if st.button("🍏 해당 과일 안심 이력 열기", use_container_width=True, type="primary"):
+                st.query_params["FmID"] = q_fmid.strip()
+                st.query_params["grade"] = q_grade
+                st.rerun()
+
     st.stop()
 
 def parse_kst_dt(val):
