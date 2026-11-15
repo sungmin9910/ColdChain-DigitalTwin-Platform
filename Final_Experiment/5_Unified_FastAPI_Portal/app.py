@@ -37,6 +37,8 @@ STREAMLIT_CONSUMER_URL = "https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcup
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STEP1_IMG_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "1_PC_QR_Generators"))
+PORTAL_QR_OUT_DIR = os.path.join(BASE_DIR, "generated_qr")
+os.makedirs(PORTAL_QR_OUT_DIR, exist_ok=True)
 BLOCKCHAIN_FILE = os.path.join(BASE_DIR, "blockchain_ledger.json")
 
 KST = timezone(timedelta(hours=9))
@@ -189,7 +191,7 @@ def save_to_blockchain(data_hash: str, metadata: dict, stage: str):
     with open(BLOCKCHAIN_FILE, "w", encoding="utf-8") as f:
         json.dump(chain_data, f, indent=2, ensure_ascii=False)
 
-def make_qr_base64(qr_url: str, overlay_filename: str = None, rounded: bool = True) -> str:
+def make_qr_base64(qr_url: str, overlay_filename: str = None, rounded: bool = True, save_filename: str = None) -> str:
     qr = qrcode.QRCode(
         version=4,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -213,6 +215,15 @@ def make_qr_base64(qr_url: str, overlay_filename: str = None, rounded: bool = Tr
                 qr_img.paste(logo, pos, mask=logo)
             except Exception as e:
                 print(f"[QR Overlay Warning] {e}")
+
+    if save_filename:
+        try:
+            os.makedirs(PORTAL_QR_OUT_DIR, exist_ok=True)
+            qr_img.save(os.path.join(PORTAL_QR_OUT_DIR, save_filename), format="PNG")
+            if os.path.exists(STEP1_IMG_DIR):
+                qr_img.save(os.path.join(STEP1_IMG_DIR, save_filename), format="PNG")
+        except Exception as e:
+            print(f"[QR File Save Warning] {e}")
 
     buf = io.BytesIO()
     qr_img.save(buf, format="PNG")
@@ -402,7 +413,7 @@ def api_create_farm_qr(req: FarmQRRequest):
     try:
         with conn.cursor() as cur:
             cur.execute("SET time_zone = '+09:00'")
-            cur.execute("SELECT DATE_FORMAT(NOW(), '%%H:%%i:%%s') as cur_time")
+            cur.execute("SELECT DATE_FORMAT(NOW(), '%H:%i:%s') as cur_time")
             srv_time = cur.fetchone()["cur_time"]
             hd_full = f"{req.HD_date} {srv_time}"
 
@@ -430,8 +441,11 @@ def api_create_farm_qr(req: FarmQRRequest):
         integrity_hash = calculate_hash(params)
         save_to_blockchain(integrity_hash, {"FmID": req.FmID, "HD": hd_full}, "A00 (Farm Harvest)")
 
+        # 기존 Step1_Farm_QR_Creator.py와 동일한 파일명 ({AC}{FmID}{YYMMDD}_QR.png) 생성 및 디스크 자동 저장
+        yymmdd = req.HD_date.replace("-", "")[2:8]
+        farm_qr_filename = f"{req.AC}{req.FmID}{yymmdd}_QR.png"
         overlay_icon = FRUIT_IMAGES_FARM.get(req.FrT, "apple.png")
-        qr_b64 = make_qr_base64(qr_url, overlay_filename=overlay_icon, rounded=True)
+        qr_b64 = make_qr_base64(qr_url, overlay_filename=overlay_icon, rounded=True, save_filename=farm_qr_filename)
 
         return {
             "ok": True,
@@ -440,6 +454,11 @@ def api_create_farm_qr(req: FarmQRRequest):
             "hash": integrity_hash,
             "qr_url": qr_url,
             "qr_base64": qr_b64,
+            "saved_filename": farm_qr_filename,
+            "saved_paths": [
+                os.path.join(STEP1_IMG_DIR, farm_qr_filename),
+                os.path.join(PORTAL_QR_OUT_DIR, farm_qr_filename),
+            ],
         }
     finally:
         conn.close()
@@ -462,19 +481,19 @@ def api_apc_scan_qr(req: ApcScanRequest):
         fm_id = raw
 
     if not fm_id:
-        raise HTTPException(status_code=400, detail="스캔된 QR 데이터에서 FmID를 찾을 수 없습니다.")
+        raise HTTPException(status_code=400, detail="QR에서 FmID를 찾을 수 없음")
 
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            # 1순위: A11(세척 완료) 데이터 조회, 없으면 해당 FmID의 가장 최신 데이터 조회
+            # 기존 Step3_Sorting_QR_Creator.py와 100% 동일: 반드시 Lo='A11'(세척 완료) 단계 데이터가 있어야만 조회 및 선별 허용!
             cur.execute("SELECT * FROM qr WHERE FmID = %s AND Lo = 'A11' ORDER BY APC_WD DESC, id DESC LIMIT 1", (fm_id,))
             row = cur.fetchone()
             if not row:
-                cur.execute("SELECT * FROM qr WHERE FmID = %s ORDER BY id DESC LIMIT 1", (fm_id,))
-                row = cur.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail=f"DB에서 FmID={fm_id} 데이터를 찾을 수 없습니다.")
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"DB에서 A11(세척 완료) 데이터를 찾을 수 없음 (FmID={fm_id}: A10 입고 및 A11 세척 단계가 먼저 완료되어야 QR 생성이 가능합니다)"
+                )
 
             for k, v in list(row.items()):
                 if isinstance(v, datetime):
@@ -518,10 +537,11 @@ def api_apc_candidates():
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
+            # 기존 GUI와 동일하게 A11(세척 완료) 데이터가 존재하는 FmID만 후보 목록에 표시
             cur.execute("""
                 SELECT * FROM qr
-                WHERE Lo IN ('A11', 'A10', 'A00') AND FmID IS NOT NULL
-                ORDER BY id DESC
+                WHERE Lo = 'A11' AND FmID IS NOT NULL
+                ORDER BY APC_WD DESC, id DESC
                 LIMIT 20
             """)
             rows = cur.fetchall()
@@ -554,13 +574,17 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
     try:
         with conn.cursor() as cur:
             cur.execute("SET time_zone = '+09:00'")
-            cur.execute("SELECT DATE_FORMAT(NOW(), '%%Y-%%m-%%d %%H:%%i:%%s') as srv_now")
+            cur.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_now")
             srv_now = cur.fetchone()["srv_now"]
 
-            cur.execute("SELECT * FROM qr WHERE FmID = %s ORDER BY id DESC LIMIT 1", (req.FmID,))
+            # 기존 Step3_Sorting_QR_Creator.py와 동일하게 반드시 Lo='A11' 레코드가 존재해야만 A12 생성 허용!
+            cur.execute("SELECT * FROM qr WHERE FmID = %s AND Lo = 'A11' ORDER BY APC_WD DESC, id DESC LIMIT 1", (req.FmID,))
             prev_row = cur.fetchone()
             if not prev_row:
-                raise HTTPException(status_code=404, detail=f"FmID={req.FmID} 원본 데이터를 찾을 수 없습니다.")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"DB에서 A11(세척 완료) 데이터를 찾을 수 없습니다 (FmID={req.FmID}). 이전 단계(A10 입고·A11 세척)가 먼저 완료되어야 유색 QR 생성이 가능합니다."
+                )
 
             data_dict = dict(prev_row)
             data_dict.update({
@@ -594,19 +618,23 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
         )
 
         qrs = []
+        saved_files = []
         for idx, (g_kr, g_en, cnt) in enumerate([
             ("상", "A", req.AGrade),
             ("중", "B", req.BGrade),
             ("하", "C", req.CGrade),
         ]):
             q_url = f"{base_url}/?FmID={req.FmID}&grade={g_kr}&AC={ac}&FrT={fruit}"
-            q_b64 = make_qr_base64(q_url, overlay_filename=grade_icons[idx], rounded=False)
+            qr_filename = f"{req.FmID}_{g_en}_QR.png"
+            q_b64 = make_qr_base64(q_url, overlay_filename=grade_icons[idx], rounded=False, save_filename=qr_filename)
+            saved_files.append(qr_filename)
             qrs.append({
                 "grade_en": g_en,
                 "grade_kr": g_kr,
                 "count": cnt,
                 "qr_url": q_url,
                 "qr_base64": q_b64,
+                "filename": qr_filename,
             })
 
         return {
@@ -615,6 +643,9 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
             "apc_rt": srv_now,
             "hash": integrity_hash,
             "qrs": qrs,
+            "saved_dir_step1": STEP1_IMG_DIR,
+            "saved_dir_portal": PORTAL_QR_OUT_DIR,
+            "saved_files": saved_files,
         }
     finally:
         conn.close()
