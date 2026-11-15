@@ -325,12 +325,11 @@ class FarmQRRequest(BaseModel):
     FrT: str = "Apples"
     Vt: str = "Fuji Apple"
     HD_date: str
-    DD_date: str
     StD_date: str
+    DD_date: str
     Mt: str = "Organic"
     HN: str = "1"
     Qt: str = "50"
-    Rp: str = "GAP"
     target_mode: str = "streamlit"  # "streamlit" (현재 메인) or "fastapi" (차기 메인 전환용)
     portal_base_url: str = ""
 
@@ -344,18 +343,19 @@ def api_create_farm_qr(req: FarmQRRequest):
             srv_time = cur.fetchone()["cur_time"]
             hd_full = f"{req.HD_date} {srv_time}"
 
+            # Rp(Ag Practice)는 사용자 요청에 따라 제거하고 DB에 NULL(None)로 저장
             cur.execute("""
                 INSERT INTO qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 "A00", req.AC, req.FmID, req.FrT, req.Vt, req.Ct,
-                hd_full, req.DD_date, req.Qt, req.Mt, req.HN, req.StD_date, req.Rp
+                hd_full, req.DD_date, req.Qt, req.Mt, req.HN, req.StD_date, None
             ))
 
         params = {
             "AC": req.AC, "FmID": req.FmID, "Ct": req.Ct, "FrT": req.FrT,
             "Vt": req.Vt, "HD": hd_full, "DD": req.DD_date, "StD": req.StD_date,
-            "Mt": req.Mt, "HN": req.HN, "Qt": req.Qt, "Rp": req.Rp,
+            "Mt": req.Mt, "HN": req.HN, "Qt": req.Qt,
         }
         query_string = urlencode(params)
         if req.target_mode == "fastapi" and req.portal_base_url:
@@ -378,6 +378,75 @@ def api_create_farm_qr(req: FarmQRRequest):
             "qr_url": qr_url,
             "qr_base64": qr_b64,
         }
+    finally:
+        conn.close()
+
+class ApcScanRequest(BaseModel):
+    qr_data: str
+
+@app.post("/api/apc/scan-qr")
+def api_apc_scan_qr(req: ApcScanRequest):
+    from urllib.parse import urlparse, parse_qs
+    raw = req.qr_data.strip()
+    fm_id = None
+    if "?" in raw or raw.startswith("http"):
+        parsed_url = urlparse(raw)
+        q_params = parse_qs(parsed_url.query)
+        fm_id = (q_params.get("FmID") or q_params.get("fmid") or [None])[0]
+        if not fm_id:
+            fm_id = parsed_url.path.rstrip("/").split("/")[-1]
+    else:
+        fm_id = raw
+
+    if not fm_id:
+        raise HTTPException(status_code=400, detail="스캔된 QR 데이터에서 FmID를 찾을 수 없습니다.")
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            # 1순위: A11(세척 완료) 데이터 조회, 없으면 해당 FmID의 가장 최신 데이터 조회
+            cur.execute("SELECT * FROM qr WHERE FmID = %s AND Lo = 'A11' ORDER BY APC_WD DESC, id DESC LIMIT 1", (fm_id,))
+            row = cur.fetchone()
+            if not row:
+                cur.execute("SELECT * FROM qr WHERE FmID = %s ORDER BY id DESC LIMIT 1", (fm_id,))
+                row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail=f"DB에서 FmID={fm_id} 데이터를 찾을 수 없습니다.")
+
+            for k, v in list(row.items()):
+                if isinstance(v, datetime):
+                    row[k] = v.strftime("%Y-%m-%d %H:%M:%S")
+
+            # 기존 Step3_Sorting_QR_Creator.py와 100% 동일한 난수 등급 배분 로직 (A등급 약 80%, 합계 일치 보정)
+            total_qt = int(row.get("Qt") or 0)
+            if total_qt > 0:
+                defect_val = random.randint(1, min(3, total_qt))
+                rem_after_defect = total_qt - defect_val
+                a_val = int(total_qt * random.uniform(0.78, 0.82))
+                if a_val > rem_after_defect:
+                    a_val = rem_after_defect
+                rem_for_bc = rem_after_defect - a_val
+                if rem_for_bc > 0:
+                    b_val = random.randint(0, rem_for_bc)
+                    c_val = rem_for_bc - b_val
+                else:
+                    b_val, c_val = 0, 0
+                a_val = total_qt - (b_val + c_val + defect_val)
+            else:
+                a_val, b_val, c_val, defect_val = 0, 0, 0, 0
+
+            return {
+                "ok": True,
+                "fmid": str(fm_id),
+                "row": row,
+                "auto_grades": {
+                    "AGrade": a_val,
+                    "BGrade": b_val,
+                    "CGrade": c_val,
+                    "DefectRate": defect_val,
+                    "TotalQt": total_qt,
+                },
+            }
     finally:
         conn.close()
 
