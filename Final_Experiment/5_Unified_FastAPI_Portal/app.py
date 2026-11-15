@@ -260,6 +260,16 @@ def api_get_consumer_trace(fmid: str):
                 raise HTTPException(status_code=404, detail=f"FmID={fmid} 이력 데이터가 존재하지 않습니다.")
 
             # 병합 요약 정보 및 단계별 시각 추출
+            stage_time_cols = {
+                "A00": "HD",
+                "A10": "APC_AD",
+                "A11": "APC_WD",
+                "A12": "APC_RT",
+                "A13": "APC_PT",
+                "A14": "APC_StD",
+                "A15": "APC_OP",
+                "A16": "Retail_AD",
+            }
             merged = {}
             step_times = {}
             for r in qr_rows:
@@ -268,18 +278,15 @@ def api_get_consumer_trace(fmid: str):
                     if v is not None and str(v).strip() != "" and str(v) != "None":
                         merged[k] = str(v) if isinstance(v, datetime) else v
                 if lo:
+                    t_col = stage_time_cols.get(lo, "HD")
                     step_times[lo] = {
                         "Lo": lo,
-                        "timestamp": str(
-                            r.get("ST_leave") or r.get("ST_enter") or r.get("APC_Out") or
-                            r.get("APC_Store") or r.get("APC_Package") or r.get("APC_RT") or
-                            r.get("APC_WD") or r.get("APC_RTD") or r.get("HD") or ""
-                        ),
-                        "lat": float(r["lat"]) if r.get("lat") not in (None, "", 0, "0") else None,
+                        "timestamp": str(r.get(t_col) or r.get("HD") or ""),
+                        "lat": float(r["Lat"]) if r.get("Lat") not in (None, "", 0, "0") else None,
                         "lon": float(r["lon"]) if r.get("lon") not in (None, "", 0, "0") else None,
                     }
 
-            # 1구간(HD ~ APC_RTD) 및 2구간(APC_Out ~ ST_enter) 주행 센서 궤적 조회
+            # 1구간(HD ~ APC_AD) 및 2구간(APC_OP ~ Retail_AD) 주행 센서 궤적 조회
             def fetch_segment(start_t, end_t):
                 if not start_t or not end_t:
                     return []
@@ -293,9 +300,9 @@ def api_get_consumer_trace(fmid: str):
                 return list(cur.fetchall())
 
             t_hd = merged.get("HD")
-            t_a10 = merged.get("APC_RTD")
-            t_a15 = merged.get("APC_Out")
-            t_a16 = merged.get("ST_enter") or merged.get("ST_leave") or "2099-12-31 23:59:59"
+            t_a10 = merged.get("APC_AD")
+            t_a15 = merged.get("APC_OP") or merged.get("APC_StD") or merged.get("APC_PT")
+            t_a16 = merged.get("Retail_AD") or "2099-12-31 23:59:59"
 
             leg1_pts = fetch_segment(t_hd, t_a10) if (t_hd and t_a10) else []
             leg2_pts = fetch_segment(t_a15, t_a16) if t_a15 else []
