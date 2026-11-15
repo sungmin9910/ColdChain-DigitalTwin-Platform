@@ -1,6 +1,8 @@
 import streamlit as st
 import pymysql
 import pandas as pd
+import pydeck as pdk
+import math
 import os
 import qrcode
 import io
@@ -83,6 +85,18 @@ LANG_DICT = {
         'stage_A14_desc': "최적의 온도와 습도로 신선도를 보관 중입니다.",
         'stage_A15_title': "🚛 출하",
         'stage_A15_desc': "고객님을 만나기 위해 건강하게 출발했습니다!",
+        'stage_A16_title': "🏪 판매처 도착",
+        'stage_A16_desc': "콜드체인 안전 운송을 마치고 판매처에 신선하게 도착했습니다!",
+        'route_leg1': "🌱 산지 → APC 운송",
+        'route_leg2': "🚛 APC → 판매처 냉장운송",
+        'route_apc_hub': "🏢 APC 품질공정 (A10~A15)",
+        'route_in_transit': "🚚 실시간 배송 중",
+        'route_telemetry_title': "❄️ 운송 구간 실시간 콜드체인 검증",
+        'route_avg_temp': "운송 평균 온도",
+        'route_max_g': "최대 충격량",
+        'route_gps_pts': "실측 도로 궤적",
+        'route_pts_unit': "{}개 지점",
+        'route_safe_badge': "🟢 전 구간 안전 운송",
     },
     'EN': {
         'page_title': "Premium Fruit Traceability Inquiry",
@@ -155,6 +169,18 @@ LANG_DICT = {
         'stage_A14_desc': "Storing at optimal temperature and humidity to preserve freshness.",
         'stage_A15_title': "🚛 Shipping",
         'stage_A15_desc': "Healthy shipment has departed to meet the customer!",
+        'stage_A16_title': "🏪 Retail Arrival",
+        'stage_A16_desc': "Safely arrived at the retail store via cold-chain transport!",
+        'route_leg1': "🌱 Farm → APC Route",
+        'route_leg2': "🚛 APC → Retail Cold-Chain",
+        'route_apc_hub': "🏢 APC Quality Hub (A10~A15)",
+        'route_in_transit': "🚚 Live In-Transit",
+        'route_telemetry_title': "❄️ Transport Cold-Chain Telemetry",
+        'route_avg_temp': "Avg Transport Temp",
+        'route_max_g': "Peak Impact",
+        'route_gps_pts': "Road GPS Track",
+        'route_pts_unit': "{} pts",
+        'route_safe_badge': "🟢 Verified Safe Route",
     }
 }
 
@@ -415,18 +441,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- DB 설정 ---
-DB_HOST = "15.165.68.30"
+DB_HOST = os.getenv("DB_HOST", "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com")
+DB_FALLBACK_HOST = "15.165.68.30"
 DB_USER = "admin"
 DB_PASSWORD = os.getenv("DB_PASSWORD", "12345678")
 DB_NAME = "lab225"
 DB_PORT = 3306
 
 def get_db_connection():
-    return pymysql.connect(
-        host=DB_HOST, user=DB_USER, password=DB_PASSWORD,
-        database=DB_NAME, port=DB_PORT, charset="utf8mb4",
-        cursorclass=pymysql.cursors.DictCursor
-    )
+    try:
+        return pymysql.connect(
+            host=DB_HOST, user=DB_USER, password=DB_PASSWORD,
+            database=DB_NAME, port=DB_PORT, charset="utf8mb4",
+            connect_timeout=8, cursorclass=pymysql.cursors.DictCursor
+        )
+    except Exception:
+        return pymysql.connect(
+            host=DB_FALLBACK_HOST, user=DB_USER, password=DB_PASSWORD,
+            database=DB_NAME, port=DB_PORT, charset="utf8mb4",
+            connect_timeout=8, cursorclass=pymysql.cursors.DictCursor
+        )
 
 # --- 유틸리티 함수 ---
 def format_elapsed_time(timestamp, lang='KO'):
@@ -582,13 +616,96 @@ if not fm_id:
     st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-# 2. 데이터 조회
+def parse_kst_dt(val):
+    if not val:
+        return None
+    if isinstance(val, datetime):
+        return val.replace(tzinfo=None)
+    s = str(val).strip()
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s[:len(fmt) + 2].strip(), fmt)
+        except Exception:
+            continue
+    try:
+        return datetime.fromisoformat(s[:19])
+    except Exception:
+        return None
+
+def fetch_sensor_segment(cursor, start_dt, end_dt, truck_dev=None):
+    if not start_dt or not end_dt or end_dt < start_dt:
+        return []
+    start_s = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+    end_s = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+    params = [start_s, end_s]
+    dev_clause = ""
+    if truck_dev:
+        dev_clause = " AND device = %s"
+        params.append(truck_dev)
+    sql = f"""
+        SELECT timestamp_str, lat, lng, temperature, humidity, g_force, speed, device, run_id
+        FROM sensor_data
+        WHERE lat != 0 AND lng != 0 AND ABS(lat) > 1.0
+          AND timestamp_str >= %s AND timestamp_str <= %s
+          {dev_clause}
+        ORDER BY timestamp_str ASC, id ASC
+    """
+    cursor.execute(sql, tuple(params))
+    rows = cursor.fetchall()
+    # 만약 지정 truck_device로 조회된 궤적이 없으면 전체 차량에서 동일 시간대 폴백 조회
+    if not rows and truck_dev:
+        sql_fallback = """
+            SELECT timestamp_str, lat, lng, temperature, humidity, g_force, speed, device, run_id
+            FROM sensor_data
+            WHERE lat != 0 AND lng != 0 AND ABS(lat) > 1.0
+              AND timestamp_str >= %s AND timestamp_str <= %s
+            ORDER BY timestamp_str ASC, id ASC
+        """
+        cursor.execute(sql_fallback, (start_s, end_s))
+        rows = cursor.fetchall()
+    return rows
+
+# 2. 데이터 조회 (QR 체크포인트 + 구간별 차량 주행 궤적 연동)
+leg1_sensor_pts = []
+leg2_sensor_pts = []
 try:
     conn = get_db_connection()
     cursor = conn.cursor()
-    query = "SELECT * FROM qr WHERE FmID = %s ORDER BY Lo ASC"
+    query = "SELECT * FROM qr WHERE FmID = %s ORDER BY Lo ASC, id ASC"
     cursor.execute(query, (fm_id,))
     records = cursor.fetchall()
+
+    if records:
+        stage_lookup = {r.get("Lo"): r for r in records}
+        r_a00 = stage_lookup.get("A00")
+        r_a10 = stage_lookup.get("A10")
+        r_a15 = stage_lookup.get("A15")
+        r_a16 = stage_lookup.get("A16")
+
+        # (1) 1차 산지 -> APC 운송 구간 (A00 ~ A10 입고 시각)
+        if r_a10 and r_a10.get("APC_AD"):
+            dt_apc_ad = parse_kst_dt(r_a10.get("APC_AD"))
+            dt_a00 = parse_kst_dt(r_a00.get("HD")) if r_a00 else None
+            if dt_apc_ad:
+                if dt_a00 and timedelta(0) <= (dt_apc_ad - dt_a00) <= timedelta(hours=24):
+                    dt_leg1_start = dt_a00
+                else:
+                    dt_leg1_start = dt_apc_ad - timedelta(hours=6)
+                leg1_sensor_pts = fetch_sensor_segment(
+                    cursor, dt_leg1_start, dt_apc_ad, r_a10.get("truck_device")
+                )
+
+        # (2) 2차 APC 출하(A15) -> 판매처 도착(A16) 또는 실시간 배송 중 구간
+        if r_a15 and r_a15.get("APC_OP"):
+            dt_apc_op = parse_kst_dt(r_a15.get("APC_OP"))
+            dt_retail_ad = parse_kst_dt(r_a16.get("Retail_AD")) if (r_a16 and r_a16.get("Retail_AD")) else None
+            truck_dev_2 = (r_a16.get("truck_device") if r_a16 else None) or r_a15.get("truck_device")
+            if dt_apc_op:
+                dt_leg2_end = dt_retail_ad if dt_retail_ad else (dt_apc_op + timedelta(hours=12))
+                leg2_sensor_pts = fetch_sensor_segment(
+                    cursor, dt_apc_op, dt_leg2_end, truck_dev_2
+                )
+
     conn.close()
 except Exception as e:
     st.error(f"{LANG_DICT[st.session_state.lang]['db_error']} ({e})")
@@ -807,7 +924,7 @@ with tab1:
 with tab2:
     st.markdown(f"<h3 style='font-size:1.3rem; font-weight:700; margin-bottom:15px;'>{LANG_DICT[st.session_state.lang]['timeline_title']}</h3>", unsafe_allow_html=True)
     
-    # 단계 설정 (A00 농장 단계 추가)
+    # 단계 설정 (A00 농장 ~ A16 판매처 도착)
     stage_names = {
         "A00": (LANG_DICT[st.session_state.lang]["stage_A00_title"], LANG_DICT[st.session_state.lang]["stage_A00_desc"], "HD"),
         "A10": (LANG_DICT[st.session_state.lang]["stage_A10_title"], LANG_DICT[st.session_state.lang]["stage_A10_desc"], "APC_AD"),
@@ -815,12 +932,13 @@ with tab2:
         "A12": (LANG_DICT[st.session_state.lang]["stage_A12_title"], LANG_DICT[st.session_state.lang]["stage_A12_desc"], "APC_RT"),
         "A13": (LANG_DICT[st.session_state.lang]["stage_A13_title"], LANG_DICT[st.session_state.lang]["stage_A13_desc"], "APC_PT"),
         "A14": (LANG_DICT[st.session_state.lang]["stage_A14_title"], LANG_DICT[st.session_state.lang]["stage_A14_desc"], "APC_StD"),
-        "A15": (LANG_DICT[st.session_state.lang]["stage_A15_title"], LANG_DICT[st.session_state.lang]["stage_A15_desc"], "APC_OP")
+        "A15": (LANG_DICT[st.session_state.lang]["stage_A15_title"], LANG_DICT[st.session_state.lang]["stage_A15_desc"], "APC_OP"),
+        "A16": (LANG_DICT[st.session_state.lang]["stage_A16_title"], LANG_DICT[st.session_state.lang]["stage_A16_desc"], "Retail_AD")
     }
 
     # 완료된 단계와 미완료된 단계를 구분하여 렌더링
     completed_stages = {r.get("Lo"): r for r in records}
-    timeline_order = ["A00", "A10", "A11", "A12", "A13", "A14", "A15"]
+    timeline_order = ["A00", "A10", "A11", "A12", "A13", "A14", "A15", "A16"]
     st.markdown('<div class="timeline-container">', unsafe_allow_html=True)
     for code in timeline_order:
         title, default_desc, time_col = stage_names[code]
@@ -882,71 +1000,270 @@ with tab2:
     st.markdown('</div>', unsafe_allow_html=True)
 
 with tab3:
-    st.markdown(f"<h3 style='font-size:1.3rem; font-weight:700; margin-bottom:10px;'>{LANG_DICT[st.session_state.lang]['route_title']}</h3>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color:#515154; font-size:0.9rem; margin-bottom:20px;'>{LANG_DICT[st.session_state.lang]['route_subtitle']}</p>", unsafe_allow_html=True)
-    
-    # 4. GPS 이동 경로 수집
-    map_data = []
+    L = LANG_DICT[st.session_state.lang]
+    st.markdown(f"<h3 style='font-size:1.3rem; font-weight:700; margin-bottom:8px;'>{L['route_title']}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<p style='color:#515154; font-size:0.9rem; margin-bottom:14px;'>{L['route_subtitle']}</p>", unsafe_allow_html=True)
 
-    # 원산지 좌표 기본값 설정
+    def _valid_coord(lat_v, lon_v):
+        try:
+            la, lo = float(lat_v), float(lon_v)
+            if la != 0.0 and lo != 0.0 and abs(la) > 1.0 and abs(lo) > 1.0:
+                return (la, lo)
+        except Exception:
+            pass
+        return None
+
+    # 1) 원산지(A00) 좌표
     ac_code = str(latest.get("AC", ""))
-    origin_lat, origin_lon = None, None
     origin_coords = {
         "55630": (35.647, 127.521),
         "55631": (35.617, 127.422),
         "55632": (35.539, 127.553),
         "55633": (35.727, 127.585),
         "55634": (35.707, 127.481),
-        "55635": (35.696, 127.575)
+        "55635": (35.696, 127.575),
     }
-    if ac_code in origin_coords:
-        origin_lat, origin_lon = origin_coords[ac_code]
+    origin_pt = origin_coords.get(ac_code)
+    if not origin_pt and leg1_sensor_pts:
+        origin_pt = (float(leg1_sensor_pts[0]["lat"]), float(leg1_sensor_pts[0]["lng"]))
 
-    # A00 단계는 원산지 좌표로 채움
-    if origin_lat and origin_lon:
+    # 2) 단계별 체크포인트 테이블 데이터 구성 & APC 거점 / 도착점 좌표 추출
+    map_data = []
+    if origin_pt:
         map_data.append({
-            "단계": LANG_DICT[st.session_state.lang]['stage_A00_title'],
-            "latitude": origin_lat,
-            "longitude": origin_lon,
-            "시간": latest.get("HD", "")
+            "단계": L['stage_A00_title'],
+            "latitude": origin_pt[0],
+            "longitude": origin_pt[1],
+            "시간": str(latest.get("HD", "") or "")
         })
 
-    # 나머지 단계 중 GPS 좌표가 있는 데이터 추가
+    apc_pts = []
+    retail_pt = None
+    retail_time = ""
+    last_apc_time = ""
+
     for r in records:
         stage_code = r.get("Lo")
         if stage_code == "A00":
             continue
-        lat = r.get("Lat")
-        lon = r.get("lon")
-        if lat is not None and lon is not None:
-            try:
-                lat = float(lat)
-                lon = float(lon)
-                if lat != 0.0 and lon != 0.0 and abs(lat) > 1.0:
-                    stage_name = stage_names.get(stage_code, (stage_code, "", ""))[0]
-                    time_col = stage_names.get(stage_code, ("", "", ""))[2]
-                    stage_time = r.get(time_col, "")
-                    map_data.append({
-                        "단계": stage_name,
-                        "latitude": lat,
-                        "longitude": lon,
-                        "시간": stage_time
-                    })
-            except:
-                pass
+        c_pt = _valid_coord(r.get("Lat"), r.get("lon"))
+        stage_name = stage_names.get(stage_code, (stage_code, "", ""))[0]
+        time_col = stage_names.get(stage_code, ("", "", ""))[2]
+        stage_time = str(r.get(time_col, "") or "")
 
-    if map_data:
-        df_map = pd.DataFrame(map_data)
-        st.map(df_map)
-        
-        st.markdown(f"<h4 style='font-size:1.15rem; font-weight:700; margin-top:25px; margin-bottom:10px;'>{LANG_DICT[st.session_state.lang]['route_list']}</h4>", unsafe_allow_html=True)
-        display_df = df_map[["단계", "시간", "latitude", "longitude"]].copy()
-        display_df.columns = [
-            LANG_DICT[st.session_state.lang]['col_stage'],
-            LANG_DICT[st.session_state.lang]['col_time'],
-            LANG_DICT[st.session_state.lang]['col_lat'],
-            LANG_DICT[st.session_state.lang]['col_lon']
-        ]
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        if stage_code in ("A10", "A11", "A12", "A13", "A14", "A15"):
+            if stage_time:
+                last_apc_time = stage_time
+            if c_pt:
+                apc_pts.append(c_pt)
+        elif stage_code == "A16":
+            retail_time = stage_time
+            if c_pt:
+                retail_pt = c_pt
+
+        if c_pt:
+            map_data.append({
+                "단계": stage_name,
+                "latitude": c_pt[0],
+                "longitude": c_pt[1],
+                "시간": stage_time
+            })
+
+    apc_hub_pt = apc_pts[-1] if apc_pts else None
+    if not apc_hub_pt:
+        if leg1_sensor_pts:
+            apc_hub_pt = (float(leg1_sensor_pts[-1]["lat"]), float(leg1_sensor_pts[-1]["lng"]))
+        elif leg2_sensor_pts:
+            apc_hub_pt = (float(leg2_sensor_pts[0]["lat"]), float(leg2_sensor_pts[0]["lng"]))
+
+    if not retail_pt and "A16" in completed_stages and leg2_sensor_pts:
+        retail_pt = (float(leg2_sensor_pts[-1]["lat"]), float(leg2_sensor_pts[-1]["lng"]))
+
+    # 3) PyDeck 연속 주행 경로(PathLayer) 및 거점 마커(Scatterplot + Text) 구성
+    leg1_path = [[float(p["lng"]), float(p["lat"])] for p in leg1_sensor_pts]
+    if len(leg1_path) < 2 and origin_pt and apc_hub_pt:
+        leg1_path = [[origin_pt[1], origin_pt[0]], [apc_hub_pt[1], apc_hub_pt[0]]]
+    elif len(leg1_path) >= 2:
+        if origin_pt:
+            leg1_path = [[origin_pt[1], origin_pt[0]]] + leg1_path
+        if apc_hub_pt:
+            leg1_path = leg1_path + [[apc_hub_pt[1], apc_hub_pt[0]]]
+
+    leg2_path = [[float(p["lng"]), float(p["lat"])] for p in leg2_sensor_pts]
+    if len(leg2_path) < 2 and apc_hub_pt and retail_pt:
+        leg2_path = [[apc_hub_pt[1], apc_hub_pt[0]], [retail_pt[1], retail_pt[0]]]
+    elif len(leg2_path) >= 2:
+        if apc_hub_pt:
+            leg2_path = [[apc_hub_pt[1], apc_hub_pt[0]]] + leg2_path
+        if retail_pt:
+            leg2_path = leg2_path + [[retail_pt[1], retail_pt[0]]]
+
+    hub_markers = []
+    if origin_pt:
+        hub_markers.append({
+            "name": L['stage_A00_title'],
+            "time": str(latest.get("HD", "") or "-"),
+            "lat": origin_pt[0],
+            "lng": origin_pt[1],
+            "icon": "🌱",
+            "fill": [46, 204, 113, 230],
+        })
+    if apc_hub_pt:
+        hub_markers.append({
+            "name": L['route_apc_hub'],
+            "time": last_apc_time or "-",
+            "lat": apc_hub_pt[0],
+            "lng": apc_hub_pt[1],
+            "icon": "🏢",
+            "fill": [243, 156, 18, 235],
+        })
+    if retail_pt:
+        hub_markers.append({
+            "name": L['stage_A16_title'],
+            "time": retail_time or "-",
+            "lat": retail_pt[0],
+            "lng": retail_pt[1],
+            "icon": "🏪",
+            "fill": [0, 122, 255, 235],
+        })
+    elif leg2_sensor_pts:
+        last_live = leg2_sensor_pts[-1]
+        hub_markers.append({
+            "name": L['route_in_transit'],
+            "time": str(last_live.get("timestamp_str", "-")),
+            "lat": float(last_live["lat"]),
+            "lng": float(last_live["lng"]),
+            "icon": "🚚",
+            "fill": [0, 122, 255, 235],
+        })
+
+    all_coords = (
+        [(pt[1], pt[0]) for pt in leg1_path]
+        + [(pt[1], pt[0]) for pt in leg2_path]
+        + [(m["lat"], m["lng"]) for m in hub_markers]
+    )
+
+    # 운송 구간 실시간 콜드체인 센서 요약 카드 표출 (주행 데이터가 있을 때)
+    all_sensor_pts = leg1_sensor_pts + leg2_sensor_pts
+    if all_sensor_pts:
+        temps = [float(p["temperature"]) for p in all_sensor_pts if p.get("temperature") is not None]
+        gforces = [float(p["g_force"]) for p in all_sensor_pts if p.get("g_force") is not None]
+        avg_t_str = f"{(sum(temps) / len(temps)):.1f}°C" if temps else "-"
+        max_g_str = f"{max(gforces):.2f}G" if gforces else "-"
+        pts_str = L['route_pts_unit'].format(len(all_sensor_pts))
+        st.markdown(f"""
+        <div style="background-color:#f4f9ff; border:1px solid #cfe4ff; border-radius:12px; padding:12px 16px; margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                <span style="font-weight:700; color:#0b5394; font-size:0.95rem;">{L['route_telemetry_title']}</span>
+                <span style="font-size:0.8rem; font-weight:600; color:#27ae60;">{L['route_safe_badge']}</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; text-align:center;">
+                <div style="background:#ffffff; border-radius:8px; padding:6px 8px; border:1px solid #e1ecf7;">
+                    <small style="color:#666; font-size:0.72rem; display:block;">{L['route_avg_temp']}</small>
+                    <b style="color:#0b5394; font-size:0.98rem;">{avg_t_str}</b>
+                </div>
+                <div style="background:#ffffff; border-radius:8px; padding:6px 8px; border:1px solid #e1ecf7;">
+                    <small style="color:#666; font-size:0.72rem; display:block;">{L['route_max_g']}</small>
+                    <b style="color:#27ae60; font-size:0.98rem;">{max_g_str}</b>
+                </div>
+                <div style="background:#ffffff; border-radius:8px; padding:6px 8px; border:1px solid #e1ecf7;">
+                    <small style="color:#666; font-size:0.72rem; display:block;">{L['route_gps_pts']}</small>
+                    <b style="color:#1d1d1f; font-size:0.98rem;">{pts_str}</b>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    if all_coords:
+        # 범례 배지
+        st.markdown(f"""
+        <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:10px; font-size:0.82rem; color:#515154;">
+            <span style="display:inline-flex; align-items:center; gap:6px;">
+                <span style="width:18px; height:4px; background:#2ecc71; border-radius:2px; display:inline-block;"></span>
+                {L['route_leg1']}
+            </span>
+            <span style="display:inline-flex; align-items:center; gap:6px;">
+                <span style="width:18px; height:4px; background:#007aff; border-radius:2px; display:inline-block;"></span>
+                {L['route_leg2']}
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        lats = [c[0] for c in all_coords]
+        lons = [c[1] for c in all_coords]
+        center_lat = (min(lats) + max(lats)) / 2.0
+        center_lon = (min(lons) + max(lons)) / 2.0
+        span = max(max(lats) - min(lats), max(lons) - min(lons))
+        if span < 0.003:
+            auto_zoom = 14.2
+        else:
+            auto_zoom = max(6.8, min(14.2, math.log2(360.0 / (span * 2.3)) - 0.4))
+
+        deck_layers = []
+        if len(leg1_path) >= 2:
+            deck_layers.append(pdk.Layer(
+                "PathLayer",
+                data=[{"path": leg1_path, "name": L['route_leg1'], "time": "-"}],
+                get_path="path",
+                get_color=[46, 204, 113, 215],
+                width_min_pixels=4,
+                cap_rounded=True,
+                joint_rounded=True,
+                pickable=True,
+            ))
+        if len(leg2_path) >= 2:
+            deck_layers.append(pdk.Layer(
+                "PathLayer",
+                data=[{"path": leg2_path, "name": L['route_leg2'], "time": retail_time or last_apc_time or "-"}],
+                get_path="path",
+                get_color=[0, 122, 255, 235],
+                width_min_pixels=5,
+                cap_rounded=True,
+                joint_rounded=True,
+                pickable=True,
+            ))
+        if hub_markers:
+            df_hubs = pd.DataFrame(hub_markers)
+            deck_layers.append(pdk.Layer(
+                "ScatterplotLayer",
+                data=df_hubs,
+                get_position="[lng, lat]",
+                get_fill_color="fill",
+                get_line_color=[255, 255, 255, 255],
+                line_width_min_pixels=2,
+                stroked=True,
+                radius_min_pixels=9,
+                radius_max_pixels=16,
+                pickable=True,
+            ))
+            deck_layers.append(pdk.Layer(
+                "TextLayer",
+                data=df_hubs,
+                get_position="[lng, lat]",
+                get_text="icon",
+                get_size=22,
+                get_pixel_offset=[0, -20],
+                get_alignment_baseline="'center'",
+            ))
+
+        st.pydeck_chart(pdk.Deck(
+            layers=deck_layers,
+            initial_view_state=pdk.ViewState(
+                latitude=center_lat,
+                longitude=center_lon,
+                zoom=auto_zoom,
+                pitch=0,
+            ),
+            map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+            tooltip={"text": "{name}\n⏰ {time}"},
+            height=380,
+        ))
+
+        if map_data:
+            df_map = pd.DataFrame(map_data)
+            st.markdown(f"<h4 style='font-size:1.15rem; font-weight:700; margin-top:25px; margin-bottom:10px;'>{L['route_list']}</h4>", unsafe_allow_html=True)
+            display_df = df_map[["단계", "시간", "latitude", "longitude"]].copy()
+            display_df.columns = [L['col_stage'], L['col_time'], L['col_lat'], L['col_lon']]
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
     else:
-        st.warning(LANG_DICT[st.session_state.lang]['no_gps'])
+        st.warning(L['no_gps'])

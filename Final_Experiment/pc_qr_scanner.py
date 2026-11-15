@@ -14,7 +14,7 @@ COLOR_CYAN = "\033[96m"
 COLOR_RESET = "\033[0m"
 
 # AWS RDS 데이터베이스 연결 정보
-DB_HOST = "15.165.68.30"
+DB_HOST = os.getenv("DB_HOST", "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com")
 DB_USER = "admin"
 DB_PASSWORD = os.getenv("DB_PASSWORD", "12345678")
 DB_NAME = "lab225"
@@ -27,7 +27,8 @@ MODES = {
     "A12": "A12 - 선별 완료 (APC 선별)",
     "A13": "A13 - 포장 완료 (유통 센터 포장)",
     "A14": "A14 - 저장 완료 (저장소 입고)",
-    "A15": "A15 - 최종 출하 (소비지 출하)"
+    "A15": "A15 - 최종 출하 (APC 출하)",
+    "A16": "A16 - 판매처 도착 (도소매 입고 완료)"
 }
 
 MODE_KEYS = {
@@ -38,7 +39,8 @@ MODE_KEYS = {
     "2": "A12",
     "3": "A13",
     "4": "A14",
-    "5": "A15"
+    "5": "A15",
+    "6": "A16"
 }
 
 current_mode = "AUTO"
@@ -80,21 +82,29 @@ def get_latest_sensor_data():
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            # 가장 최근 센서 데이터 1건 조회
-            cursor.execute("SELECT lat, lng, temperature, humidity FROM lab225.sensor_data ORDER BY id DESC LIMIT 1")
+            cursor.execute("""
+                SELECT
+                  COALESCE((SELECT lat FROM lab225.sensor_data WHERE device=B.device AND lat!=0 AND lng!=0 ORDER BY id DESC LIMIT 1),
+                           (SELECT lat FROM lab225.sensor_data WHERE lat!=0 AND lng!=0 ORDER BY id DESC LIMIT 1)),
+                  COALESCE((SELECT lng FROM lab225.sensor_data WHERE device=B.device AND lat!=0 AND lng!=0 ORDER BY id DESC LIMIT 1),
+                           (SELECT lng FROM lab225.sensor_data WHERE lat!=0 AND lng!=0 ORDER BY id DESC LIMIT 1)),
+                  B.temperature, B.humidity, B.device
+                FROM (SELECT temperature, humidity, device FROM lab225.sensor_data ORDER BY id DESC LIMIT 1) B
+            """)
             row = cursor.fetchone()
             if row:
                 lat = f"'{row[0]}'" if row[0] is not None else "NULL"
                 lon = f"'{row[1]}'" if row[1] is not None else "NULL"
                 tp = f"'{row[2]}'" if row[2] is not None else "NULL"
                 hm = f"'{row[3]}'" if row[3] is not None else "NULL"
-                return lat, lon, tp, hm
+                dev = f"'{row[4]}'" if row[4] is not None else "NULL"
+                return lat, lon, tp, hm, dev
     except Exception as e:
         print(f"{COLOR_RED}[-] 센서 데이터(GPS/온습도) 조회 중 에러 발생: {e}{COLOR_RESET}")
     finally:
         if conn:
             conn.close()
-    return "NULL", "NULL", "NULL", "NULL"
+    return "NULL", "NULL", "NULL", "NULL", "NULL"
 
 def get_query_param(url, param):
     try:
@@ -166,9 +176,9 @@ def process_scan(scanned_data):
     rp = get_query_param(scanned_data, "Rp")
 
     # DB에서 최신 GPS/온습도 데이터 가져오기
-    print("[*] 데이터베이스에서 최신 센서 데이터(GPS, 온습도) 수신 중...")
-    lat, lon, tp, hm = get_latest_sensor_data()
-    print(f"[+] 최근 센서 데이터 -> Lat: {lat}, Lng: {lon}, Temp: {tp}, Hum: {hm}")
+    print("[*] 데이터베이스에서 최신 센서 데이터(GPS, 온습도, 차량단말) 수신 중...")
+    lat, lon, tp, hm, dev = get_latest_sensor_data()
+    print(f"[+] 최근 센서 데이터 -> Device: {dev}, Lat: {lat}, Lng: {lon}, Temp: {tp}, Hum: {hm}")
 
     # 타겟 단계 결정 (AUTO 지능형 자동 판단 vs 수동 지정)
     target_mode = current_mode
@@ -201,7 +211,9 @@ def process_scan(scanned_data):
         elif last_lo == "A14":
             target_mode = "A15"
         elif last_lo == "A15":
-            print(f"{COLOR_YELLOW}[!] 이미 최종 출하(A15)까지 모든 단계가 완료된 상자입니다.{COLOR_RESET}\n")
+            target_mode = "A16"
+        elif last_lo == "A16":
+            print(f"{COLOR_YELLOW}[!] 이미 판매처 도착(A16)까지 모든 단계가 완료된 상자입니다.{COLOR_RESET}\n")
             return
         print(f"[*] 🎯 [AUTO 판단 결과] 다음 진행 단계: {COLOR_GREEN}★ {target_mode} ★{COLOR_RESET}")
 
@@ -209,38 +221,44 @@ def process_scan(scanned_data):
     query = ""
     if target_mode == "A10":
         query = f"""
-        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, Lat, lon)
-        VALUES ('A10', {ac}, {fmid}, {frt}, {vt}, {ct}, {hd}, {dd}, {qt}, {mt}, {hn}, {std}, {rp}, NOW(), {lat}, {lon})
+        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, Lat, lon, truck_device)
+        VALUES ('A10', {ac}, {fmid}, {frt}, {vt}, {ct}, {hd}, {dd}, {qt}, {mt}, {hn}, {std}, {rp}, NOW(), {lat}, {lon}, {dev})
         """
     elif target_mode == "A11":
         query = f"""
-        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, Lat, lon)
-        SELECT 'A11', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, NOW(), {lat}, {lon}
-        FROM lab225.qr WHERE FmID = {fmid} AND APC_AD IS NOT NULL ORDER BY APC_AD DESC LIMIT 1
+        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, Lat, lon, truck_device)
+        SELECT 'A11', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, NOW(), {lat}, {lon}, COALESCE(truck_device, {dev})
+        FROM lab225.qr WHERE FmID = {fmid} AND APC_AD IS NOT NULL ORDER BY id DESC LIMIT 1
         """
     elif target_mode == "A12":
         query = f"""
-        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, Lat, lon)
-        SELECT 'A12', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, NOW(), {lat}, {lon}
-        FROM lab225.qr WHERE Lo = 'A11' AND FmID = {fmid} ORDER BY APC_WD DESC LIMIT 1
+        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, Lat, lon, truck_device)
+        SELECT 'A12', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, NOW(), {lat}, {lon}, COALESCE(truck_device, {dev})
+        FROM lab225.qr WHERE Lo = 'A11' AND FmID = {fmid} ORDER BY id DESC LIMIT 1
         """
     elif target_mode == "A13":
         query = f"""
-        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate)
-        SELECT 'A13', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, NOW(), {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate
-        FROM lab225.qr WHERE Lo = 'A12' AND FmID = {fmid} ORDER BY APC_RT DESC LIMIT 1
+        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device)
+        SELECT 'A13', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, NOW(), {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE(truck_device, {dev})
+        FROM lab225.qr WHERE Lo IN ('A12', 'A11') AND FmID = {fmid} ORDER BY id DESC LIMIT 1
         """
     elif target_mode == "A14":
         query = f"""
-        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate)
-        SELECT 'A14', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, NOW(), {tp}, {hm}, {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate
-        FROM lab225.qr WHERE Lo = 'A13' AND FmID = {fmid} ORDER BY APC_PT DESC LIMIT 1
+        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device)
+        SELECT 'A14', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, NOW(), {tp}, {hm}, {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE(truck_device, {dev})
+        FROM lab225.qr WHERE Lo = 'A13' AND FmID = {fmid} ORDER BY id DESC LIMIT 1
         """
     elif target_mode == "A15":
         query = f"""
-        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Lat, lon, AGrade, BGrade, CGrade, DefectRate)
-        SELECT 'A15', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, NOW(), {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate
-        FROM lab225.qr WHERE Lo = 'A14' AND FmID = {fmid} ORDER BY APC_StD DESC LIMIT 1
+        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device)
+        SELECT 'A15', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, NOW(), Tp, Hm, {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE({dev}, truck_device)
+        FROM lab225.qr WHERE Lo = 'A14' AND FmID = {fmid} ORDER BY id DESC LIMIT 1
+        """
+    elif target_mode == "A16":
+        query = f"""
+        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Retail_AD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device)
+        SELECT 'A16', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, NOW(), Tp, Hm, {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE(truck_device, {dev})
+        FROM lab225.qr WHERE Lo = 'A15' AND FmID = {fmid} ORDER BY id DESC LIMIT 1
         """
 
     conn = None

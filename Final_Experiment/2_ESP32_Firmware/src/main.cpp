@@ -11,7 +11,8 @@
 // --- 보안 설정 분리 ---
 #include "secrets.h"
 
-const char server_addr[] = "15.165.68.30"; // DB 호스트 IP
+const char server_addr[] = "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com"; // AWS RDS DNS 엔드포인트
+const char server_fallback_ip[] = "15.165.68.30"; // DNS 장애 대비 폴백 IP
 uint16_t db_port = 3306;
 char user[] = "admin";
 char db[] = "lab225";
@@ -126,6 +127,7 @@ void handleRoot() {
     else if (manualMode == "A13") html += "<p style='font-size:16px;'>(수동: 포장 완료 단계)</p>";
     else if (manualMode == "A14") html += "<p style='font-size:16px;'>(수동: 저장 단계)</p>";
     else if (manualMode == "A15") html += "<p style='font-size:16px;'>(수동: 최종 출하 단계)</p>";
+    else if (manualMode == "A16") html += "<p style='font-size:16px;'>(수동: 판매처 도착 단계)</p>";
   }
   
   // 지연 시간 실시간 모니터링 카드
@@ -150,7 +152,8 @@ void cycleMode() {
     else if (manualMode == "A11") manualMode = "A13";
     else if (manualMode == "A13") manualMode = "A14";
     else if (manualMode == "A14") manualMode = "A15";
-    else if (manualMode == "A15") {
+    else if (manualMode == "A15") manualMode = "A16";
+    else if (manualMode == "A16") {
       isAutoMode = true; // 수동 모드 순환을 마치면 다시 AUTO 메인 모드로 복귀!
     }
   }
@@ -330,7 +333,12 @@ void processScan(String rawData) {
   
   t_db_start = millis(); // DB 처리 시작 시각
 
-  if (conn.connect(server_addr, db_port, user, password_db)) {
+  bool dbConnected = conn.connect(server_addr, db_port, user, password_db);
+  if (!dbConnected) {
+    dbConnected = conn.connect(server_fallback_ip, db_port, user, password_db);
+  }
+
+  if (dbConnected) {
     Serial.println("✅ AWS DB Connection Success!");
     MySQL_Query query_executor(&conn);
     
@@ -360,9 +368,10 @@ void processScan(String rawData) {
       else if (lastLo == "A11" || lastLo == "A12") targetMode = "A13";
       else if (lastLo == "A13") targetMode = "A14";
       else if (lastLo == "A14") targetMode = "A15";
-      else if (lastLo == "A15") {
-        Serial.println("⚠️ 이미 최종 출하(A15)가 완료된 상자입니다.");
-        updateOLED("Already Completed!", fmId, "A15");
+      else if (lastLo == "A15") targetMode = "A16";
+      else if (lastLo == "A16") {
+        Serial.println("⚠️ 이미 판매처 도착(A16)까지 모든 유통이 완료된 상자입니다.");
+        updateOLED("Already Completed!", fmId, "A16");
         conn.close();
         t_trigger_start = 0;
         return;
@@ -373,44 +382,65 @@ void processScan(String rawData) {
       Serial.println("✋ [MANUAL] 수동 지정 단계: " + targetMode);
     }
 
-    // 센서 데이터 서브쿼리
-    String sensor_sub = "(SELECT lat, lng, temperature, humidity FROM lab225.sensor_data ORDER BY id DESC LIMIT 1) S";
+    // 최신 환경(온습도·차량단말) + 실내 0.0 방지 유효 GPS 좌표 조회
+    String sLat = "NULL", sLng = "NULL", sTemp = "NULL", sHumi = "NULL", sDev = "NULL";
+    const char* sensorQuery =
+      "SELECT "
+      "COALESCE((SELECT lat FROM lab225.sensor_data WHERE device=B.device AND lat!=0 AND lng!=0 ORDER BY id DESC LIMIT 1),"
+      "(SELECT lat FROM lab225.sensor_data WHERE lat!=0 AND lng!=0 ORDER BY id DESC LIMIT 1)),"
+      "COALESCE((SELECT lng FROM lab225.sensor_data WHERE device=B.device AND lat!=0 AND lng!=0 ORDER BY id DESC LIMIT 1),"
+      "(SELECT lng FROM lab225.sensor_data WHERE lat!=0 AND lng!=0 ORDER BY id DESC LIMIT 1)),"
+      "B.temperature,B.humidity,B.device "
+      "FROM (SELECT temperature,humidity,device FROM lab225.sensor_data ORDER BY id DESC LIMIT 1) B";
+    if (query_executor.execute(sensorQuery)) {
+      query_executor.get_columns();
+      row_values *srow = query_executor.get_next_row();
+      if (srow != NULL) {
+        if (srow->values[0] != NULL) sLat = String(srow->values[0]);
+        if (srow->values[1] != NULL) sLng = String(srow->values[1]);
+        if (srow->values[2] != NULL) sTemp = "'" + String(srow->values[2]) + "'";
+        if (srow->values[3] != NULL) sHumi = "'" + String(srow->values[3]) + "'";
+        if (srow->values[4] != NULL) sDev = "'" + String(srow->values[4]) + "'";
+      }
+      while (srow != NULL) { srow = query_executor.get_next_row(); }
+      query_executor.close();
+    }
+    Serial.println("📡 매칭 센서팟: " + sDev + " / GPS: (" + sLat + ", " + sLng + ")");
 
     String query = "";
     if (targetMode == "A10") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, Lat, lon) ";
-      query += "SELECT 'A10', " + ac + ", " + fmId + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", " + rp + ", NOW(), S.lat, S.lng ";
-      query += "FROM " + sensor_sub;
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, Lat, lon, truck_device) ";
+      query += "VALUES ('A10', " + ac + ", " + fmId + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", " + rp + ", NOW(), " + sLat + ", " + sLng + ", " + sDev + ")";
     }
     else if (targetMode == "A11") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, Lat, lon) ";
-      query += "SELECT 'A11', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, NOW(), S.lat, S.lng ";
-      query += "FROM lab225.qr Q, " + sensor_sub + " ";
-      query += "WHERE Q.FmID = " + fmId + " AND Q.APC_AD IS NOT NULL ORDER BY Q.APC_AD DESC LIMIT 1";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, Lat, lon, truck_device) ";
+      query += "SELECT 'A11', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, NOW(), " + sLat + ", " + sLng + ", COALESCE(Q.truck_device, " + sDev + ") ";
+      query += "FROM lab225.qr Q WHERE Q.FmID = " + fmId + " AND Q.APC_AD IS NOT NULL ORDER BY Q.id DESC LIMIT 1";
     }
     else if (targetMode == "A12") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, Lat, lon) ";
-      query += "SELECT 'A12', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, NOW(), S.lat, S.lng ";
-      query += "FROM lab225.qr Q, " + sensor_sub + " ";
-      query += "WHERE Q.Lo = 'A11' AND Q.FmID = " + fmId + " ORDER BY Q.APC_WD DESC LIMIT 1";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, Lat, lon, truck_device) ";
+      query += "SELECT 'A12', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, NOW(), " + sLat + ", " + sLng + ", COALESCE(Q.truck_device, " + sDev + ") ";
+      query += "FROM lab225.qr Q WHERE Q.Lo = 'A11' AND Q.FmID = " + fmId + " ORDER BY Q.id DESC LIMIT 1";
     }
     else if (targetMode == "A13") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
-      query += "SELECT 'A13', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, NOW(), S.lat, S.lng, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate ";
-      query += "FROM lab225.qr Q, " + sensor_sub + " ";
-      query += "WHERE Q.Lo = 'A12' AND Q.FmID = " + fmId + " ORDER BY Q.APC_RT DESC LIMIT 1";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device) ";
+      query += "SELECT 'A13', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, NOW(), " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + ") ";
+      query += "FROM lab225.qr Q WHERE Q.Lo IN ('A12', 'A11') AND Q.FmID = " + fmId + " ORDER BY Q.id DESC LIMIT 1";
     }
     else if (targetMode == "A14") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
-      query += "SELECT 'A14', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, NOW(), S.temperature, S.humidity, S.lat, S.lng, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate ";
-      query += "FROM lab225.qr Q, " + sensor_sub + " ";
-      query += "WHERE Q.Lo = 'A13' AND Q.FmID = " + fmId + " ORDER BY Q.APC_PT DESC LIMIT 1";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device) ";
+      query += "SELECT 'A14', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + ") ";
+      query += "FROM lab225.qr Q WHERE Q.Lo = 'A13' AND Q.FmID = " + fmId + " ORDER BY Q.id DESC LIMIT 1";
     }
     else if (targetMode == "A15") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Lat, lon, AGrade, BGrade, CGrade, DefectRate) ";
-      query += "SELECT 'A15', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, Q.APC_StD, NOW(), S.lat, S.lng, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate ";
-      query += "FROM lab225.qr Q, " + sensor_sub + " ";
-      query += "WHERE Q.Lo = 'A14' AND Q.FmID = " + fmId + " ORDER BY Q.APC_StD DESC LIMIT 1";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device) ";
+      query += "SELECT 'A15', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, Q.APC_StD, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(" + sDev + ", Q.truck_device) ";
+      query += "FROM lab225.qr Q WHERE Q.Lo = 'A14' AND Q.FmID = " + fmId + " ORDER BY Q.id DESC LIMIT 1";
+    }
+    else if (targetMode == "A16") {
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Retail_AD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device) ";
+      query += "SELECT 'A16', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, Q.APC_StD, Q.APC_OP, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + ") ";
+      query += "FROM lab225.qr Q WHERE Q.Lo = 'A15' AND Q.FmID = " + fmId + " ORDER BY Q.id DESC LIMIT 1";
     }
 
     bool isSuccess = query_executor.execute(query.c_str());
