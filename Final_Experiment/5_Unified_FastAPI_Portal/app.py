@@ -250,16 +250,15 @@ def api_get_fmid_list():
         conn.close()
 
 @app.get("/api/consumer/trace/{fmid}")
-def api_get_consumer_trace(fmid: str):
+def api_get_consumer_trace(fmid: str, grade: str = "상"):
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM qr WHERE FmID = %s ORDER BY id ASC", (fmid,))
+            cur.execute("SELECT * FROM qr WHERE FmID = %s ORDER BY Lo ASC, id ASC", (fmid,))
             qr_rows = cur.fetchall()
             if not qr_rows:
                 raise HTTPException(status_code=404, detail=f"FmID={fmid} 이력 데이터가 존재하지 않습니다.")
 
-            # 병합 요약 정보 및 단계별 시각 추출
             stage_time_cols = {
                 "A00": "HD",
                 "A10": "APC_AD",
@@ -271,47 +270,111 @@ def api_get_consumer_trace(fmid: str):
                 "A16": "Retail_AD",
             }
             merged = {}
-            step_times = {}
+            stage_lookup = {}
+            clean_records = []
             for r in qr_rows:
-                lo = r.get("Lo")
+                row_copy = {}
                 for k, v in r.items():
+                    if isinstance(v, datetime):
+                        row_copy[k] = v.strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        row_copy[k] = v
                     if v is not None and str(v).strip() != "" and str(v) != "None":
-                        merged[k] = str(v) if isinstance(v, datetime) else v
+                        merged[k] = row_copy[k]
+                lo = row_copy.get("Lo")
                 if lo:
-                    t_col = stage_time_cols.get(lo, "HD")
-                    step_times[lo] = {
-                        "Lo": lo,
-                        "timestamp": str(r.get(t_col) or r.get("HD") or ""),
-                        "lat": float(r["Lat"]) if r.get("Lat") not in (None, "", 0, "0") else None,
-                        "lon": float(r["lon"]) if r.get("lon") not in (None, "", 0, "0") else None,
-                    }
+                    stage_lookup[lo] = row_copy
+                clean_records.append(row_copy)
 
-            # 1구간(HD ~ APC_AD) 및 2구간(APC_OP ~ Retail_AD) 주행 센서 궤적 조회
-            def fetch_segment(start_t, end_t):
-                if not start_t or not end_t:
+            def parse_dt(val):
+                if not val:
+                    return None
+                s = str(val).strip()
+                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+                    try:
+                        return datetime.strptime(s[:len(fmt) + 2].strip(), fmt)
+                    except Exception:
+                        continue
+                return None
+
+            def fetch_segment(start_dt, end_dt, truck_dev=None):
+                if not start_dt or not end_dt or end_dt < start_dt:
                     return []
+                s_str = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+                e_str = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+                if truck_dev:
+                    cur.execute("""
+                        SELECT timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status, device, run_id
+                        FROM sensor_data
+                        WHERE lat != 0 AND lng != 0 AND ABS(lat) > 1.0
+                          AND timestamp_str >= %s AND timestamp_str <= %s
+                          AND device = %s
+                        ORDER BY timestamp_str ASC, id ASC
+                    """, (s_str, e_str, truck_dev))
+                    rows = list(cur.fetchall())
+                    if rows:
+                        return rows
                 cur.execute("""
-                    SELECT timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status, run_id
+                    SELECT timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status, device, run_id
                     FROM sensor_data
-                    WHERE timestamp_str >= %s AND timestamp_str <= %s
-                      AND lat IS NOT NULL AND lng IS NOT NULL AND lat != 0 AND lng != 0
-                    ORDER BY timestamp_str ASC
-                """, (str(start_t), str(end_t)))
+                    WHERE lat != 0 AND lng != 0 AND ABS(lat) > 1.0
+                      AND timestamp_str >= %s AND timestamp_str <= %s
+                    ORDER BY timestamp_str ASC, id ASC
+                """, (s_str, e_str))
                 return list(cur.fetchall())
 
-            t_hd = merged.get("HD")
-            t_a10 = merged.get("APC_AD")
-            t_a15 = merged.get("APC_OP") or merged.get("APC_StD") or merged.get("APC_PT")
-            t_a16 = merged.get("Retail_AD") or "2099-12-31 23:59:59"
+            r_a00 = stage_lookup.get("A00")
+            r_a10 = stage_lookup.get("A10")
+            r_a15 = stage_lookup.get("A15")
+            r_a16 = stage_lookup.get("A16")
 
-            leg1_pts = fetch_segment(t_hd, t_a10) if (t_hd and t_a10) else []
-            leg2_pts = fetch_segment(t_a15, t_a16) if t_a15 else []
+            leg1_pts = []
+            if r_a10 and r_a10.get("APC_AD"):
+                dt_apc_ad = parse_dt(r_a10.get("APC_AD"))
+                dt_a00 = parse_dt(r_a00.get("HD")) if r_a00 else None
+                if dt_apc_ad:
+                    if dt_a00 and timedelta(0) <= (dt_apc_ad - dt_a00) <= timedelta(hours=24):
+                        dt_leg1_start = dt_a00
+                    else:
+                        dt_leg1_start = dt_apc_ad - timedelta(hours=6)
+                    leg1_pts = fetch_segment(dt_leg1_start, dt_apc_ad, r_a10.get("truck_device"))
+
+            leg2_pts = []
+            if r_a15 and r_a15.get("APC_OP"):
+                dt_apc_op = parse_dt(r_a15.get("APC_OP"))
+                dt_retail_ad = parse_dt(r_a16.get("Retail_AD")) if (r_a16 and r_a16.get("Retail_AD")) else None
+                truck_dev_2 = (r_a16.get("truck_device") if r_a16 else None) or r_a15.get("truck_device")
+                if dt_apc_op:
+                    dt_leg2_end = dt_retail_ad if dt_retail_ad else (dt_apc_op + timedelta(hours=12))
+                    leg2_pts = fetch_segment(dt_apc_op, dt_leg2_end, truck_dev_2)
+
+            # 우측 상단 정품 인증 QR 생성 (Step5_Run_Dashboard.py와 동일)
+            fruit_raw = str(merged.get("FrT") or "Apples")
+            cat_key = "Apples"
+            for k in FRUIT_IMAGES_GRADE.keys():
+                if k.lower() in fruit_raw.lower():
+                    cat_key = k
+                    break
+            g_upper = str(grade or "상").strip().upper()
+            if g_upper in ("중", "M", "B"):
+                g_idx, g_param = 1, "중"
+            elif g_upper in ("하", "L", "C"):
+                g_idx, g_param = 2, "하"
+            else:
+                g_idx, g_param = 0, "상"
+
+            auth_qr_url = f"{STREAMLIT_CONSUMER_URL}/?FmID={fmid}&grade={g_param}&AC={merged.get('AC', '')}&FrT={fruit_raw}"
+            overlay_icon = FRUIT_IMAGES_GRADE[cat_key][g_idx]
+            auth_qr_b64 = make_qr_base64(auth_qr_url, overlay_filename=overlay_icon, rounded=False)
 
             return {
                 "ok": True,
                 "fmid": fmid,
+                "grade": g_param,
                 "summary": merged,
-                "steps": list(step_times.values()),
+                "records": clean_records,
+                "stage_lookup": stage_lookup,
+                "auth_qr_base64": auth_qr_b64,
                 "leg1_sensor_pts": leg1_pts,
                 "leg2_sensor_pts": leg2_pts,
             }

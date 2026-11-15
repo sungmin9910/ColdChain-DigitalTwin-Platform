@@ -3,140 +3,384 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ColdChain DigitalTwin 통합 포털 (FastAPI + WebSocket)</title>
+  <title>프리미엄 과일 안심 이력조회 & 콜드체인 통합 플랫폼</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
   <style>
-    body { background-color: #0f172a; color: #f8fafc; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .glass-card { background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 14px; backdrop-filter: blur(10px); }
+    body { font-family: 'Noto Sans KR', sans-serif; transition: background 0.25s ease; }
+    body.consumer-theme { background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ee 100%); color: #1d1d1f; }
+    body.admin-theme { background-color: #0f172a; color: #f8fafc; }
+
+    .glass-card { background: rgba(30, 41, 59, 0.88); border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 14px; backdrop-filter: blur(10px); }
     .tab-btn-active { background: linear-gradient(135deg, #2563eb, #0ea5e9); color: #fff; font-weight: 700; box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35); }
     .tab-btn-inactive { background: rgba(30, 41, 59, 0.7); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.15); }
-    .leaflet-container { border-radius: 12px; z-index: 10; background: #1e293b; }
-    /* API 키가 전혀 필요 없는 공식 OpenStreetMap 타일을 다크모드 관제 테마로 변환 */
-    .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+    .leaflet-container { border-radius: 12px; z-index: 10; }
+    /* 관제 대시보드(탭 4) 지도만 다크모드 적용, 소비자 지도(탭 1)는 기존 Step 5와 동일한 밝은 테마 유지 */
+    #control-map .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+
+    /* ===== 기존 Step5_Run_Dashboard.py 소비자 대시보드 100% 동일 CSS ===== */
+    .consumer-device-card {
+      background-color: #ffffff;
+      border-radius: 24px;
+      padding: 42px 35px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.06);
+      border: 1px solid rgba(225, 228, 232, 0.6);
+      max-width: 680px;
+      margin: 28px auto;
+      color: #1d1d1f;
+    }
+    @media (max-width: 768px) {
+      .consumer-device-card {
+        border-radius: 0px;
+        box-shadow: none;
+        border: none;
+        padding: 20px 15px;
+        margin: 0px auto;
+        max-width: 100%;
+      }
+    }
+    .cs-seg-bar {
+      display: flex;
+      gap: 6px;
+      background-color: #f1f2f6;
+      padding: 5px;
+      border-radius: 25px;
+      margin-bottom: 25px;
+    }
+    .cs-seg-btn {
+      flex: 1;
+      text-align: center;
+      background-color: transparent;
+      color: #515154;
+      font-size: 0.98rem;
+      font-weight: 700;
+      border-radius: 20px;
+      padding: 9px 12px;
+      transition: all 0.25s ease;
+      cursor: pointer;
+      border: none;
+    }
+    .cs-seg-btn:hover { color: #2ecc71; background-color: rgba(46, 204, 113, 0.05); }
+    .cs-seg-btn.active {
+      background-color: #ffffff;
+      color: #2ecc71;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    .cs-info-card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 14px 10px;
+      border: 1px solid #eef0f2;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      color: #1d1d1f;
+      min-height: 112px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    .cs-info-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 30px rgba(46, 204, 113, 0.12);
+      border-color: #2ecc71;
+    }
+    .cs-farmer-card {
+      background-color: #f8f9fa;
+      border-radius: 12px;
+      padding: 20px 26px;
+      border-left: 5px solid #2ecc71;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+      margin-bottom: 22px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 640px) { .cs-farmer-card { grid-template-columns: 1fr; } }
+    .cs-timeline-item {
+      border-left: 3px solid #2ecc71;
+      padding-left: 20px;
+      margin-bottom: 24px;
+      position: relative;
+      color: #1d1d1f;
+    }
+    .cs-timeline-item::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background-color: #2ecc71;
+      border: 3px solid #ffffff;
+      box-shadow: 0 0 0 2px #2ecc71;
+      border-radius: 50%;
+      left: -9px;
+      top: 5px;
+    }
+    .cs-timeline-item.pending {
+      border-left: 3px dashed #d1d1d6 !important;
+      opacity: 0.55;
+    }
+    .cs-timeline-item.pending::before {
+      background-color: #d1d1d6 !important;
+      box-shadow: 0 0 0 2px #d1d1d6 !important;
+    }
+    .cs-elapsed-tag {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-left: 8px;
+    }
   </style>
 </head>
-<body class="min-h-screen pb-12">
+<body class="min-h-screen pb-12 consumer-theme">
 
   <!-- 상단 네비게이션 & 권한(RBAC) 컨트롤 바 -->
   <header class="sticky top-0 z-50 bg-slate-900/95 border-b border-slate-800 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <span class="text-2xl">🍎</span>
+    <div class="max-w-7xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <span class="text-xl">🍎</span>
         <div>
-          <h1 class="text-lg md:text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
+          <h1 class="text-base md:text-lg font-extrabold tracking-tight text-white flex items-center gap-2">
             콜드체인 디지털트윈 통합 플랫폼
-            <span class="text-xs px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/40 font-semibold">FastAPI + WebSocket</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/40 font-semibold">FastAPI + WebSocket</span>
           </h1>
-          <p class="text-xs text-slate-400">농가(A00) · APC(A10~A15) · 실시간 차량 관제 · 소비자 이력추적 통합 포털</p>
         </div>
       </div>
 
-      <!-- 현재 권한 배지 & 간편 권한 전환/로그인 -->
       <div class="flex items-center gap-2 flex-wrap">
-        <span id="role-badge" class="text-xs px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
-          👤 현재 권한: 일반 소비자 (Public)
+        <span id="role-badge" class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+          👤 소비자 화면 (Public)
         </span>
-        <input id="pin-input" type="password" maxlength="4" placeholder="권한 PIN (예: 0000)"
+        <input id="pin-input" type="password" maxlength="4" placeholder="관리자 PIN (0000)"
                onkeydown="if(event.key==='Enter') loginWithPin()"
-               class="w-36 px-3 py-1.5 text-xs rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-sky-400" />
-        <button onclick="loginWithPin()" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition">
+               class="w-32 px-2.5 py-1 text-xs rounded-lg bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-sky-400" />
+        <button onclick="loginWithPin()" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition">
           🔐 권한 전환
         </button>
-        <button id="logout-btn" onclick="logoutRole()" class="hidden px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200">
+        <button id="logout-btn" onclick="logoutRole()" class="hidden px-2 py-1 text-xs font-semibold rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200">
           로그아웃
         </button>
       </div>
     </div>
 
-    <!-- 권한 안내 캡션 + 4대 모듈 탭 바 -->
-    <div class="max-w-7xl mx-auto px-4 pb-3 flex flex-wrap items-center justify-between gap-2">
+    <!-- 관리자 로그인 시에만 표시되는 상단 모듈 탭 바 -->
+    <div id="admin-tab-bar" class="hidden max-w-7xl mx-auto px-4 pb-2.5 pt-1 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800/80">
       <div class="flex items-center gap-2 overflow-x-auto py-1">
-        <button id="tab-btn-consumer" onclick="switchTab('consumer')" class="px-4 py-2 rounded-xl text-sm transition tab-btn-active">
+        <button id="tab-btn-consumer" onclick="switchTab('consumer')" class="px-3.5 py-1.5 rounded-xl text-xs transition tab-btn-active">
           🔍 1. 소비자 안심 조회
         </button>
-        <button id="tab-btn-farm" onclick="switchTab('farm')" class="hidden px-4 py-2 rounded-xl text-sm transition tab-btn-inactive">
+        <button id="tab-btn-farm" onclick="switchTab('farm')" class="hidden px-3.5 py-1.5 rounded-xl text-xs transition tab-btn-inactive">
           🌾 2. 농가 수확·QR 생성 (A00)
         </button>
-        <button id="tab-btn-apc" onclick="switchTab('apc')" class="hidden px-4 py-2 rounded-xl text-sm transition tab-btn-inactive">
+        <button id="tab-btn-apc" onclick="switchTab('apc')" class="hidden px-3.5 py-1.5 rounded-xl text-xs transition tab-btn-inactive">
           🏭 3. APC 선별·등급 QR 생성 (A12)
         </button>
-        <button id="tab-btn-control" onclick="switchTab('control')" class="hidden px-4 py-2 rounded-xl text-sm transition tab-btn-inactive">
+        <button id="tab-btn-control" onclick="switchTab('control')" class="hidden px-3.5 py-1.5 rounded-xl text-xs transition tab-btn-inactive">
           🛰️ 4. 실시간 차량 관제 대시보드
         </button>
       </div>
       <div class="text-[11px] text-slate-400">
-        💡 테스트 PIN — <b>0000</b>: 통합관리자(전체 탭) | <b>1111</b>: 농가 | <b>2222</b>: APC | <b>3333</b>: 관제사
+        PIN 안내 — <b>0000</b>: 통합관리자 | <b>1111</b>: 농가 | <b>2222</b>: APC | <b>3333</b>: 관제사
       </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 pt-6">
+  <main class="max-w-7xl mx-auto px-3">
 
-    <!-- ============================================================== -->
-    <!-- [탭 1] 🔍 소비자 안심 이력조회 (비로그인 전체 공개 기본 화면) -->
-    <!-- ============================================================== -->
-    <section id="tab-consumer" class="space-y-6">
-      <div class="glass-card p-5 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 class="text-xl font-bold text-white flex items-center gap-2">
-            🛡️ 블록체인 기반 안심 농산물 이력추적 서비스
-          </h2>
-          <p class="text-xs text-slate-400 mt-1">
-            스마트 QR 스캔 및 실시간 콜드체인 GPS/환경 센서로 수집된 산지~유통 전 과정 데이터입니다.
-          </p>
+    <!-- ========================================================================= -->
+    <!-- [탭 1] 🔍 소비자 안심 이력조회 (기존 Step5_Run_Dashboard.py 디자인 & 정보 100% 동일) -->
+    <!-- ========================================================================= -->
+    <section id="tab-consumer">
+      <div class="consumer-device-card">
+        <!-- 상단 컨트롤: 좌측 테스트용 FmID/등급 선택기, 우측 한/영 언어 선택기 (기존 Step5 동일) -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-5 pb-3 border-b border-gray-100">
+          <div class="flex items-center gap-1.5 text-xs text-gray-500">
+            <span>🔎 조회 번호(FmID):</span>
+            <select id="consumer-fmid-select" onchange="loadConsumerTrace()"
+                    class="px-2.5 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-xs font-bold text-gray-800">
+            </select>
+            <select id="consumer-grade-select" onchange="loadConsumerTrace()"
+                    class="px-2 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-xs font-semibold text-gray-700">
+              <option value="상" selected>등급: 상 (A)</option>
+              <option value="중">등급: 중 (B)</option>
+              <option value="하">등급: 하 (C)</option>
+            </select>
+          </div>
+          <div>
+            <select id="consumer-lang-select" onchange="onConsumerLangChange(this.value)"
+                    class="px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-xs font-semibold text-gray-800">
+              <option value="KO" selected>한국어 (KO)</option>
+              <option value="EN">English (EN)</option>
+            </select>
+          </div>
         </div>
-        <div class="flex items-center gap-2">
-          <label class="text-xs text-slate-300 font-semibold">조회 농가/배치(FmID):</label>
-          <select id="consumer-fmid-select" onchange="loadConsumerTrace(this.value)"
-                  class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white font-semibold">
-          </select>
-          <button onclick="loadConsumerTrace(document.getElementById('consumer-fmid-select').value)"
-                  class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white">
-            🔄 실시간 갱신
+
+        <!-- 헤더 2열 구성: 좌측 타이틀 & 실시간 정보 갱신 버튼 / 우측 정품 인증 유색 사과 QR -->
+        <div class="flex items-start justify-between gap-4 mb-6">
+          <div class="flex-1">
+            <h1 id="cs-hero-title" class="text-3xl md:text-[2.15rem] font-extrabold text-[#1d1d1f] leading-tight mb-1.5">
+              🍏 사과 안심 이력
+            </h1>
+            <p id="cs-hero-subtitle" class="text-sm md:text-[0.95rem] text-[#515154] font-medium mb-4">
+              블록체인 기반의 먹거리 안심 정보 서비스
+            </p>
+            <button onclick="loadConsumerTrace()" id="cs-refresh-btn"
+                    class="px-5 py-2 rounded-full bg-[#f0f2f6] hover:bg-[#e0e4ea] text-[#1d1d1f] hover:text-[#2ecc71] text-xs font-bold transition">
+              🔄 실시간 정보 갱신
+            </button>
+          </div>
+          <div class="w-32 sm:w-36 flex-shrink-0 flex justify-end">
+            <img id="cs-auth-qr-img" src="" alt="정품 인증 QR" class="w-32 h-32 sm:w-36 sm:h-36 object-contain rounded-lg border border-gray-100" />
+          </div>
+        </div>
+
+        <!-- iOS 세그먼트 스타일 3대 서브탭 (✨ 안심 요약 | 🚚 생산·유통 이력 | 📍 이동 경로) -->
+        <div class="cs-seg-bar">
+          <button id="cs-subtab-btn-summary" onclick="switchConsumerSubTab('summary')" class="cs-seg-btn active">
+            ✨ 안심 요약
+          </button>
+          <button id="cs-subtab-btn-timeline" onclick="switchConsumerSubTab('timeline')" class="cs-seg-btn">
+            🚚 생산·유통 이력
+          </button>
+          <button id="cs-subtab-btn-route" onclick="switchConsumerSubTab('route')" class="cs-seg-btn">
+            📍 이동 경로
           </button>
         </div>
-      </div>
 
-      <!-- 핵심 요약 카드 4개 -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="glass-card p-4">
-          <div class="text-xs text-slate-400">품목 / 품종</div>
-          <div id="cs-fruit" class="text-lg font-extrabold text-white mt-1">-</div>
-          <div id="cs-method" class="text-xs text-emerald-400 mt-0.5">-</div>
-        </div>
-        <div class="glass-card p-4">
-          <div class="text-xs text-slate-400">산지 / 농가 번호</div>
-          <div id="cs-origin" class="text-lg font-extrabold text-white mt-1">-</div>
-          <div id="cs-hd" class="text-xs text-slate-400 mt-0.5">수확일: -</div>
-        </div>
-        <div class="glass-card p-4">
-          <div class="text-xs text-slate-400">APC 선별 등급 / 수량</div>
-          <div id="cs-grade" class="text-lg font-extrabold text-sky-400 mt-1">-</div>
-          <div id="cs-qt" class="text-xs text-slate-400 mt-0.5">총 수량: -</div>
-        </div>
-        <div class="glass-card p-4">
-          <div class="text-xs text-slate-400">콜드체인 수송 품질</div>
-          <div id="cs-temp-range" class="text-lg font-extrabold text-amber-400 mt-1">-</div>
-          <div id="cs-pts-count" class="text-xs text-slate-400 mt-0.5">GPS 궤적: 0건</div>
-        </div>
-      </div>
+        <!-- [서브탭 1] ✨ 안심 요약 (Safe Summary) -->
+        <div id="cs-subtab-summary">
+          <h2 id="cs-premium-heading" class="text-center text-2xl font-extrabold text-[#1d1d1f] mt-2 mb-1">
+            🍎 Premium 사과
+          </h2>
+          <p id="cs-premium-desc" class="text-center text-sm text-[#666666] mb-6">
+            원산지에서 식탁까지 온 정직한 과정을 투명하게 검증받은 최상의 사과입니다.
+          </p>
 
-      <!-- 지도 + 유통 타임라인 2단 레이아웃 -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div class="lg:col-span-7 glass-card p-5 space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-base font-bold text-white">📍 실시간 유통 이동 경로 지도 (1구간 & 2구간)</h3>
-            <span class="text-xs text-slate-400">🟧 1구간(농가➔APC) · 🟦 2구간(APC➔물류센터)</span>
+          <!-- 핵심 정보 카드 4열 -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-6">
+            <div class="cs-info-card">
+              <small id="lbl-origin" class="text-[#666] text-xs">원산지</small>
+              <b id="val-origin" class="text-[0.98rem] text-[#1d1d1f] mt-1 leading-snug">-</b>
+            </div>
+            <div class="cs-info-card">
+              <small id="lbl-variety" class="text-[#666] text-xs">품종</small>
+              <b id="val-variety" class="text-[1.02rem] text-[#1d1d1f] mt-1">-</b>
+            </div>
+            <div class="cs-info-card">
+              <small id="lbl-grade" class="text-[#666] text-xs">선별 등급</small>
+              <b id="val-grade" class="text-xl text-[#2ecc71] my-0.5">-</b>
+              <span id="val-grade-qty" class="text-[0.75rem] text-[#8e8e93] font-medium">수량: -</span>
+            </div>
+            <div class="cs-info-card">
+              <small id="lbl-method" class="text-[#666] text-xs">재배 방식</small>
+              <b id="val-method" class="text-[1.02rem] text-[#1d1d1f] mt-1">-</b>
+            </div>
           </div>
-          <div id="consumer-map" class="w-full h-[420px]"></div>
+
+          <!-- 농가 및 수확 정보 -->
+          <h3 id="lbl-farmer-title" class="text-lg font-bold text-[#1d1d1f] mb-3">🚜 농가 및 수확 정보</h3>
+          <div class="cs-farmer-card">
+            <div class="flex items-center gap-3.5">
+              <div class="text-2xl">🆔</div>
+              <div>
+                <div id="lbl-farmer-id" class="text-xs text-[#86868b]">생산 농가 ID</div>
+                <div id="val-farmer-id" class="text-base font-bold text-[#1d1d1f]">-</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3.5">
+              <div class="text-2xl">📞</div>
+              <div>
+                <div id="lbl-contact" class="text-xs text-[#86868b]">연락처 (안심번호)</div>
+                <div id="val-contact" class="text-base font-bold text-[#1d1d1f]">-</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3.5">
+              <div class="text-2xl">📅</div>
+              <div>
+                <div id="lbl-harvest-date" class="text-xs text-[#86868b]">수확 일자</div>
+                <div id="val-harvest-date" class="text-base font-bold text-[#1d1d1f]">-</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 블록체인 검증 배너 -->
+          <div id="cs-blockchain-banner" class="rounded-xl bg-[#e8f5e9] border border-[#c8e6c9] px-4 py-3.5 text-sm font-medium text-[#1b5e20]">
+            ✨ 이 과일은 투명하고 안전한 블록체인 관리 시스템을 통해 검증되었습니다. 안심하고 즐거운 시간 되세요!
+          </div>
         </div>
 
-        <div class="lg:col-span-5 glass-card p-5 space-y-3">
-          <h3 class="text-base font-bold text-white">🚚 블록체인 유통 단계별 타임라인 (A00 ~ A16)</h3>
-          <div id="consumer-timeline" class="space-y-2.5 max-h-[420px] overflow-y-auto pr-1"></div>
+        <!-- [서브탭 2] 🚚 생산·유통 이력 (Log & Timeline) -->
+        <div id="cs-subtab-timeline" class="hidden">
+          <h3 id="lbl-timeline-title" class="text-lg font-bold text-[#1d1d1f] mb-4">🚚 콜드체인 타임라인</h3>
+          <div id="consumer-timeline" class="pl-2.5 pt-2"></div>
+        </div>
+
+        <!-- [서브탭 3] 📍 이동 경로 (Route Map) -->
+        <div id="cs-subtab-route" class="hidden">
+          <h3 id="lbl-route-title" class="text-lg font-bold text-[#1d1d1f] mb-1">📍 실시간 이동 경로</h3>
+          <p id="lbl-route-subtitle" class="text-sm text-[#515154] mb-3.5">
+            스마트 QR 스캔 및 GPS 트래커를 통해 수집된 과일의 실시간 지리정보 경로입니다.
+          </p>
+
+          <!-- 운송 구간 실시간 콜드체인 검증 요약 박스 -->
+          <div id="cs-route-telemetry-box" class="bg-[#f4f9ff] border border-[#cfe4ff] rounded-xl p-3.5 mb-3.5">
+            <div class="flex flex-wrap items-center justify-between gap-1.5 mb-2">
+              <span id="lbl-route-telemetry-title" class="font-bold text-[#0b5394] text-sm">❄️ 운송 구간 실시간 콜드체인 검증</span>
+              <span id="lbl-route-safe-badge" class="text-xs font-semibold text-[#27ae60]">🟢 전 구간 안전 운송</span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-center">
+              <div class="bg-white rounded-lg py-1.5 px-2 border border-[#e1ecf7]">
+                <small id="lbl-route-avg-temp" class="text-[#666] text-[11px] block">운송 평균 온도</small>
+                <b id="val-route-avg-temp" class="text-[#0b5394] text-sm">-</b>
+              </div>
+              <div class="bg-white rounded-lg py-1.5 px-2 border border-[#e1ecf7]">
+                <small id="lbl-route-max-g" class="text-[#666] text-[11px] block">최대 충격량</small>
+                <b id="val-route-max-g" class="text-[#27ae60] text-sm">-</b>
+              </div>
+              <div class="bg-white rounded-lg py-1.5 px-2 border border-[#e1ecf7]">
+                <small id="lbl-route-gps-pts" class="text-[#666] text-[11px] block">실측 도로 궤적</small>
+                <b id="val-route-gps-pts" class="text-[#1d1d1f] text-sm">-</b>
+              </div>
+            </div>
+          </div>
+
+          <!-- 범례 -->
+          <div class="flex flex-wrap gap-4 mb-2.5 text-xs text-[#515154] font-medium">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-4 h-1 bg-[#2ecc71] rounded inline-block"></span>
+              <span id="lbl-leg1">🌱 산지 → APC 운송</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-4 h-1 bg-[#007aff] rounded inline-block"></span>
+              <span id="lbl-leg2">🚛 APC → 판매처 냉장운송</span>
+            </span>
+          </div>
+
+          <!-- 밝은 테마 지도 -->
+          <div id="consumer-map" class="w-full h-[380px] border border-gray-200 rounded-xl mb-5"></div>
+
+          <!-- 지리 좌표 경로 목록 테이블 -->
+          <h4 id="lbl-route-list" class="text-base font-bold text-[#1d1d1f] mb-2.5">📋 지리 좌표 경로 목록</h4>
+          <div class="overflow-x-auto border border-gray-200 rounded-xl">
+            <table class="w-full text-left text-xs text-[#1d1d1f]">
+              <thead class="bg-gray-50 border-b border-gray-200 text-gray-600">
+                <tr>
+                  <th id="th-stage" class="py-2.5 px-3 font-bold">유통 단계</th>
+                  <th id="th-time" class="py-2.5 px-3 font-bold">처리 일시</th>
+                  <th id="th-lat" class="py-2.5 px-3 font-bold">위도 (Latitude)</th>
+                  <th id="th-lon" class="py-2.5 px-3 font-bold">경도 (Longitude)</th>
+                </tr>
+              </thead>
+              <tbody id="cs-route-tbody" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </section>
@@ -144,7 +388,7 @@
     <!-- ============================================================== -->
     <!-- [탭 2] 🌾 농가 수확 등록 & QR 생성 (Step 1 웹 통합 버전) -->
     <!-- ============================================================== -->
-    <section id="tab-farm" class="hidden space-y-6">
+    <section id="tab-farm" class="hidden space-y-6 pt-4">
       <div class="glass-card p-6">
         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-700/70 pb-4 mb-5">
           <div>
@@ -164,7 +408,6 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div class="lg:col-span-8 space-y-4">
-            <!-- 3개 섹션 카드 (FARMER INFO / HARVEST LOGISTICS / CULTIVATION DETAILS) -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-900/60 border border-slate-800">
               <div class="sm:col-span-3 text-xs font-extrabold text-sky-400 tracking-wider">1. FARMER INFO (농가 기본 정보)</div>
               <div>
@@ -173,7 +416,7 @@
               </div>
               <div>
                 <label class="text-xs text-slate-300">우편번호 (Area Code, AC)</label>
-                <select id="f-ac" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm">
+                <select id="f-ac" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white">
                   <option value="55630">55630</option>
                   <option value="55631">55631</option>
                   <option value="55632" selected>55632</option>
@@ -184,7 +427,7 @@
               </div>
               <div>
                 <label class="text-xs text-slate-300">연락처 (Contact Info, Ct)</label>
-                <input id="f-ct" type="text" value="01012345678" oninput="this.value=this.value.replace(/[^0-9]/g,'')" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+                <input id="f-ct" type="text" value="01012345678" oninput="this.value=this.value.replace(/[^0-9]/g,'')" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
               </div>
             </div>
 
@@ -192,19 +435,19 @@
               <div class="sm:col-span-3 text-xs font-extrabold text-emerald-400 tracking-wider">2. HARVEST LOGISTICS (수확 · 보관 · 출하 · 수량 정보)</div>
               <div>
                 <label class="text-xs text-slate-300">수확 일자 (Harvest Date, HD)</label>
-                <input id="f-hd" type="date" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+                <input id="f-hd" type="date" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
               </div>
               <div>
                 <label class="text-xs text-slate-300">보관 일자 (Storage Date, StD)</label>
-                <input id="f-std" type="date" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+                <input id="f-std" type="date" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
               </div>
               <div>
                 <label class="text-xs text-slate-300">출하 예정일 (Delivery Date, DD)</label>
-                <input id="f-dd" type="date" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+                <input id="f-dd" type="date" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
               </div>
               <div>
                 <label class="text-xs text-slate-300">수확 번호/횟수 (Harvesting No., HN)</label>
-                <input id="f-hn" type="number" value="1" min="1" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm" />
+                <input id="f-hn" type="number" value="1" min="1" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white" />
               </div>
               <div class="sm:col-span-2">
                 <label class="text-xs text-slate-300">수확 총 수량 (Quantity(box), Qt)</label>
@@ -216,7 +459,7 @@
               <div class="sm:col-span-3 text-xs font-extrabold text-amber-400 tracking-wider">3. CULTIVATION DETAILS (품목 · 품종 · 재배 방식)</div>
               <div>
                 <label class="text-xs text-slate-300">과일 종류 (Fruit Type, FrT)</label>
-                <select id="f-frt" onchange="onFarmFruitChange()" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm">
+                <select id="f-frt" onchange="onFarmFruitChange()" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white">
                   <option value="Apples" selected>Apples (사과)</option>
                   <option value="Pears">Pears (배)</option>
                   <option value="Peaches">Peaches (복숭아)</option>
@@ -226,11 +469,11 @@
               </div>
               <div>
                 <label class="text-xs text-slate-300">품종 (Variety, Vt)</label>
-                <select id="f-vt" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm"></select>
+                <select id="f-vt" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white"></select>
               </div>
               <div>
                 <label class="text-xs text-slate-300">재배 방식 (Farming Method, Mt)</label>
-                <select id="f-mt" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm">
+                <select id="f-mt" class="w-full mt-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm text-white">
                   <option value="Organic" selected>Organic (유기농)</option>
                   <option value="Conventional">Conventional (관행재배)</option>
                 </select>
@@ -245,7 +488,6 @@
             </div>
           </div>
 
-          <!-- 우측 QR 미리보기 및 다운로드 카드 -->
           <div class="lg:col-span-4 bg-slate-900/90 border border-slate-800 rounded-xl p-5 flex flex-col items-center justify-center text-center">
             <div class="text-xs font-bold text-slate-400 mb-3">발급된 농가 원본(무색) QR 코드 (A00)</div>
             <img id="farm-qr-img" src="" alt="QR Preview" class="hidden w-52 h-52 rounded-xl border-4 border-white shadow-md bg-white p-1" />
@@ -264,7 +506,7 @@
     <!-- ============================================================== -->
     <!-- [탭 3] 🏭 APC 선별·등급 판정 & 색상 QR 발급 (Step 3 스캐너 방식 100% 동일) -->
     <!-- ============================================================== -->
-    <section id="tab-apc" class="hidden space-y-6">
+    <section id="tab-apc" class="hidden space-y-6 pt-4">
       <div class="glass-card p-6 space-y-5">
         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-700/70 pb-4">
           <div>
@@ -281,7 +523,6 @@
           </div>
         </div>
 
-        <!-- [핵심] 바코드/QR 스캐너 전용 포커스 입력창 (Enter 입력 시 자동 조회 + 난수 배분 + 유색 QR 즉시 생성) -->
         <div class="p-4 rounded-xl bg-sky-950/50 border-2 border-sky-500/60 flex flex-wrap items-center gap-3">
           <span class="text-sm font-extrabold text-sky-300">👉 이곳을 클릭하고 무색(농가) QR코드를 스캔하세요:</span>
           <input id="apc-qr-scanner-input" type="text"
@@ -292,16 +533,13 @@
                   class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-extrabold text-white">
             🔍 스캔 처리 & 자동 생성
           </button>
-          <!-- 스캐너 없을 때 테스트용 빠른 선택 드롭다운 -->
           <select id="apc-fmid-select" onchange="if(this.value) handleApcQrScan(this.value, true)"
                   class="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-300">
             <option value="">(또는 DB 목록에서 선택)</option>
           </select>
         </div>
 
-        <!-- 기존 Step 3 GUI의 4대 프레임 (기본 정보 / 날짜·수량 정보 / 과일 정보 / 등급 입력) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Frame 1: 기본 정보 -->
           <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
             <div class="text-xs font-extrabold text-sky-400">기본 정보</div>
             <div class="grid grid-cols-3 gap-2">
@@ -311,30 +549,29 @@
               </div>
               <div>
                 <label class="text-[11px] text-slate-400">AC (우편번호)</label>
-                <input id="apc-info-ac" type="text" readonly class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs" />
+                <input id="apc-info-ac" type="text" readonly class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs text-white" />
               </div>
               <div>
                 <label class="text-[11px] text-slate-400">Ct (연락처)</label>
-                <input id="apc-info-ct" type="text" readonly class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs" />
+                <input id="apc-info-ct" type="text" readonly class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs text-white" />
               </div>
             </div>
           </div>
 
-          <!-- Frame 2: 날짜/수량 정보 -->
           <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
             <div class="text-xs font-extrabold text-emerald-400">날짜 / 수량 정보</div>
             <div class="grid grid-cols-5 gap-2">
               <div class="col-span-2">
                 <label class="text-[11px] text-slate-400">HD (수확일시)</label>
-                <input id="apc-info-hd" type="text" readonly class="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-800 border border-slate-700 text-[11px]" />
+                <input id="apc-info-hd" type="text" readonly class="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-800 border border-slate-700 text-[11px] text-white" />
               </div>
               <div>
                 <label class="text-[11px] text-slate-400">DD (출하일)</label>
-                <input id="apc-info-dd" type="text" readonly class="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-800 border border-slate-700 text-[11px]" />
+                <input id="apc-info-dd" type="text" readonly class="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-800 border border-slate-700 text-[11px] text-white" />
               </div>
               <div>
                 <label class="text-[11px] text-slate-400">StD (보관일)</label>
-                <input id="apc-info-std" type="text" readonly class="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-800 border border-slate-700 text-[11px]" />
+                <input id="apc-info-std" type="text" readonly class="w-full mt-0.5 px-2 py-1.5 rounded bg-slate-800 border border-slate-700 text-[11px] text-white" />
               </div>
               <div>
                 <label class="text-[11px] text-slate-400">HN / Qt(총수량)</label>
@@ -343,26 +580,24 @@
             </div>
           </div>
 
-          <!-- Frame 3: 과일 정보 -->
           <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
             <div class="text-xs font-extrabold text-amber-400">과일 정보</div>
             <div class="grid grid-cols-3 gap-2">
               <div>
                 <label class="text-[11px] text-slate-400">FrT (과일 종류)</label>
-                <input id="apc-info-frt" type="text" readonly class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs" />
+                <input id="apc-info-frt" type="text" readonly class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs text-white" />
               </div>
               <div>
                 <label class="text-[11px] text-slate-400">Vt (품종)</label>
-                <input id="apc-info-vt" type="text" readonly class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs" />
+                <input id="apc-info-vt" type="text" readonly class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs text-white" />
               </div>
               <div>
                 <label class="text-[11px] text-slate-400">Mt (재배방식)</label>
-                <input id="apc-info-mt" type="text" readonly class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs" />
+                <input id="apc-info-mt" type="text" readonly class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs text-white" />
               </div>
             </div>
           </div>
 
-          <!-- Frame 4: 등급 입력 (난수 자동 배분: A등급 78~82% + 합계 일치 보정) -->
           <div class="p-4 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
             <div class="flex items-center justify-between">
               <span class="text-xs font-extrabold text-rose-400">등급 입력 (스캔 시 난수 자동 배분)</span>
@@ -383,7 +618,7 @@
               </div>
               <div>
                 <label class="text-[11px] text-slate-300">결점률(수)</label>
-                <input id="apc-defect" type="number" value="0" class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs" />
+                <input id="apc-defect" type="number" value="0" class="w-full mt-0.5 px-2.5 py-1.5 rounded bg-slate-800 border border-slate-700 text-xs text-white" />
               </div>
             </div>
           </div>
@@ -393,8 +628,6 @@
           💾 저장 및 등급별 유색 QR 생성 (Block)
         </button>
         <div id="apc-result-msg" class="text-xs text-emerald-400 font-semibold"></div>
-
-        <!-- A / B / C 등급 유색 QR 3열 출력 -->
         <div id="apc-qr-grid" class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2"></div>
       </div>
     </section>
@@ -402,7 +635,7 @@
     <!-- ============================================================== -->
     <!-- [탭 4] 🛰️ 실시간 콜드체인 차량 관제 대시보드 (Step 4 2x2 차트 + 접이식 로그) -->
     <!-- ============================================================== -->
-    <section id="tab-control" class="hidden space-y-6">
+    <section id="tab-control" class="hidden space-y-6 pt-4">
       <div class="glass-card p-5 flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-3 flex-wrap">
           <div>
@@ -425,13 +658,12 @@
           <span id="ws-status-badge" class="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
             🟢 WebSocket 실시간 연결됨 (깜빡임 0%)
           </span>
-          <button onclick="loadControlHistory()" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-bold">
+          <button onclick="loadControlHistory()" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-bold text-white">
             🔄 DB 궤적 재동기화
           </button>
         </div>
       </div>
 
-      <!-- 5대 실시간 지표 카드 -->
       <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div class="glass-card p-4">
           <div class="text-xs text-slate-400">🌡️ 적재함 온도</div>
@@ -455,7 +687,6 @@
         </div>
       </div>
 
-      <!-- 기존 Step 4와 동일한 2x2 그리드: [지도 | 조도(Lux)] / [충격·속도 | 온도·습도] -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="glass-card p-4 space-y-2">
           <div class="flex items-center justify-between">
@@ -484,7 +715,6 @@
         </div>
       </div>
 
-      <!-- 평소에는 숨겨두고 클릭 시 펼쳐지는 실시간 텔레메트리 로그 -->
       <div class="glass-card p-4">
         <button id="toggle-log-btn" onclick="toggleTelemetryLog()"
                 class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-extrabold text-slate-200 flex items-center justify-between transition">
@@ -514,7 +744,232 @@
 
   <script>
     // =====================================================================
-    // 1. 권한(RBAC) 및 탭 전환 관리
+    // 1. 다국어(KO/EN) 사전 및 헬퍼 (기존 Step5_Run_Dashboard.py 100% 동일)
+    // =====================================================================
+    let csLang = "KO";
+    let lastConsumerData = null;
+
+    const CS_LANG = {
+      KO: {
+        title_suffix: "안심 이력",
+        subtitle: "블록체인 기반의 먹거리 안심 정보 서비스",
+        refresh_btn: "🔄 실시간 정보 갱신",
+        tab_summary: "✨ 안심 요약",
+        tab_timeline: "🚚 생산·유통 이력",
+        tab_route: "📍 이동 경로",
+        premium_fruit: (f) => `🍎 Premium ${f}`,
+        fruit_desc: (f) => `원산지에서 식탁까지 온 정직한 과정을 투명하게 검증받은 최상의 ${f}입니다.`,
+        origin: "원산지",
+        variety: "품종",
+        grade: "선별 등급",
+        method: "재배 방식",
+        quantity: "수량",
+        boxes: (n) => `${n} 박스`,
+        farmer_title: "🚜 농가 및 수확 정보",
+        farmer_id: "생산 농가 ID",
+        contact: "연락처 (안심번호)",
+        harvest_date: "수확 일자",
+        blockchain_verified: "✨ 이 과일은 투명하고 안전한 블록체인 관리 시스템을 통해 검증되었습니다. 안심하고 즐거운 시간 되세요!",
+        timeline_title: "🚚 콜드체인 타임라인",
+        proc_time: "처리 시간",
+        stage_preparing: "준비 중",
+        stage_not_reached: "아직 해당 단계에 도달하지 않았습니다.",
+        sensor_title: "저장고 실시간 온습도",
+        temp: "온도",
+        humi: "습도",
+        optimal_state: "🟢 최적 상태 유지 중",
+        route_title: "📍 실시간 이동 경로",
+        route_subtitle: "스마트 QR 스캔 및 GPS 트래커를 통해 수집된 과일의 실시간 지리정보 경로입니다.",
+        route_telemetry_title: "❄️ 운송 구간 실시간 콜드체인 검증",
+        route_safe_badge: "🟢 전 구간 안전 운송",
+        route_avg_temp: "운송 평균 온도",
+        route_max_g: "최대 충격량",
+        route_gps_pts: "실측 도로 궤적",
+        route_pts_unit: (n) => `${n}개 지점`,
+        route_leg1: "🌱 산지 → APC 운송",
+        route_leg2: "🚛 APC → 판매처 냉장운송",
+        route_apc_hub: "🏢 APC 품질공정 (A10~A15)",
+        route_list: "📋 지리 좌표 경로 목록",
+        col_stage: "유통 단계",
+        col_time: "처리 일시",
+        col_lat: "위도 (Latitude)",
+        col_lon: "경도 (Longitude)",
+        origins: {
+          "55630": "전북 장수군 (장수읍)",
+          "55631": "전북 장수군 (산서면)",
+          "55632": "전북 장수군 (번암면)",
+          "55633": "전북 장수군 (장계면)",
+          "55634": "전북 장수군 (천천면)",
+          "55635": "전북 장수군 (계남면)"
+        },
+        stages: {
+          A00: ["🌱 농장 수확", "정성껏 재배한 과일을 정직하게 수확했습니다.", "HD"],
+          A10: ["🏢 입고", "생산지에서 신선한 상태로 센터에 도착했습니다.", "APC_AD"],
+          A11: ["💦 세척", "깨끗하고 안전한 물로 세척 과정을 마쳤습니다.", "APC_WD"],
+          A12: ["🔍 선별", "크기와 당도, 품질을 엄격하게 선별했습니다.", "APC_RT"],
+          A13: ["📦 포장", "신선함을 유지할 수 있는 전용 패키지로 포장되었습니다.", "APC_PT"],
+          A14: ["❄️ 저장", "최적의 온도와 습도로 신선도를 보관 중입니다.", "APC_StD"],
+          A15: ["🚛 출하", "고객님을 만나기 위해 건강하게 출발했습니다!", "APC_OP"],
+          A16: ["🏪 판매처 도착", "콜드체인 안전 운송을 마치고 판매처에 신선하게 도착했습니다!", "Retail_AD"]
+        }
+      },
+      EN: {
+        title_suffix: "Traceability",
+        subtitle: "Blockchain-based Safe Food Information Service",
+        refresh_btn: "🔄 Refresh Real-time Info",
+        tab_summary: "✨ Safe Summary",
+        tab_timeline: "🚚 Log & Timeline",
+        tab_route: "📍 Route Map",
+        premium_fruit: (f) => `🍎 Premium ${f}`,
+        fruit_desc: (f) => `This is the premium ${f}, transparently verified for its honest journey from origin to table.`,
+        origin: "Origin",
+        variety: "Variety",
+        grade: "Grade",
+        method: "Cultivation",
+        quantity: "Quantity",
+        boxes: (n) => `${n} Box(es)`,
+        farmer_title: "🚜 Farm & Harvest Info",
+        farmer_id: "Farm ID",
+        contact: "Contact (Safe #)",
+        harvest_date: "Harvest Date",
+        blockchain_verified: "✨ This fruit has been verified through a transparent and secure blockchain management system. Enjoy your healthy choice!",
+        timeline_title: "🚚 Cold Chain Timeline",
+        proc_time: "Processed at",
+        stage_preparing: "Preparing",
+        stage_not_reached: "This stage has not been reached yet.",
+        sensor_title: "Real-time Storage Temp & Humidity",
+        temp: "Temperature",
+        humi: "Humidity",
+        optimal_state: "🟢 Maintaining Optimal State",
+        route_title: "📍 Real-time Route Map",
+        route_subtitle: "This is the real-time geographical route of the fruit collected via smart QR scans and GPS trackers.",
+        route_telemetry_title: "❄️ Transport Cold-Chain Telemetry",
+        route_safe_badge: "🟢 Verified Safe Route",
+        route_avg_temp: "Avg Transport Temp",
+        route_max_g: "Peak Impact",
+        route_gps_pts: "Road GPS Track",
+        route_pts_unit: (n) => `${n} pts`,
+        route_leg1: "🌱 Farm → APC Route",
+        route_leg2: "🚛 APC → Retail Cold-Chain",
+        route_apc_hub: "🏢 APC Quality Hub (A10~A15)",
+        route_list: "📋 Geographical Coordinate Route List",
+        col_stage: "Logistics Stage",
+        col_time: "Processed Time",
+        col_lat: "Latitude",
+        col_lon: "Longitude",
+        origins: {
+          "55630": "Jangsu-eup, Jangsu-gun, Jeonbuk",
+          "55631": "Sanseo-myeon, Jangsu-gun, Jeonbuk",
+          "55632": "Beonam-myeon, Jangsu-gun, Jeonbuk",
+          "55633": "Janggye-myeon, Jangsu-gun, Jeonbuk",
+          "55634": "Cheoncheon-myeon, Jangsu-gun, Jeonbuk",
+          "55635": "Gyenam-myeon, Jangsu-gun, Jeonbuk"
+        },
+        stages: {
+          A00: ["🌱 Harvest", "Carefully cultivated fruit has been honestly harvested.", "HD"],
+          A10: ["🏢 Receiving", "Arrived at the APC center in a fresh state from the farm.", "APC_AD"],
+          A11: ["💦 Washing", "Completed the washing process with clean and safe water.", "APC_WD"],
+          A12: ["🔍 Sorting", "Strictly sorted by size, sweetness, and quality.", "APC_RT"],
+          A13: ["📦 Packaging", "Packed in a specialized package to maintain freshness.", "APC_PT"],
+          A14: ["❄️ Storage", "Storing at optimal temperature and humidity to preserve freshness.", "APC_StD"],
+          A15: ["🚛 Shipping", "Healthy shipment has departed to meet the customer!", "APC_OP"],
+          A16: ["🏪 Retail Arrival", "Safely arrived at the retail store via cold-chain transport!", "Retail_AD"]
+        }
+      }
+    };
+
+    const ORIGIN_COORDS = {
+      "55630": [35.647, 127.521],
+      "55631": [35.617, 127.422],
+      "55632": [35.539, 127.553],
+      "55633": [35.727, 127.585],
+      "55634": [35.707, 127.481],
+      "55635": [35.696, 127.575]
+    };
+
+    function trFruit(f, lang) {
+      const s = String(f || "Apples").replace(/\+/g, " ").toLowerCase();
+      if (lang === "KO") {
+        if (s.includes("apple") || s.includes("사과")) return "사과";
+        if (s.includes("pear") || s.includes("배")) return "배";
+        if (s.includes("peach") || s.includes("복숭아")) return "복숭아";
+        if (s.includes("tangerine") || s.includes("귤")) return "감귤";
+        if (s.includes("melon") || s.includes("참외")) return "참외";
+        return f;
+      } else {
+        if (s.includes("apple") || s.includes("사과")) return "Apples";
+        if (s.includes("pear") || s.includes("배")) return "Pears";
+        if (s.includes("peach") || s.includes("복숭아")) return "Peaches";
+        if (s.includes("tangerine") || s.includes("귤")) return "Tangerines";
+        if (s.includes("melon") || s.includes("참외")) return "Melons";
+        return f;
+      }
+    }
+
+    function trVariety(vt, lang) {
+      const s = String(vt || "").replace(/\+/g, " ").trim();
+      const sl = s.toLowerCase();
+      if (lang === "KO") {
+        if (sl.includes("fuji")) return "후지 사과";
+        if (sl.includes("hongro")) return "홍로 사과";
+        if (sl.includes("gamhong")) return "감홍 사과";
+        if (sl.includes("shingo")) return "신고 배";
+        return s || "-";
+      }
+      return s || "-";
+    }
+
+    function trMethod(mt, lang) {
+      const s = String(mt || "").replace(/\+/g, " ").trim().toLowerCase();
+      if (lang === "KO") {
+        if (s.includes("organic") || s.includes("유기농")) return "유기농";
+        if (s.includes("conventional") || s.includes("관행")) return "관행재배";
+        return mt || "유기농";
+      } else {
+        if (s.includes("organic") || s.includes("유기농")) return "Organic";
+        if (s.includes("conventional") || s.includes("관행")) return "Conventional";
+        return mt || "Organic";
+      }
+    }
+
+    function formatElapsed(tsStr, lang) {
+      if (!tsStr) return "";
+      const dt = new Date(String(tsStr).replace(" ", "T"));
+      if (isNaN(dt.getTime())) return "";
+      const diffSec = Math.max(0, Math.floor((Date.now() - dt.getTime()) / 1000));
+      if (diffSec < 60) return lang === "KO" ? "방금 전" : "Just now";
+      if (diffSec < 3600) return lang === "KO" ? `${Math.floor(diffSec / 60)}분 전` : `${Math.floor(diffSec / 60)}m ago`;
+      if (diffSec < 86400) return lang === "KO" ? `${Math.floor(diffSec / 3600)}시간 전` : `${Math.floor(diffSec / 3600)}h ago`;
+      return lang === "KO" ? `${Math.floor(diffSec / 86400)}일 전` : `${Math.floor(diffSec / 86400)}d ago`;
+    }
+
+    function switchConsumerSubTab(sub) {
+      ["summary", "timeline", "route"].forEach(k => {
+        const div = document.getElementById(`cs-subtab-${k}`);
+        const btn = document.getElementById(`cs-subtab-btn-${k}`);
+        if (k === sub) {
+          div.classList.remove("hidden");
+          btn.classList.add("active");
+        } else {
+          div.classList.add("hidden");
+          btn.classList.remove("active");
+        }
+      });
+      if (sub === "route" && consumerMap) {
+        setTimeout(() => {
+          consumerMap.invalidateSize();
+          if (lastConsumerData) renderConsumerRouteMap(lastConsumerData);
+        }, 120);
+      }
+    }
+
+    function onConsumerLangChange(lang) {
+      csLang = lang;
+      if (lastConsumerData) renderConsumerView(lastConsumerData);
+    }
+
+    // =====================================================================
+    // 2. 권한(RBAC) 및 메인 탭 전환 관리
     // =====================================================================
     let currentRole = "public";
     let allowedTabs = ["consumer"];
@@ -532,17 +987,6 @@
       "Melons": ["net melon", "baegja melon", "cham-oe"]
     };
 
-    const STEP_NAMES = {
-      "A00": "🌾 A00 농가 수확 및 원본 QR 생성",
-      "A10": "📥 A10 APC 산지유통센터 입고",
-      "A11": "🚿 A11 세척 및 이물질 제거",
-      "A12": "⚖️ A12 비파괴 당도·등급 선별 및 색상 QR 발급",
-      "A13": "📦 A13 규격 포장 완료",
-      "A14": "❄️ A14 예냉 및 저온 저장고 입고",
-      "A15": "🚚 A15 APC 출하 및 콜드체인 수송 시작",
-      "A16": "🏬 A16 물류센터(소매점) 도착 검수 완료"
-    };
-
     function onFarmFruitChange() {
       const fruit = document.getElementById("f-frt").value;
       const vtSel = document.getElementById("f-vt");
@@ -556,6 +1000,12 @@
     }
 
     function updateTabVisibility() {
+      const adminBar = document.getElementById("admin-tab-bar");
+      if (currentRole === "public") {
+        adminBar.classList.add("hidden");
+      } else {
+        adminBar.classList.remove("hidden");
+      }
       ["consumer", "farm", "apc", "control"].forEach(tab => {
         const btn = document.getElementById(`tab-btn-${tab}`);
         if (allowedTabs.includes(tab)) {
@@ -571,15 +1021,17 @@
         alert("해당 탭에 접근할 권한이 없습니다. 상단에서 권한 PIN으로 로그인하세요.");
         return;
       }
+      document.body.className = tabName === "consumer" ? "min-h-screen pb-12 consumer-theme" : "min-h-screen pb-12 admin-theme";
+
       ["consumer", "farm", "apc", "control"].forEach(t => {
         const sec = document.getElementById(`tab-${t}`);
         const btn = document.getElementById(`tab-btn-${t}`);
         if (t === tabName) {
           sec.classList.remove("hidden");
-          btn.className = "px-4 py-2 rounded-xl text-sm transition tab-btn-active";
+          btn.className = "px-3.5 py-1.5 rounded-xl text-xs transition tab-btn-active";
         } else {
           sec.classList.add("hidden");
-          btn.className = (allowedTabs.includes(t) ? "" : "hidden ") + "px-4 py-2 rounded-xl text-sm transition tab-btn-inactive";
+          btn.className = (allowedTabs.includes(t) ? "" : "hidden ") + "px-3.5 py-1.5 rounded-xl text-xs transition tab-btn-inactive";
         }
       });
 
@@ -613,7 +1065,7 @@
         }
         currentRole = data.role;
         allowedTabs = data.tabs;
-        document.getElementById("role-badge").textContent = `🔑 현재 권한: ${data.name}`;
+        document.getElementById("role-badge").textContent = `🔑 ${data.name}`;
         document.getElementById("logout-btn").classList.remove("hidden");
         document.getElementById("pin-input").value = "";
         updateTabVisibility();
@@ -628,14 +1080,14 @@
     function logoutRole() {
       currentRole = "public";
       allowedTabs = ["consumer"];
-      document.getElementById("role-badge").textContent = "👤 현재 권한: 일반 소비자 (Public)";
+      document.getElementById("role-badge").textContent = "👤 소비자 화면 (Public)";
       document.getElementById("logout-btn").classList.add("hidden");
       updateTabVisibility();
       switchTab("consumer");
     }
 
     // =====================================================================
-    // 2. [탭 1] 소비자 안심 이력조회 (API 키 불필요 공식 OpenStreetMap 타일)
+    // 3. [탭 1] 소비자 안심 이력조회 렌더링 (기존 Step5와 100% 동일)
     // =====================================================================
     function initConsumerMap() {
       if (consumerMap) return;
@@ -651,6 +1103,16 @@
       initConsumerMap();
       const urlParams = new URLSearchParams(window.location.search);
       const queryFmid = urlParams.get("FmID") || urlParams.get("fmid");
+      const queryGrade = urlParams.get("grade");
+      const queryLang = (urlParams.get("lang") || "").toUpperCase();
+      if (queryLang === "EN" || queryLang === "KO") {
+        csLang = queryLang;
+        document.getElementById("consumer-lang-select").value = csLang;
+      }
+      if (queryGrade) {
+        const gNorm = queryGrade === "H" || queryGrade === "A" ? "상" : (queryGrade === "M" || queryGrade === "B" ? "중" : (queryGrade === "L" || queryGrade === "C" ? "하" : queryGrade));
+        document.getElementById("consumer-grade-select").value = gNorm;
+      }
 
       const res = await fetch("/api/consumer/fmid-list");
       const data = await res.json();
@@ -659,85 +1121,296 @@
       (data.items || []).forEach(item => {
         const opt = document.createElement("option");
         opt.value = item.FmID;
-        opt.textContent = `FmID ${item.FmID} — ${item.Vt || item.FrT || '사과'} (최종: ${item.latest_step})`;
+        opt.textContent = `FmID ${item.FmID} (${item.Vt || item.FrT || '사과'} · ${item.latest_step})`;
         sel.appendChild(opt);
       });
       const target = queryFmid || (data.items && data.items[0] ? data.items[0].FmID : "85");
       sel.value = target;
-      await loadConsumerTrace(target);
+      await loadConsumerTrace();
     }
 
-    async function loadConsumerTrace(fmid) {
-      if (!fmid) return;
+    async function loadConsumerTrace() {
+      const fmid = document.getElementById("consumer-fmid-select").value || "85";
+      const grade = document.getElementById("consumer-grade-select").value || "상";
       try {
-        const res = await fetch(`/api/consumer/trace/${encodeURIComponent(fmid)}`);
+        const res = await fetch(`/api/consumer/trace/${encodeURIComponent(fmid)}?grade=${encodeURIComponent(grade)}`);
         const data = await res.json();
         if (!res.ok) return;
-
-        const s = data.summary || {};
-        document.getElementById("cs-fruit").textContent = `${s.FrT || "Apples"} (${s.Vt || "Fuji Apple"})`;
-        document.getElementById("cs-method").textContent = `재배방식: ${s.Mt || "Organic"} · 수확횟수(HN): ${s.HN || "1"}회`;
-        document.getElementById("cs-origin").textContent = `우편번호 ${s.AC || "-"} (농가 #${fmid})`;
-        document.getElementById("cs-hd").textContent = `수확일시: ${s.HD || "-"}`;
-        document.getElementById("cs-grade").textContent = `A:${s.AGrade || 0} / B:${s.BGrade || 0} / C:${s.CGrade || 0}`;
-        document.getElementById("cs-qt").textContent = `총 수확량: ${s.Qt || "-"}박스 (결점: ${s.DefectRate || 0})`;
-
-        const allPts = [...(data.leg1_sensor_pts || []), ...(data.leg2_sensor_pts || [])];
-        if (allPts.length > 0) {
-          const temps = allPts.map(p => Number(p.temperature || 0));
-          const minT = Math.min(...temps).toFixed(1);
-          const maxT = Math.max(...temps).toFixed(1);
-          document.getElementById("cs-temp-range").textContent = `${minT}°C ~ ${maxT}°C`;
-        } else {
-          document.getElementById("cs-temp-range").textContent = "온도 기록 대기";
-        }
-        document.getElementById("cs-pts-count").textContent = `1구간 ${data.leg1_sensor_pts.length}건 · 2구간 ${data.leg2_sensor_pts.length}건`;
-
-        const tl = document.getElementById("consumer-timeline");
-        tl.innerHTML = "";
-        (data.steps || []).forEach(st => {
-          const card = document.createElement("div");
-          card.className = "p-3 rounded-xl bg-slate-800/80 border border-slate-700/70 flex items-center justify-between";
-          card.innerHTML = `
-            <div>
-              <div class="text-xs font-bold text-sky-300">${STEP_NAMES[st.Lo] || st.Lo}</div>
-              <div class="text-[11px] text-slate-400 mt-0.5">기록 시각: ${st.timestamp || "-"}</div>
-            </div>
-            <span class="text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">검증완료</span>
-          `;
-          tl.appendChild(card);
-        });
-
-        consumerLayerGroup.clearLayers();
-        const bounds = [];
-
-        if (data.leg1_sensor_pts && data.leg1_sensor_pts.length > 0) {
-          const latlngs1 = data.leg1_sensor_pts.map(p => [Number(p.lat), Number(p.lng)]);
-          L.polyline(latlngs1, {color: "#f97316", weight: 5, opacity: 0.9}).addTo(consumerLayerGroup);
-          latlngs1.forEach(pt => bounds.push(pt));
-        }
-        if (data.leg2_sensor_pts && data.leg2_sensor_pts.length > 0) {
-          const latlngs2 = data.leg2_sensor_pts.map(p => [Number(p.lat), Number(p.lng)]);
-          L.polyline(latlngs2, {color: "#38bdf8", weight: 5, opacity: 0.9}).addTo(consumerLayerGroup);
-          latlngs2.forEach(pt => bounds.push(pt));
-          const startPt = latlngs2[0];
-          const endPt = latlngs2[latlngs2.length - 1];
-          L.circleMarker(startPt, {radius: 7, color: "#fff", fillColor: "#f97316", fillOpacity: 1})
-            .bindPopup("🏭 APC 출발지 (A15)").addTo(consumerLayerGroup);
-          L.circleMarker(endPt, {radius: 8, color: "#fff", fillColor: "#10b981", fillOpacity: 1})
-            .bindPopup("🏬 물류센터/판매처 도착 (A16)").addTo(consumerLayerGroup);
-        }
-
-        if (bounds.length > 0) {
-          consumerMap.fitBounds(bounds, {padding: [30, 30]});
-        }
+        lastConsumerData = data;
+        renderConsumerView(data);
       } catch (e) {
         console.error(e);
       }
     }
 
+    function renderConsumerView(data) {
+      const L = CS_LANG[csLang];
+      const s = data.summary || {};
+      const stageLookup = data.stage_lookup || {};
+      const fruitTranslated = trFruit(s.FrT, csLang);
+
+      // 상단 헤더 및 정품 QR
+      document.getElementById("cs-hero-title").textContent = `🍏 ${fruitTranslated} ${L.title_suffix}`;
+      document.getElementById("cs-hero-subtitle").textContent = L.subtitle;
+      document.getElementById("cs-refresh-btn").textContent = L.refresh_btn;
+      document.getElementById("cs-auth-qr-img").src = data.auth_qr_base64 || "";
+
+      // 서브탭 버튼 텍스트
+      document.getElementById("cs-subtab-btn-summary").textContent = L.tab_summary;
+      document.getElementById("cs-subtab-btn-timeline").textContent = L.tab_timeline;
+      document.getElementById("cs-subtab-btn-route").textContent = L.tab_route;
+
+      // [서브탭 1] 안심 요약
+      document.getElementById("cs-premium-heading").textContent = L.premium_fruit(fruitTranslated);
+      document.getElementById("cs-premium-desc").textContent = L.fruit_desc(fruitTranslated);
+      document.getElementById("lbl-origin").textContent = L.origin;
+      document.getElementById("lbl-variety").textContent = L.variety;
+      document.getElementById("lbl-grade").textContent = L.grade;
+      document.getElementById("lbl-method").textContent = L.method;
+
+      const acStr = String(s.AC || "");
+      document.getElementById("val-origin").textContent = L.origins[acStr] || (csLang === "KO" ? "대한민국" : "Republic of Korea");
+      document.getElementById("val-variety").textContent = trVariety(s.Vt, csLang);
+
+      const selGrade = document.getElementById("consumer-grade-select").value || "상";
+      const displayGrade = csLang === "KO" ? selGrade : (selGrade === "상" ? "H" : (selGrade === "중" ? "M" : "L"));
+      document.getElementById("val-grade").textContent = displayGrade;
+
+      const a12 = stageLookup["A12"] || s;
+      let gradeQty = s.Qt || "-";
+      if (selGrade === "상" && a12.AGrade != null) gradeQty = a12.AGrade;
+      else if (selGrade === "중" && a12.BGrade != null) gradeQty = a12.BGrade;
+      else if (selGrade === "하" && a12.CGrade != null) gradeQty = a12.CGrade;
+      document.getElementById("val-grade-qty").textContent = `${L.quantity}: ${L.boxes(gradeQty)}`;
+      document.getElementById("val-method").textContent = trMethod(s.Mt, csLang);
+
+      // 농가 정보
+      document.getElementById("lbl-farmer-title").textContent = L.farmer_title;
+      document.getElementById("lbl-farmer-id").textContent = L.farmer_id;
+      document.getElementById("lbl-contact").textContent = L.contact;
+      document.getElementById("lbl-harvest-date").textContent = L.harvest_date;
+      document.getElementById("val-farmer-id").textContent = data.fmid || "-";
+      const rawCt = String(s.Ct || "");
+      document.getElementById("val-contact").textContent = rawCt.length > 4 ? rawCt.slice(0, -4) + "****" : "****";
+      document.getElementById("val-harvest-date").textContent = String(s.HD || "-").slice(0, 10);
+      document.getElementById("cs-blockchain-banner").textContent = L.blockchain_verified;
+
+      // [서브탭 2] 타임라인 (A00 ~ A16 + A14 저장고 실시간 온습도 박스)
+      document.getElementById("lbl-timeline-title").textContent = L.timeline_title;
+      const tlContainer = document.getElementById("consumer-timeline");
+      tlContainer.innerHTML = "";
+      ["A00", "A10", "A11", "A12", "A13", "A14", "A15", "A16"].forEach(code => {
+        const [stTitle, stDesc, timeCol] = L.stages[code];
+        const row = stageLookup[code];
+        if (row) {
+          const stTime = row[timeCol] || "";
+          const elapsed = formatElapsed(stTime, csLang);
+          const itemDiv = document.createElement("div");
+          itemDiv.className = "cs-timeline-item";
+          itemDiv.innerHTML = `
+            <span class="font-bold text-[1.08rem] text-[#1d1d1f]">${stTitle}</span>
+            ${elapsed ? `<span class="cs-elapsed-tag">${elapsed}</span>` : ""}
+            <p class="text-[#515154] mt-1 text-sm mb-1">${stDesc}</p>
+            <small class="text-[#86868b] text-xs">⏰ ${L.proc_time}: ${stTime}</small>
+          `;
+          tlContainer.appendChild(itemDiv);
+
+          // A14 단계 저장고 실시간 온습도 카드
+          if (code === "A14" && row.Tp != null) {
+            const tpVal = Number(row.Tp).toFixed(1);
+            const hmVal = row.Hm != null ? Number(row.Hm).toFixed(1) : "85.0";
+            const sensorDiv = document.createElement("div");
+            sensorDiv.className = "bg-[#f1fcf4] rounded-lg px-4 py-3 border border-[#d4edda] -mt-3 mb-5 ml-4 flex flex-wrap items-center gap-3.5";
+            sensorDiv.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="text-xl">❄️</span>
+                <span class="font-bold text-[#155724] text-sm">${L.sensor_title}</span>
+              </div>
+              <div class="flex gap-2.5">
+                <div class="bg-white px-2.5 py-1 rounded border border-[#c3e6cb] min-w-[74px] text-center">
+                  <small class="text-[#666] text-[11px] block">${L.temp}</small>
+                  <b class="text-[#27ae60] text-sm">${tpVal}°C</b>
+                </div>
+                <div class="bg-white px-2.5 py-1 rounded border border-[#c3e6cb] min-w-[74px] text-center">
+                  <small class="text-[#666] text-[11px] block">${L.humi}</small>
+                  <b class="text-[#2980b9] text-sm">${hmVal}%</b>
+                </div>
+              </div>
+              <span class="text-[#2ecc71] text-xs font-bold ml-auto">${L.optimal_state}</span>
+            `;
+            tlContainer.appendChild(sensorDiv);
+          }
+        } else {
+          const itemDiv = document.createElement("div");
+          itemDiv.className = "cs-timeline-item pending";
+          itemDiv.innerHTML = `
+            <span class="font-bold text-[1.08rem] text-[#8e8e93]">${stTitle}</span>
+            <span class="bg-[#f2f2f7] text-[#8e8e93] px-2 py-0.5 rounded-xl text-xs font-semibold ml-2">${L.stage_preparing}</span>
+            <p class="text-[#a1a1a6] mt-1 text-sm mb-1">${L.stage_not_reached}</p>
+          `;
+          tlContainer.appendChild(itemDiv);
+        }
+      });
+
+      // [서브탭 3] 이동 경로 및 지리 좌표 목록
+      renderConsumerRouteMap(data);
+    }
+
+    function renderConsumerRouteMap(data) {
+      const L_dict = CS_LANG[csLang];
+      const s = data.summary || {};
+      const stageLookup = data.stage_lookup || {};
+
+      document.getElementById("lbl-route-title").textContent = L_dict.route_title;
+      document.getElementById("lbl-route-subtitle").textContent = L_dict.route_subtitle;
+      document.getElementById("lbl-route-telemetry-title").textContent = L_dict.route_telemetry_title;
+      document.getElementById("lbl-route-safe-badge").textContent = L_dict.route_safe_badge;
+      document.getElementById("lbl-route-avg-temp").textContent = L_dict.route_avg_temp;
+      document.getElementById("lbl-route-max-g").textContent = L_dict.route_max_g;
+      document.getElementById("lbl-route-gps-pts").textContent = L_dict.route_gps_pts;
+      document.getElementById("lbl-leg1").textContent = L_dict.route_leg1;
+      document.getElementById("lbl-leg2").textContent = L_dict.route_leg2;
+      document.getElementById("lbl-route-list").textContent = L_dict.route_list;
+      document.getElementById("th-stage").textContent = L_dict.col_stage;
+      document.getElementById("th-time").textContent = L_dict.col_time;
+      document.getElementById("th-lat").textContent = L_dict.col_lat;
+      document.getElementById("th-lon").textContent = L_dict.col_lon;
+
+      const leg1Pts = data.leg1_sensor_pts || [];
+      const leg2Pts = data.leg2_sensor_pts || [];
+      const allPts = [...leg1Pts, ...leg2Pts];
+
+      if (allPts.length > 0) {
+        const temps = allPts.map(p => Number(p.temperature || 0)).filter(v => v > 0);
+        const gforces = allPts.map(p => Number(p.g_force || 1));
+        const avgT = temps.length ? (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1) + "°C" : "-";
+        const maxG = gforces.length ? Math.max(...gforces).toFixed(2) + "G" : "-";
+        document.getElementById("val-route-avg-temp").textContent = avgT;
+        document.getElementById("val-route-max-g").textContent = maxG;
+        document.getElementById("val-route-gps-pts").textContent = L_dict.route_pts_unit(allPts.length);
+      } else {
+        document.getElementById("val-route-avg-temp").textContent = "-";
+        document.getElementById("val-route-max-g").textContent = "-";
+        document.getElementById("val-route-gps-pts").textContent = L_dict.route_pts_unit(0);
+      }
+
+      const acCode = String(s.AC || "");
+      let originPt = ORIGIN_COORDS[acCode] || null;
+      if (!originPt && leg1Pts.length > 0) {
+        originPt = [Number(leg1Pts[0].lat), Number(leg1Pts[0].lng)];
+      }
+
+      const mapTableRows = [];
+      if (originPt) {
+        mapTableRows.push({
+          stage: L_dict.stages.A00[0],
+          time: s.HD || "-",
+          lat: originPt[0],
+          lon: originPt[1]
+        });
+      }
+
+      let apcHubPt = null;
+      let retailPt = null;
+      let lastApcTime = "-";
+      let retailTime = "-";
+
+      (data.records || []).forEach(r => {
+        const code = r.Lo;
+        if (!code || code === "A00" || !L_dict.stages[code]) return;
+        const [stName, , tCol] = L_dict.stages[code];
+        const stTime = r[tCol] || "-";
+        const la = Number(r.Lat || 0);
+        const lo = Number(r.lon || 0);
+        const validPt = (Math.abs(la) > 1 && Math.abs(lo) > 1) ? [la, lo] : null;
+
+        if (["A10", "A11", "A12", "A13", "A14", "A15"].includes(code)) {
+          if (stTime && stTime !== "-") lastApcTime = stTime;
+          if (validPt) apcHubPt = validPt;
+        } else if (code === "A16") {
+          retailTime = stTime;
+          if (validPt) retailPt = validPt;
+        }
+        if (validPt) {
+          mapTableRows.push({stage: stName, time: stTime, lat: validPt[0], lon: validPt[1]});
+        }
+      });
+
+      if (!apcHubPt) {
+        if (leg1Pts.length > 0) apcHubPt = [Number(leg1Pts[leg1Pts.length - 1].lat), Number(leg1Pts[leg1Pts.length - 1].lng)];
+        else if (leg2Pts.length > 0) apcHubPt = [Number(leg2Pts[0].lat), Number(leg2Pts[0].lng)];
+      }
+      if (!retailPt && stageLookup["A16"] && leg2Pts.length > 0) {
+        retailPt = [Number(leg2Pts[leg2Pts.length - 1].lat), Number(leg2Pts[leg2Pts.length - 1].lng)];
+      }
+
+      consumerLayerGroup.clearLayers();
+      const bounds = [];
+
+      // 1구간 경로 (산지 -> APC, 초록색 #2ecc71)
+      let leg1Path = leg1Pts.map(p => [Number(p.lat), Number(p.lng)]);
+      if (leg1Path.length < 2 && originPt && apcHubPt) {
+        leg1Path = [originPt, apcHubPt];
+      } else if (leg1Path.length >= 2) {
+        if (originPt) leg1Path = [originPt, ...leg1Path];
+        if (apcHubPt) leg1Path = [...leg1Path, apcHubPt];
+      }
+      if (leg1Path.length >= 2) {
+        L.polyline(leg1Path, {color: "#2ecc71", weight: 5, opacity: 0.9}).addTo(consumerLayerGroup);
+        leg1Path.forEach(p => bounds.push(p));
+      }
+
+      // 2구간 경로 (APC -> 판매처, 파란색 #007aff)
+      let leg2Path = leg2Pts.map(p => [Number(p.lat), Number(p.lng)]);
+      if (leg2Path.length < 2 && apcHubPt && retailPt) {
+        leg2Path = [apcHubPt, retailPt];
+      } else if (leg2Path.length >= 2) {
+        if (apcHubPt) leg2Path = [apcHubPt, ...leg2Path];
+        if (retailPt) leg2Path = [...leg2Path, retailPt];
+      }
+      if (leg2Path.length >= 2) {
+        L.polyline(leg2Path, {color: "#007aff", weight: 5, opacity: 0.92}).addTo(consumerLayerGroup);
+        leg2Path.forEach(p => bounds.push(p));
+      }
+
+      // 거점 마커 표시
+      if (originPt) {
+        L.circleMarker(originPt, {radius: 8, color: "#fff", weight: 2, fillColor: "#2ecc71", fillOpacity: 0.95})
+          .bindPopup(`<b>${L_dict.stages.A00[0]}</b><br>⏰ ${s.HD || "-"}`).addTo(consumerLayerGroup);
+        bounds.push(originPt);
+      }
+      if (apcHubPt) {
+        L.circleMarker(apcHubPt, {radius: 8, color: "#fff", weight: 2, fillColor: "#f39c12", fillOpacity: 0.95})
+          .bindPopup(`<b>${L_dict.route_apc_hub}</b><br>⏰ ${lastApcTime}`).addTo(consumerLayerGroup);
+        bounds.push(apcHubPt);
+      }
+      if (retailPt) {
+        L.circleMarker(retailPt, {radius: 8, color: "#fff", weight: 2, fillColor: "#007aff", fillOpacity: 0.95})
+          .bindPopup(`<b>${L_dict.stages.A16[0]}</b><br>⏰ ${retailTime}`).addTo(consumerLayerGroup);
+        bounds.push(retailPt);
+      }
+
+      if (bounds.length > 0) {
+        consumerMap.fitBounds(bounds, {padding: [28, 28]});
+      }
+
+      // 하단 지리 좌표 목록 테이블 렌더링
+      const tbody = document.getElementById("cs-route-tbody");
+      tbody.innerHTML = "";
+      mapTableRows.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="py-2 px-3 font-semibold">${r.stage}</td>
+          <td class="py-2 px-3 text-gray-600">${r.time}</td>
+          <td class="py-2 px-3 text-gray-700">${Number(r.lat).toFixed(4)}</td>
+          <td class="py-2 px-3 text-gray-700">${Number(r.lon).toFixed(4)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
     // =====================================================================
-    // 3. [탭 2] 농가 수확 등록 & QR 생성 (HD, StD, DD, HN 개별 입력 / Rp=NULL)
+    // 4. [탭 2] 농가 수확 등록 & QR 생성
     // =====================================================================
     async function createFarmQR() {
       const payload = {
@@ -779,7 +1452,7 @@
     }
 
     // =====================================================================
-    // 4. [탭 3] APC 스캐너 연동 무색 QR 스캔 ➔ 난수 배분 ➔ 유색 QR 자동 생성
+    // 5. [탭 3] APC 스캐너 연동 무색 QR 스캔 ➔ 난수 배분 ➔ 유색 QR 자동 생성
     // =====================================================================
     async function loadApcCandidates() {
       const res = await fetch("/api/apc/candidates");
@@ -884,7 +1557,7 @@
     }
 
     // =====================================================================
-    // 5. [탭 4] 실시간 차량 관제 대시보드 (지도 + 조도 + 충격/속도 + 온습도 + 접이식 로그)
+    // 6. [탭 4] 실시간 차량 관제 대시보드
     // =====================================================================
     function toggleTelemetryLog() {
       const panel = document.getElementById("telemetry-log-panel");
@@ -912,16 +1585,14 @@
           type: "line",
           data: {
             labels: [],
-            datasets: [
-              {
-                label: "조도 (Lux)",
-                data: [],
-                borderColor: "#facc15",
-                backgroundColor: "rgba(250, 204, 21, 0.2)",
-                fill: true,
-                tension: 0.25
-              }
-            ]
+            datasets: [{
+              label: "조도 (Lux)",
+              data: [],
+              borderColor: "#facc15",
+              backgroundColor: "rgba(250, 204, 21, 0.2)",
+              fill: true,
+              tension: 0.25
+            }]
           },
           options: {
             responsive: true, maintainAspectRatio: false, animation: false,
