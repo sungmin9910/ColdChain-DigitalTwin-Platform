@@ -240,14 +240,46 @@ void setup() {
   updateOLED("System Ready");
 }
 
-// URL 파라미터 파싱
+// URL 퍼센트 인코딩(%XX) 및 공백(+) 디코딩 헬퍼 함수
+String urlDecode(String str) {
+  String decoded = "";
+  char c;
+  char code0;
+  char code1;
+  for (unsigned int i = 0; i < str.length(); i++) {
+    c = str.charAt(i);
+    if (c == '+') {
+      decoded += ' ';
+    } else if (c == '%' && i + 2 < str.length()) {
+      code0 = str.charAt(++i);
+      code1 = str.charAt(++i);
+      auto hexVal = [](char ch) -> int {
+        if (ch >= '0' && ch <= '9') return ch - '0';
+        if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
+        if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
+        return 0;
+      };
+      c = (char)((hexVal(code0) << 4) | hexVal(code1));
+      decoded += c;
+    } else {
+      decoded += c;
+    }
+  }
+  decoded.replace("'", ""); // SQL 구문 깨짐 방지
+  return decoded;
+}
+
+// URL 파라미터 파싱 (URL 디코딩 자동 적용)
 String getQueryParam(String url, String param) {
   int start = url.indexOf(param + "=");
   if (start == -1) return "NULL";
   start += param.length() + 1;
   int end = url.indexOf("&", start);
   if (end == -1) end = url.length();
-  return "'" + url.substring(start, end) + "'";
+  String rawVal = url.substring(start, end);
+  String cleanVal = urlDecode(rawVal);
+  if (cleanVal.length() == 0) return "NULL";
+  return "'" + cleanVal + "'";
 }
 
 // FmID 추출 (Streamlit 쿼리 파라미터 또는 기존 URL 패턴)

@@ -252,9 +252,16 @@ time_t utcToEpoch(int y, int m, int d, int h, int min, int s) {
   return (time_t)(days * 86400LL + h * 3600 + min * 60 + s);
 }
 
-// 핫스팟/인터넷(NTP) 없이도 GPS 위성 신호가 잡히면 RTC 시스템 시각을 자동으로 UTC로 설정
+// 핫스팟/인터넷(NTP) 없이도 GPS 위성 신호가 실시간으로 유효하게 잡히면 RTC 시스템 시각을 자동으로 UTC로 설정
 void syncTimeFromGPS() {
-  if (gps.date.isValid() && gps.time.isValid() && gps.date.year() >= 2024) {
+  // TinyGPSPlus의 isValid()는 최초 1회 수신 후 신호가 끊겨도 계속 true를 유지하므로,
+  // 반드시 time.age() < 1500ms 및 location.age() < 3000ms 조건으로 '현재 실시간 수신 중'인지 검증해야
+  // 음영지역 진입 시 과거 멈춘 시각으로 ESP32 RTC가 30초마다 되감기는(Time-Rewind) 버그를 원천 차단함.
+  bool fresh_gps_time = gps.date.isValid() && gps.time.isValid() &&
+                        (gps.time.age() < 1500) && (gps.date.age() < 1500) &&
+                        gps.location.isValid() && (gps.location.age() < 3000) &&
+                        (gps.date.year() >= 2024);
+  if (fresh_gps_time) {
     static unsigned long lastGpsSync = 0;
     if (!gps_time_synced || (millis() - lastGpsSync > 30000)) {
       lastGpsSync = millis();
@@ -284,8 +291,8 @@ String getFormattedTime() {
     }
   }
 
-  // 2순위: 시스템 RTC가 아직 안 맞춰졌어도 GPS 위성 시각이 유효하다면 직접 KST(UTC+9) 계산
-  if (gps.date.isValid() && gps.time.isValid() && gps.date.year() >= 2024) {
+  // 2순위: 시스템 RTC가 아직 안 맞춰졌어도 실시간 GPS 위성 시각이 신선(age < 1500ms)하다면 직접 KST(UTC+9) 계산
+  if (gps.date.isValid() && gps.time.isValid() && (gps.time.age() < 1500) && gps.date.year() >= 2024) {
     time_t kst_epoch = utcToEpoch(gps.date.year(), gps.date.month(), gps.date.day(),
                                   gps.time.hour(), gps.time.minute(), gps.time.second()) + (9 * 3600);
     struct tm *kst_tm = gmtime(&kst_epoch);
@@ -346,7 +353,8 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
   String base_evt = String(status_str);
   String full_status = "";
 
-  bool gps_fix_ok = (gps.location.isValid() && gps.location.lat() != 0.0);
+  // location.age() < 3000ms 검사를 추가하여 위성 신호 단절 시 과거 좌표가 [GPS N]으로 고착되는 현상 방지
+  bool gps_fix_ok = (gps.location.isValid() && (gps.location.age() < 3000) && gps.location.lat() != 0.0);
   if (gps_fix_ok) {
     lat = gps.location.lat();
     lng = gps.location.lng();

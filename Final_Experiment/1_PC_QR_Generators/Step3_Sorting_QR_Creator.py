@@ -246,10 +246,15 @@ def save_and_generate():
         integrity_hash = calculate_hash(data_dict)
         save_to_blockchain(integrity_hash, {"FmID": prev_data['FmID'], "Type": "Grading Result"})
 
-        # DB 저장 (pymysql 문법으로 수정)
+        # DB 저장 (pymysql 문법으로 수정, PC 시계 오차 방지를 위해 AWS RDS 서버 KST 시각 조회)
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
+            cursor.execute("SET time_zone = '+09:00'")
+            cursor.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%M:%S')")
+            srv_now_row = cursor.fetchone()
+            if srv_now_row and srv_now_row[0]:
+                data_dict["APC_RT"] = str(srv_now_row[0])
             cursor.execute(f"SHOW COLUMNS FROM {TABLE_NAME}")
             db_columns = {col[0] for col in cursor.fetchall()}
             # 새 레코드 삽입이므로 이전 A11 레코드의 id는 제외하여 자동 증가(AUTO_INCREMENT)가 동작하도록 함

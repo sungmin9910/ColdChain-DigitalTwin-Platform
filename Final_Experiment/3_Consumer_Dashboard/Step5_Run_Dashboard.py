@@ -531,29 +531,67 @@ def translate_grade(grade_str, lang):
         return norm
 
 def translate_fruit(fruit, lang):
-    if lang == 'KO':
-        return fruit
     if not fruit:
         return ""
-    fruit_lower = fruit.lower()
+    fruit_clean = str(fruit).replace("+", " ").strip()
+    fruit_lower = fruit_clean.lower()
+    if lang == 'KO':
+        ko_mapping = {
+            "apples": "사과",
+            "apple": "사과",
+            "melons": "참외",
+            "korean melon": "참외",
+            "melon": "참외",
+            "peaches": "복숭아",
+            "peach": "복숭아",
+            "pears": "배",
+            "pear": "배",
+            "tangerines": "감귤",
+            "tangerine": "감귤",
+        }
+        for k, v in ko_mapping.items():
+            if k in fruit_lower:
+                return v
+        return fruit_clean
     mapping = {
         "사과": "Apple",
+        "apples": "Apple",
+        "apple": "Apple",
         "참외": "Korean Melon",
         "복숭아": "Peach",
+        "peaches": "Peach",
         "배": "Pear",
+        "pears": "Pear",
         "귤": "Tangerine",
-        "감귤": "Tangerine"
+        "감귤": "Tangerine",
+        "tangerines": "Tangerine",
     }
     for k, v in mapping.items():
         if k in fruit_lower:
             return v
-    return fruit
+    return fruit_clean
 
 def translate_variety(vt, lang):
-    if lang == 'KO':
-        return vt
     if not vt:
         return ""
+    vt_clean = str(vt).replace("+", " ").strip()
+    vt_lower = vt_clean.lower()
+    if lang == 'KO':
+        ko_mapping = {
+            "fuji apple": "후지 사과",
+            "fuji": "후지",
+            "hongro apple": "홍로 사과",
+            "hongro": "홍로",
+            "gamhong apple": "감홍 사과",
+            "shingo pear": "신고 배",
+            "shingo": "신고",
+            "wonhwang pear": "원황 배",
+            "gamcheon pear": "감천 배",
+        }
+        for k, v in ko_mapping.items():
+            if k in vt_lower:
+                return v
+        return vt_clean
     mapping = {
         "후지": "Fuji",
         "홍로": "Hongro",
@@ -565,21 +603,30 @@ def translate_variety(vt, lang):
         "조생": "Early-season"
     }
     for k, v in mapping.items():
-        if k in vt:
+        if k in vt_clean:
             return v
-    return vt
+    return vt_clean
 
 def translate_method(mt, lang):
-    if lang == 'KO':
-        return mt
     if not mt:
         return ""
+    mt_clean = str(mt).replace("+", " ").strip()
+    mt_lower = mt_clean.lower()
+    if lang == 'KO':
+        ko_mapping = {
+            "organic": "유기농",
+            "conventional": "관행재배",
+            "natural": "자연재배",
+            "pesticide-free": "무농약",
+        }
+        return ko_mapping.get(mt_lower, mt_clean)
     mapping = {
         "자연재배": "Natural",
         "유기농": "Organic",
-        "무농약": "Pesticide-Free"
+        "무농약": "Pesticide-Free",
+        "관행재배": "Conventional",
     }
-    return mapping.get(mt, mt)
+    return mapping.get(mt_clean, mt_clean)
 
 # --- 메인 화면 언어 선택기 (Main Screen Language Selector) ---
 col_lang_left, col_lang_right = st.columns([3.8, 1.2])
@@ -651,7 +698,7 @@ def fetch_sensor_segment(cursor, start_dt, end_dt, truck_dev=None):
         ORDER BY timestamp_str ASC, id ASC
     """
     cursor.execute(sql, tuple(params))
-    rows = cursor.fetchall()
+    rows = list(cursor.fetchall())
     # 만약 지정 truck_device로 조회된 궤적이 없으면 전체 차량에서 동일 시간대 폴백 조회
     if not rows and truck_dev:
         sql_fallback = """
@@ -662,7 +709,7 @@ def fetch_sensor_segment(cursor, start_dt, end_dt, truck_dev=None):
             ORDER BY timestamp_str ASC, id ASC
         """
         cursor.execute(sql_fallback, (start_s, end_s))
-        rows = cursor.fetchall()
+        rows = list(cursor.fetchall())
     return rows
 
 # 2. 데이터 조회 (QR 체크포인트 + 구간별 차량 주행 궤적 연동)
@@ -1144,7 +1191,7 @@ with tab3:
     )
 
     # 운송 구간 실시간 콜드체인 센서 요약 카드 표출 (주행 데이터가 있을 때)
-    all_sensor_pts = leg1_sensor_pts + leg2_sensor_pts
+    all_sensor_pts = list(leg1_sensor_pts) + list(leg2_sensor_pts)
     if all_sensor_pts:
         temps = [float(p["temperature"]) for p in all_sensor_pts if p.get("temperature") is not None]
         gforces = [float(p["g_force"]) for p in all_sensor_pts if p.get("g_force") is not None]
