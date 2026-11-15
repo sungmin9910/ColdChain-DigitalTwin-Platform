@@ -53,6 +53,7 @@ class VehicleSessionTracker:
         self.standby_count = 0
         self.last_valid_gps = (0.0, 0.0)
         self.last_db_save_time = 0.0
+        self.last_db_packet_epoch = 0.0
         self.prev_lux = None
         self.prev_temp = None
 
@@ -138,17 +139,28 @@ class VehicleSessionTracker:
 
         # DB 저장 조건 판정 (스마트 필터링)
         # 1) 충격 및 급변 이상치는 실내외 무관하게 100% 무조건 즉시 저장!
-        # 2) 주행 중(trip_started)에는 5초 주기 정주기 저장!
+        # 2) 주행 중(trip_started)에는 5초 주기 정주기 저장 (오프라인 버퍼 일괄 수신 시 패킷 측정 시각 간격도 함께 인정)!
         # 3) 실내 단순 대기는 DB 낭비 방지를 위해 저장 생략
+        pkt_epoch = None
+        if len(ts_str) >= 19 and not ts_str.startswith("2026-10-01") and not ts_str.startswith("00:00"):
+            try:
+                pkt_epoch = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S").timestamp()
+            except Exception:
+                pkt_epoch = None
+
         should_save = False
         if is_anomaly:
             should_save = True
         elif self.trip_started:
-            if now_ts - self.last_db_save_time >= 5.0:
+            if (now_ts - self.last_db_save_time >= 5.0) or (
+                pkt_epoch is not None and self.last_db_packet_epoch > 0 and abs(pkt_epoch - self.last_db_packet_epoch) >= 4.5
+            ):
                 should_save = True
 
         if should_save:
             self.last_db_save_time = now_ts
+            if pkt_epoch is not None:
+                self.last_db_packet_epoch = pkt_epoch
             run_id_val = self.active_run_id or f"{self.truck_id}_기록_{get_kst_now().strftime('%Y-%m-%d_%H시%M분')}"
             
             # UTC created_at 계산

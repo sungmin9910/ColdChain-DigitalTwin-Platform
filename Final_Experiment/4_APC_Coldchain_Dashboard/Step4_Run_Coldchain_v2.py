@@ -255,7 +255,7 @@ def get_data_history():
     # 실시간 모드는 깨끗한 빈 상태로 시작 (과거 데이터는 드롭다운에서 선택하여 조회)
     return []
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=5)
 def load_run_data(run_id, device=None):
     history = []
     conn = get_mysql_connection()
@@ -441,6 +441,14 @@ with st.sidebar:
     if new_truck_id != st.session_state.selected_truck_id:
         st.session_state.selected_truck_id = new_truck_id
         st.session_state.run_id = generate_run_id(new_truck_id)
+        st.session_state.preloaded_run_id = None
+        st.session_state.preloaded_device = None
+        st.session_state.explicit_user_reset = False
+        st.session_state.trip_started = False
+        st.session_state.last_driving_time = 0.0
+        tracker = get_session_tracker()
+        tracker['active_run_id'] = None
+        tracker['last_packet_epoch'] = 0
         data_history.clear()
         with msg_queue.mutex:
             msg_queue.queue.clear()
@@ -741,48 +749,73 @@ log_container = st.empty()
 
 # ----------------------------------------------------------------
 # 3-1. 실시간 주행 모드 최근 궤적 자동 복원 (Preload Active Trip)
-# 새로고침이나 중간 접속 시 오던 길이 사라지지 않고 연속 렌더링되도록 보장
+# 새로고침이나 주행 중 중간 접속 시 이전 주행 궤적/그래프가 사라지지 않고 처음부터 연속 렌더링되도록 보장
 # ----------------------------------------------------------------
 if selected_run == "실시간 주행 (현재 실험)":
     if 'preloaded_run_id' not in st.session_state:
         st.session_state.preloaded_run_id = None
+    if 'preloaded_device' not in st.session_state:
+        st.session_state.preloaded_device = None
 
-    if len(data_history) == 0 and not st.session_state.get('explicit_user_reset', False):
+    if not st.session_state.get('explicit_user_reset', False):
         conn = get_mysql_connection()
         if conn:
             try:
                 with conn.cursor() as cursor:
-                    # 최근 6시간 이내에 생성된 가장 최신의 주행 세션 검색 (유효 레코드 3건 이상)
+                    cutoff_kst = (get_kst_now() - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
+                    # 최근 6시간 이내(KST timestamp_str 또는 UTC created_at 기준) 가장 최신 주행 세션 검색
                     cursor.execute("""
-                        SELECT run_id, MAX(created_at) as last_time, COUNT(*) as cnt
+                        SELECT run_id, MAX(id) as last_id, COUNT(*) as cnt
                         FROM sensor_data
                         WHERE (device = %s OR (device = 'truck01' AND %s = 'carrier-c6-01'))
                           AND run_id IS NOT NULL
-                          AND created_at >= NOW() - INTERVAL 6 HOUR
+                          AND (timestamp_str >= %s OR created_at >= UTC_TIMESTAMP() - INTERVAL 6 HOUR)
                         GROUP BY run_id
-                        HAVING cnt >= 3
-                        ORDER BY last_time DESC
+                        HAVING cnt >= 2
+                        ORDER BY last_id DESC
                         LIMIT 1
-                    """, (EXPECTED_DEVICE, EXPECTED_DEVICE))
+                    """, (EXPECTED_DEVICE, EXPECTED_DEVICE, cutoff_kst))
                     latest_active = cursor.fetchone()
                     if latest_active and latest_active['run_id']:
                         active_id = latest_active['run_id']
-                        if st.session_state.preloaded_run_id != active_id:
+                        db_cnt = int(latest_active.get('cnt') or 0)
+                        need_preload = (
+                            st.session_state.preloaded_run_id != active_id
+                            or st.session_state.preloaded_device != EXPECTED_DEVICE
+                            or len(data_history) < db_cnt
+                        )
+                        if need_preload:
                             pre_data = load_run_data(active_id, device=EXPECTED_DEVICE)
                             if pre_data:
+                                last_pre_ts = str(pre_data[-1].get('timestamp', ''))
+                                newer_live = [
+                                    d for d in list(data_history)
+                                    if d.get('device') == EXPECTED_DEVICE and str(d.get('timestamp', '')) > last_pre_ts
+                                ]
+                                data_history.clear()
                                 data_history.extend(pre_data)
+                                data_history.extend(newer_live)
+
+                                now_restore_ts = time.time()
                                 st.session_state.run_id = active_id
                                 st.session_state.preloaded_run_id = active_id
+                                st.session_state.preloaded_device = EXPECTED_DEVICE
+                                st.session_state.trip_started = True
+                                st.session_state.last_driving_time = now_restore_ts
+                                st.session_state.standby_packet_count = 0
+
                                 tracker = get_session_tracker()
                                 tracker['active_run_id'] = active_id
-                                
-                                # 마지막 유효 GPS 위치 및 주행 플래그 복원
+                                tracker['last_packet_epoch'] = now_restore_ts
+                                if pre_data[0].get('timestamp'):
+                                    tracker['start_ts_str'] = str(pre_data[0]['timestamp'])
+
+                                # 마지막 유효 GPS 위치 복원
                                 for d in reversed(pre_data):
                                     if d.get('lat') and d.get('lng') and float(d['lat']) != 0.0:
                                         st.session_state.last_valid_gps = (float(d['lat']), float(d['lng']))
-                                        st.session_state.trip_started = True
                                         break
-                                print(f"✨ [실시간 궤적 자동 복원] 최근 주행 세션 '{active_id}'의 {len(pre_data)}건 데이터를 화면에 복원했습니다.")
+                                print(f"✨ [실시간 궤적 자동 복원] 주행 세션 '{active_id}'의 {len(pre_data)}건 데이터를 출발 시점부터 복원했습니다.")
             except Exception as e:
                 print(f"최근 주행 궤적 자동 복원 에러: {e}")
             finally:

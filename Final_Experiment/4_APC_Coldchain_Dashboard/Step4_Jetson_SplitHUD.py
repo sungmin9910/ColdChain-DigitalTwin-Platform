@@ -258,7 +258,7 @@ def format_session_label(session_id):
     return f"📂 {session_id}"
 
 # 특정 과거 세션 데이터 로드 (캐싱)
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=5)
 def load_session_data(target_run_id):
     history = []
     conn = get_mysql_connection()
@@ -558,6 +558,42 @@ if not is_live_mode:
     df_static = pd.DataFrame(static_records) if len(static_records) > 0 else pd.DataFrame(columns=DEFAULT_COLS)
 else:
     df_static = None
+    # 실시간 주행 모드 중간 접속 시 최근 6시간 이내 활성 주행 궤적 자동 복원
+    if len(data_history) == 0:
+        conn = get_mysql_connection()
+        if conn:
+            try:
+                with conn.cursor() as cursor:
+                    cutoff_kst = (get_kst_now() - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
+                    cursor.execute("""
+                        SELECT run_id, MAX(id) as last_id, COUNT(*) as cnt
+                        FROM sensor_data
+                        WHERE run_id IS NOT NULL
+                          AND (timestamp_str >= %s OR created_at >= UTC_TIMESTAMP() - INTERVAL 6 HOUR)
+                        GROUP BY run_id
+                        HAVING cnt >= 2
+                        ORDER BY last_id DESC
+                        LIMIT 1
+                    """, (cutoff_kst,))
+                    latest_active = cursor.fetchone()
+                    if latest_active and latest_active['run_id']:
+                        active_id = latest_active['run_id']
+                        pre_data = load_session_data(active_id)
+                        if pre_data:
+                            data_history.extend(pre_data)
+                            st.session_state.run_id = active_id
+                            st.session_state.trip_started = True
+                            tracker = get_session_tracker()
+                            tracker['active_run_id'] = active_id
+                            tracker['last_packet_epoch'] = time.time()
+                            for d in reversed(pre_data):
+                                if d.get('lat') and d.get('lng') and float(d['lat']) != 0.0:
+                                    st.session_state.last_valid_gps = (float(d['lat']), float(d['lng']))
+                                    break
+            except Exception as e:
+                print(f"HUD 실시간 궤적 자동 복원 에러: {e}")
+            finally:
+                conn.close()
 
 # 과거 모드일 때 정적 뷰포트 1회 렌더링
 def render_active_view(view_key, df_data, container, h):
