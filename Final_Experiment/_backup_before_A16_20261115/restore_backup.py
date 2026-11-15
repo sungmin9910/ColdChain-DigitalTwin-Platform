@@ -38,11 +38,22 @@ def restore_files():
 
 
 def flash_scanner(port: str):
-    pio_exe = Path.home() / ".platformio" / "penv" / "Scripts" / "pio.exe"
-    fw_dir = REPO_ROOT / "Final_Experiment" / "2_ESP32_Firmware"
-    cmd = [str(pio_exe), "run", "-t", "upload", "--upload-port", port]
-    print(f"[RUN] 스캐너 이전 펌웨어 재업로드 실행: {' '.join(cmd)}")
-    subprocess.run(cmd, cwd=str(fw_dir), check=True)
+    py_exe = Path.home() / ".platformio" / "penv" / "Scripts" / "python.exe"
+    esptool_py = Path.home() / ".platformio" / "packages" / "tool-esptoolpy" / "esptool.py"
+    boot_app0 = Path.home() / ".platformio" / "packages" / "framework-arduinoespressif32@3.20014.231204" / "tools" / "partitions" / "boot_app0.bin"
+    cmd = [
+        str(py_exe), str(esptool_py),
+        "--chip", "esp32", "--port", port, "--baud", "115200",
+        "--before", "no_reset", "--after", "hard_reset",
+        "write_flash", "-z", "--flash_mode", "dio", "--flash_freq", "40m", "--flash_size", "4MB",
+        "0x1000", str(BACKUP_DIR / "bootloader_before_A16.bin"),
+        "0x8000", str(BACKUP_DIR / "partitions_before_A16.bin"),
+        "0xe000", str(boot_app0),
+        "0x10000", str(BACKUP_DIR / "firmware_before_A16.bin"),
+    ]
+    print("[INFO] 먼저 스캐너 보드의 [BOOT] 누른 채 [EN] 1회 클릭 후 손을 떼어 다운로드 모드로 진입시켜 주세요.")
+    print(f"[RUN] 스캐너 이전 바이너리 즉시 복원 실행: {' '.join(cmd)}")
+    subprocess.run(cmd, check=True)
     print("[OK] 스캐너 펌웨어 원상복구 완료!")
 
 
