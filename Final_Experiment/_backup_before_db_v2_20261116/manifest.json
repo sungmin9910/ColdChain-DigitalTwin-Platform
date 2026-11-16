@@ -1,0 +1,38 @@
+{
+  "backup_created_at": "2026-11-16 17:10:33",
+  "source_host": "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com",
+  "source_database": "lab225",
+  "rds_clone_database": "lab225_backup_20261116",
+  "tables": {
+    "gps_log": {
+      "row_count": 3260,
+      "clone_row_count": 3260,
+      "json_file": "tables_json/gps_log.json",
+      "sha256": "9425142543fd68b257b39184e25a19ccc3bbf7ce9ccf7e7f4ef5773b6d527467"
+    },
+    "qr": {
+      "row_count": 63,
+      "clone_row_count": 63,
+      "json_file": "tables_json/qr.json",
+      "sha256": "1892dda603c58c4acc2b5e052098ca3e87877e06fec6eba71fe7c55a6177b0d3"
+    },
+    "sensor_data": {
+      "row_count": 7256,
+      "clone_row_count": 7256,
+      "json_file": "tables_json/sensor_data.json",
+      "sha256": "7eda7481be822cd0b9c025c62304e149c6379b0e04af10c4cb2d4895223d12a4"
+    },
+    "sensor_logs": {
+      "row_count": 1114,
+      "clone_row_count": 1114,
+      "json_file": "tables_json/sensor_logs.json",
+      "sha256": "b52dab63b3ab309f3ff289154c8f0baaf416629d386ad4149e9fc7e98aec29fb"
+    },
+    "warehouse_env": {
+      "row_count": 557,
+      "clone_row_count": 557,
+      "json_file": "tables_json/warehouse_env.json",
+      "sha256": "d528ec3bc051f6ad2cd2afee4f93e1ca47f085ce73dee116b7d4649289b76c26"
+    }
+  }
+}

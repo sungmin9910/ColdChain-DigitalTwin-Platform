@@ -1,0 +1,3901 @@
+[
+  {
+    "id": 1,
+    "warehouse_id": "WH_001",
+    "temperature": 21.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 10:30:02"
+  },
+  {
+    "id": 2,
+    "warehouse_id": "WH_001",
+    "temperature": 24.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 10:35:02"
+  },
+  {
+    "id": 3,
+    "warehouse_id": "WH_001",
+    "temperature": 24.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 10:40:03"
+  },
+  {
+    "id": 4,
+    "warehouse_id": "WH_001",
+    "temperature": 25.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 10:45:03"
+  },
+  {
+    "id": 5,
+    "warehouse_id": "WH_001",
+    "temperature": 25.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 10:50:03"
+  },
+  {
+    "id": 6,
+    "warehouse_id": "WH_001",
+    "temperature": 26.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 10:55:04"
+  },
+  {
+    "id": 7,
+    "warehouse_id": "WH_001",
+    "temperature": 26.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 11:00:04"
+  },
+  {
+    "id": 8,
+    "warehouse_id": "WH_001",
+    "temperature": 26.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 11:05:05"
+  },
+  {
+    "id": 9,
+    "warehouse_id": "WH_001",
+    "temperature": 26.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 11:10:05"
+  },
+  {
+    "id": 10,
+    "warehouse_id": "WH_001",
+    "temperature": 26.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 11:15:06"
+  },
+  {
+    "id": 11,
+    "warehouse_id": "WH_001",
+    "temperature": 26.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 11:20:06"
+  },
+  {
+    "id": 12,
+    "warehouse_id": "WH_001",
+    "temperature": 26.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 11:25:06"
+  },
+  {
+    "id": 13,
+    "warehouse_id": "WH_001",
+    "temperature": 23.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:12:24"
+  },
+  {
+    "id": 14,
+    "warehouse_id": "WH_001",
+    "temperature": 24.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:16:04"
+  },
+  {
+    "id": 15,
+    "warehouse_id": "WH_001",
+    "temperature": 24.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:19:04"
+  },
+  {
+    "id": 16,
+    "warehouse_id": "WH_001",
+    "temperature": 24.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:22:05"
+  },
+  {
+    "id": 17,
+    "warehouse_id": "WH_001",
+    "temperature": 23.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:25:05"
+  },
+  {
+    "id": 18,
+    "warehouse_id": "WH_001",
+    "temperature": 23.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:31:06"
+  },
+  {
+    "id": 19,
+    "warehouse_id": "WH_001",
+    "temperature": 23.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:34:06"
+  },
+  {
+    "id": 20,
+    "warehouse_id": "WH_001",
+    "temperature": 23.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:37:07"
+  },
+  {
+    "id": 21,
+    "warehouse_id": "WH_001",
+    "temperature": 23.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:40:07"
+  },
+  {
+    "id": 22,
+    "warehouse_id": "WH_001",
+    "temperature": 23.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:43:07"
+  },
+  {
+    "id": 23,
+    "warehouse_id": "WH_001",
+    "temperature": 22.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:46:08"
+  },
+  {
+    "id": 24,
+    "warehouse_id": "WH_001",
+    "temperature": 22.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:52:08"
+  },
+  {
+    "id": 25,
+    "warehouse_id": "WH_001",
+    "temperature": 22.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:55:09"
+  },
+  {
+    "id": 26,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 12:58:09"
+  },
+  {
+    "id": 27,
+    "warehouse_id": "WH_001",
+    "temperature": 22.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 13:01:10"
+  },
+  {
+    "id": 28,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 13:04:10"
+  },
+  {
+    "id": 29,
+    "warehouse_id": "WH_001",
+    "temperature": 21.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 13:07:10"
+  },
+  {
+    "id": 30,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 13:10:11"
+  },
+  {
+    "id": 31,
+    "warehouse_id": "WH_001",
+    "temperature": 21.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 13:13:11"
+  },
+  {
+    "id": 32,
+    "warehouse_id": "WH_001",
+    "temperature": 21.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 13:16:12"
+  },
+  {
+    "id": 33,
+    "warehouse_id": "WH_001",
+    "temperature": 21.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 13:19:12"
+  },
+  {
+    "id": 34,
+    "warehouse_id": "WH_001",
+    "temperature": 21.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 13:22:12"
+  },
+  {
+    "id": 35,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 13:25:13"
+  },
+  {
+    "id": 36,
+    "warehouse_id": "WH_001",
+    "temperature": 27.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 15:52:34"
+  },
+  {
+    "id": 37,
+    "warehouse_id": "WH_001",
+    "temperature": 27.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 15:55:34"
+  },
+  {
+    "id": 38,
+    "warehouse_id": "WH_001",
+    "temperature": 27.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 15:58:34"
+  },
+  {
+    "id": 39,
+    "warehouse_id": "WH_001",
+    "temperature": 27.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:01:35"
+  },
+  {
+    "id": 40,
+    "warehouse_id": "WH_001",
+    "temperature": 27.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:04:36"
+  },
+  {
+    "id": 41,
+    "warehouse_id": "WH_001",
+    "temperature": 27.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:10:36"
+  },
+  {
+    "id": 42,
+    "warehouse_id": "WH_001",
+    "temperature": 27.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:13:37"
+  },
+  {
+    "id": 43,
+    "warehouse_id": "WH_001",
+    "temperature": 27.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:16:37"
+  },
+  {
+    "id": 44,
+    "warehouse_id": "WH_001",
+    "temperature": 27.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:19:37"
+  },
+  {
+    "id": 45,
+    "warehouse_id": "WH_001",
+    "temperature": 27.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:22:38"
+  },
+  {
+    "id": 46,
+    "warehouse_id": "WH_001",
+    "temperature": 28.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:25:38"
+  },
+  {
+    "id": 47,
+    "warehouse_id": "WH_001",
+    "temperature": 27.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:28:39"
+  },
+  {
+    "id": 48,
+    "warehouse_id": "WH_001",
+    "temperature": 28.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:31:39"
+  },
+  {
+    "id": 49,
+    "warehouse_id": "WH_001",
+    "temperature": 28.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:34:40"
+  },
+  {
+    "id": 50,
+    "warehouse_id": "WH_001",
+    "temperature": 28.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:37:40"
+  },
+  {
+    "id": 51,
+    "warehouse_id": "WH_001",
+    "temperature": 28.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:40:40"
+  },
+  {
+    "id": 52,
+    "warehouse_id": "WH_001",
+    "temperature": 28.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:43:41"
+  },
+  {
+    "id": 53,
+    "warehouse_id": "WH_001",
+    "temperature": 28.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:52:42"
+  },
+  {
+    "id": 54,
+    "warehouse_id": "WH_001",
+    "temperature": 28.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:55:42"
+  },
+  {
+    "id": 55,
+    "warehouse_id": "WH_001",
+    "temperature": 27.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 16:58:42"
+  },
+  {
+    "id": 56,
+    "warehouse_id": "WH_001",
+    "temperature": 28.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:01:43"
+  },
+  {
+    "id": 57,
+    "warehouse_id": "WH_001",
+    "temperature": 28.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:10:44"
+  },
+  {
+    "id": 58,
+    "warehouse_id": "WH_001",
+    "temperature": 28.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:13:44"
+  },
+  {
+    "id": 59,
+    "warehouse_id": "WH_001",
+    "temperature": 28.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:16:45"
+  },
+  {
+    "id": 60,
+    "warehouse_id": "WH_001",
+    "temperature": 28.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:19:45"
+  },
+  {
+    "id": 61,
+    "warehouse_id": "WH_001",
+    "temperature": 28.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:22:45"
+  },
+  {
+    "id": 62,
+    "warehouse_id": "WH_001",
+    "temperature": 28.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:25:46"
+  },
+  {
+    "id": 63,
+    "warehouse_id": "WH_001",
+    "temperature": 27.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:31:46"
+  },
+  {
+    "id": 64,
+    "warehouse_id": "WH_001",
+    "temperature": 27.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:34:47"
+  },
+  {
+    "id": 65,
+    "warehouse_id": "WH_001",
+    "temperature": 27.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:37:47"
+  },
+  {
+    "id": 66,
+    "warehouse_id": "WH_001",
+    "temperature": 27.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:43:48"
+  },
+  {
+    "id": 67,
+    "warehouse_id": "WH_001",
+    "temperature": 26.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:46:48"
+  },
+  {
+    "id": 68,
+    "warehouse_id": "WH_001",
+    "temperature": 26.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:49:49"
+  },
+  {
+    "id": 69,
+    "warehouse_id": "WH_001",
+    "temperature": 26.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:52:49"
+  },
+  {
+    "id": 70,
+    "warehouse_id": "WH_001",
+    "temperature": 26.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:55:49"
+  },
+  {
+    "id": 71,
+    "warehouse_id": "WH_001",
+    "temperature": 26.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 17:58:50"
+  },
+  {
+    "id": 72,
+    "warehouse_id": "WH_001",
+    "temperature": 26.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 18:01:50"
+  },
+  {
+    "id": 73,
+    "warehouse_id": "WH_001",
+    "temperature": 26.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-10 18:04:50"
+  },
+  {
+    "id": 74,
+    "warehouse_id": "WH_001",
+    "temperature": 22.3,
+    "humidity": 22.0,
+    "recorded_at": "2026-03-16 12:35:35"
+  },
+  {
+    "id": 75,
+    "warehouse_id": "WH_001",
+    "temperature": 22.6,
+    "humidity": 22.0,
+    "recorded_at": "2026-03-16 12:38:36"
+  },
+  {
+    "id": 76,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 12:41:36"
+  },
+  {
+    "id": 77,
+    "warehouse_id": "WH_001",
+    "temperature": 21.5,
+    "humidity": 22.0,
+    "recorded_at": "2026-03-16 12:44:37"
+  },
+  {
+    "id": 78,
+    "warehouse_id": "WH_001",
+    "temperature": 21.4,
+    "humidity": 22.0,
+    "recorded_at": "2026-03-16 12:47:37"
+  },
+  {
+    "id": 79,
+    "warehouse_id": "WH_001",
+    "temperature": 21.1,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 12:50:37"
+  },
+  {
+    "id": 80,
+    "warehouse_id": "WH_001",
+    "temperature": 21.0,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 12:53:38"
+  },
+  {
+    "id": 81,
+    "warehouse_id": "WH_001",
+    "temperature": 20.9,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 12:56:38"
+  },
+  {
+    "id": 82,
+    "warehouse_id": "WH_001",
+    "temperature": 20.9,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 12:59:38"
+  },
+  {
+    "id": 83,
+    "warehouse_id": "WH_001",
+    "temperature": 20.8,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:02:39"
+  },
+  {
+    "id": 84,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:05:39"
+  },
+  {
+    "id": 85,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:08:39"
+  },
+  {
+    "id": 86,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:11:40"
+  },
+  {
+    "id": 87,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:14:40"
+  },
+  {
+    "id": 88,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 13:17:40"
+  },
+  {
+    "id": 89,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:20:41"
+  },
+  {
+    "id": 90,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:23:41"
+  },
+  {
+    "id": 91,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:26:41"
+  },
+  {
+    "id": 92,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:29:42"
+  },
+  {
+    "id": 93,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:32:42"
+  },
+  {
+    "id": 94,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:35:43"
+  },
+  {
+    "id": 95,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:41:43"
+  },
+  {
+    "id": 96,
+    "warehouse_id": "WH_001",
+    "temperature": 20.2,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:44:44"
+  },
+  {
+    "id": 97,
+    "warehouse_id": "WH_001",
+    "temperature": 20.2,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:47:44"
+  },
+  {
+    "id": 98,
+    "warehouse_id": "WH_001",
+    "temperature": 20.3,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 13:50:44"
+  },
+  {
+    "id": 99,
+    "warehouse_id": "WH_001",
+    "temperature": 20.3,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 13:53:45"
+  },
+  {
+    "id": 100,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 13:56:45"
+  },
+  {
+    "id": 101,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 13:59:45"
+  },
+  {
+    "id": 102,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:02:46"
+  },
+  {
+    "id": 103,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:05:46"
+  },
+  {
+    "id": 104,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 14:08:47"
+  },
+  {
+    "id": 105,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:11:47"
+  },
+  {
+    "id": 106,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:14:47"
+  },
+  {
+    "id": 107,
+    "warehouse_id": "WH_001",
+    "temperature": 20.3,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 14:17:48"
+  },
+  {
+    "id": 108,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:20:48"
+  },
+  {
+    "id": 109,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:26:49"
+  },
+  {
+    "id": 110,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:29:49"
+  },
+  {
+    "id": 111,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:32:50"
+  },
+  {
+    "id": 112,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:35:50"
+  },
+  {
+    "id": 113,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:38:50"
+  },
+  {
+    "id": 114,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:41:51"
+  },
+  {
+    "id": 115,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:44:51"
+  },
+  {
+    "id": 116,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:47:52"
+  },
+  {
+    "id": 117,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:50:52"
+  },
+  {
+    "id": 118,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:53:52"
+  },
+  {
+    "id": 119,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:56:53"
+  },
+  {
+    "id": 120,
+    "warehouse_id": "WH_001",
+    "temperature": 20.7,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 14:59:53"
+  },
+  {
+    "id": 121,
+    "warehouse_id": "WH_001",
+    "temperature": 20.7,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 15:02:54"
+  },
+  {
+    "id": 122,
+    "warehouse_id": "WH_001",
+    "temperature": 20.7,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 15:05:54"
+  },
+  {
+    "id": 123,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 15:08:54"
+  },
+  {
+    "id": 124,
+    "warehouse_id": "WH_001",
+    "temperature": 20.7,
+    "humidity": 24.0,
+    "recorded_at": "2026-03-16 15:11:55"
+  },
+  {
+    "id": 125,
+    "warehouse_id": "WH_001",
+    "temperature": 20.8,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 15:14:55"
+  },
+  {
+    "id": 126,
+    "warehouse_id": "WH_001",
+    "temperature": 20.7,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 15:17:55"
+  },
+  {
+    "id": 127,
+    "warehouse_id": "WH_001",
+    "temperature": 20.8,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 15:23:56"
+  },
+  {
+    "id": 128,
+    "warehouse_id": "WH_001",
+    "temperature": 23.2,
+    "humidity": 23.0,
+    "recorded_at": "2026-03-16 15:26:56"
+  },
+  {
+    "id": 129,
+    "warehouse_id": "WH_001",
+    "temperature": 25.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 15:29:57"
+  },
+  {
+    "id": 130,
+    "warehouse_id": "WH_001",
+    "temperature": 24.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 15:32:57"
+  },
+  {
+    "id": 131,
+    "warehouse_id": "WH_001",
+    "temperature": 24.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 15:38:58"
+  },
+  {
+    "id": 132,
+    "warehouse_id": "WH_001",
+    "temperature": 24.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 15:41:58"
+  },
+  {
+    "id": 133,
+    "warehouse_id": "WH_001",
+    "temperature": 22.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 15:44:58"
+  },
+  {
+    "id": 134,
+    "warehouse_id": "WH_001",
+    "temperature": 22.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 15:47:59"
+  },
+  {
+    "id": 135,
+    "warehouse_id": "WH_001",
+    "temperature": 21.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 15:50:59"
+  },
+  {
+    "id": 136,
+    "warehouse_id": "WH_001",
+    "temperature": 25.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 15:54:00"
+  },
+  {
+    "id": 137,
+    "warehouse_id": "WH_001",
+    "temperature": 27.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 15:57:00"
+  },
+  {
+    "id": 138,
+    "warehouse_id": "WH_001",
+    "temperature": 25.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:00:01"
+  },
+  {
+    "id": 139,
+    "warehouse_id": "WH_001",
+    "temperature": 24.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:03:01"
+  },
+  {
+    "id": 140,
+    "warehouse_id": "WH_001",
+    "temperature": 24.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:06:02"
+  },
+  {
+    "id": 141,
+    "warehouse_id": "WH_001",
+    "temperature": 24.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:09:02"
+  },
+  {
+    "id": 142,
+    "warehouse_id": "WH_001",
+    "temperature": 24.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:12:02"
+  },
+  {
+    "id": 143,
+    "warehouse_id": "WH_001",
+    "temperature": 24.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:15:03"
+  },
+  {
+    "id": 144,
+    "warehouse_id": "WH_001",
+    "temperature": 24.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:18:03"
+  },
+  {
+    "id": 145,
+    "warehouse_id": "WH_001",
+    "temperature": 24.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:21:04"
+  },
+  {
+    "id": 146,
+    "warehouse_id": "WH_001",
+    "temperature": 24.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:24:04"
+  },
+  {
+    "id": 147,
+    "warehouse_id": "WH_001",
+    "temperature": 24.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:30:04"
+  },
+  {
+    "id": 148,
+    "warehouse_id": "WH_001",
+    "temperature": 24.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:33:05"
+  },
+  {
+    "id": 149,
+    "warehouse_id": "WH_001",
+    "temperature": 25.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:36:05"
+  },
+  {
+    "id": 150,
+    "warehouse_id": "WH_001",
+    "temperature": 24.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:39:06"
+  },
+  {
+    "id": 151,
+    "warehouse_id": "WH_001",
+    "temperature": 24.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:42:06"
+  },
+  {
+    "id": 152,
+    "warehouse_id": "WH_001",
+    "temperature": 24.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:48:07"
+  },
+  {
+    "id": 153,
+    "warehouse_id": "WH_001",
+    "temperature": 24.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:51:07"
+  },
+  {
+    "id": 154,
+    "warehouse_id": "WH_001",
+    "temperature": 24.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:54:07"
+  },
+  {
+    "id": 155,
+    "warehouse_id": "WH_001",
+    "temperature": 24.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 16:57:08"
+  },
+  {
+    "id": 156,
+    "warehouse_id": "WH_001",
+    "temperature": 25.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:00:08"
+  },
+  {
+    "id": 157,
+    "warehouse_id": "WH_001",
+    "temperature": 24.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:03:09"
+  },
+  {
+    "id": 158,
+    "warehouse_id": "WH_001",
+    "temperature": 24.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:06:09"
+  },
+  {
+    "id": 159,
+    "warehouse_id": "WH_001",
+    "temperature": 24.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:09:09"
+  },
+  {
+    "id": 160,
+    "warehouse_id": "WH_001",
+    "temperature": 24.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:12:10"
+  },
+  {
+    "id": 161,
+    "warehouse_id": "WH_001",
+    "temperature": 24.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:15:11"
+  },
+  {
+    "id": 162,
+    "warehouse_id": "WH_001",
+    "temperature": 24.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:18:11"
+  },
+  {
+    "id": 163,
+    "warehouse_id": "WH_001",
+    "temperature": 24.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:21:12"
+  },
+  {
+    "id": 164,
+    "warehouse_id": "WH_001",
+    "temperature": 24.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:24:12"
+  },
+  {
+    "id": 165,
+    "warehouse_id": "WH_001",
+    "temperature": 24.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:27:12"
+  },
+  {
+    "id": 166,
+    "warehouse_id": "WH_001",
+    "temperature": 24.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:30:13"
+  },
+  {
+    "id": 167,
+    "warehouse_id": "WH_001",
+    "temperature": 24.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:33:13"
+  },
+  {
+    "id": 168,
+    "warehouse_id": "WH_001",
+    "temperature": 24.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:36:13"
+  },
+  {
+    "id": 169,
+    "warehouse_id": "WH_001",
+    "temperature": 24.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:39:14"
+  },
+  {
+    "id": 170,
+    "warehouse_id": "WH_001",
+    "temperature": 24.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:42:14"
+  },
+  {
+    "id": 171,
+    "warehouse_id": "WH_001",
+    "temperature": 24.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:45:14"
+  },
+  {
+    "id": 172,
+    "warehouse_id": "WH_001",
+    "temperature": 24.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:48:15"
+  },
+  {
+    "id": 173,
+    "warehouse_id": "WH_001",
+    "temperature": 24.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:51:15"
+  },
+  {
+    "id": 174,
+    "warehouse_id": "WH_001",
+    "temperature": 24.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 17:57:16"
+  },
+  {
+    "id": 175,
+    "warehouse_id": "WH_001",
+    "temperature": 24.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:00:16"
+  },
+  {
+    "id": 176,
+    "warehouse_id": "WH_001",
+    "temperature": 22.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:03:17"
+  },
+  {
+    "id": 177,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:09:18"
+  },
+  {
+    "id": 178,
+    "warehouse_id": "WH_001",
+    "temperature": 21.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:12:18"
+  },
+  {
+    "id": 179,
+    "warehouse_id": "WH_001",
+    "temperature": 21.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:15:18"
+  },
+  {
+    "id": 180,
+    "warehouse_id": "WH_001",
+    "temperature": 21.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:18:19"
+  },
+  {
+    "id": 181,
+    "warehouse_id": "WH_001",
+    "temperature": 21.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:21:19"
+  },
+  {
+    "id": 182,
+    "warehouse_id": "WH_001",
+    "temperature": 21.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:24:20"
+  },
+  {
+    "id": 183,
+    "warehouse_id": "WH_001",
+    "temperature": 21.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:27:20"
+  },
+  {
+    "id": 184,
+    "warehouse_id": "WH_001",
+    "temperature": 21.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:30:21"
+  },
+  {
+    "id": 185,
+    "warehouse_id": "WH_001",
+    "temperature": 21.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:33:21"
+  },
+  {
+    "id": 186,
+    "warehouse_id": "WH_001",
+    "temperature": 20.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:36:21"
+  },
+  {
+    "id": 187,
+    "warehouse_id": "WH_001",
+    "temperature": 20.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:39:22"
+  },
+  {
+    "id": 188,
+    "warehouse_id": "WH_001",
+    "temperature": 20.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:42:22"
+  },
+  {
+    "id": 189,
+    "warehouse_id": "WH_001",
+    "temperature": 20.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:45:23"
+  },
+  {
+    "id": 190,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:48:23"
+  },
+  {
+    "id": 191,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:51:23"
+  },
+  {
+    "id": 192,
+    "warehouse_id": "WH_001",
+    "temperature": 20.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:54:24"
+  },
+  {
+    "id": 193,
+    "warehouse_id": "WH_001",
+    "temperature": 20.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 18:57:24"
+  },
+  {
+    "id": 194,
+    "warehouse_id": "WH_001",
+    "temperature": 19.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:00:24"
+  },
+  {
+    "id": 195,
+    "warehouse_id": "WH_001",
+    "temperature": 19.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:03:25"
+  },
+  {
+    "id": 196,
+    "warehouse_id": "WH_001",
+    "temperature": 19.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:06:25"
+  },
+  {
+    "id": 197,
+    "warehouse_id": "WH_001",
+    "temperature": 19.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:09:26"
+  },
+  {
+    "id": 198,
+    "warehouse_id": "WH_001",
+    "temperature": 18.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:15:26"
+  },
+  {
+    "id": 199,
+    "warehouse_id": "WH_001",
+    "temperature": 18.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:18:27"
+  },
+  {
+    "id": 200,
+    "warehouse_id": "WH_001",
+    "temperature": 18.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:21:27"
+  },
+  {
+    "id": 201,
+    "warehouse_id": "WH_001",
+    "temperature": 18.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:27:28"
+  },
+  {
+    "id": 202,
+    "warehouse_id": "WH_001",
+    "temperature": 18.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:30:28"
+  },
+  {
+    "id": 203,
+    "warehouse_id": "WH_001",
+    "temperature": 18.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:36:29"
+  },
+  {
+    "id": 204,
+    "warehouse_id": "WH_001",
+    "temperature": 18.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:39:29"
+  },
+  {
+    "id": 205,
+    "warehouse_id": "WH_001",
+    "temperature": 18.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:42:30"
+  },
+  {
+    "id": 206,
+    "warehouse_id": "WH_001",
+    "temperature": 18.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:45:30"
+  },
+  {
+    "id": 207,
+    "warehouse_id": "WH_001",
+    "temperature": 18.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:48:30"
+  },
+  {
+    "id": 208,
+    "warehouse_id": "WH_001",
+    "temperature": 18.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:51:31"
+  },
+  {
+    "id": 209,
+    "warehouse_id": "WH_001",
+    "temperature": 18.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 19:57:31"
+  },
+  {
+    "id": 210,
+    "warehouse_id": "WH_001",
+    "temperature": 18.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:00:32"
+  },
+  {
+    "id": 211,
+    "warehouse_id": "WH_001",
+    "temperature": 17.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:12:33"
+  },
+  {
+    "id": 212,
+    "warehouse_id": "WH_001",
+    "temperature": 17.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:15:33"
+  },
+  {
+    "id": 213,
+    "warehouse_id": "WH_001",
+    "temperature": 17.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:18:33"
+  },
+  {
+    "id": 214,
+    "warehouse_id": "WH_001",
+    "temperature": 17.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:21:34"
+  },
+  {
+    "id": 215,
+    "warehouse_id": "WH_001",
+    "temperature": 17.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:24:34"
+  },
+  {
+    "id": 216,
+    "warehouse_id": "WH_001",
+    "temperature": 17.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:27:35"
+  },
+  {
+    "id": 217,
+    "warehouse_id": "WH_001",
+    "temperature": 17.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:30:35"
+  },
+  {
+    "id": 218,
+    "warehouse_id": "WH_001",
+    "temperature": 17.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:33:36"
+  },
+  {
+    "id": 219,
+    "warehouse_id": "WH_001",
+    "temperature": 17.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:36:37"
+  },
+  {
+    "id": 220,
+    "warehouse_id": "WH_001",
+    "temperature": 17.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:39:37"
+  },
+  {
+    "id": 221,
+    "warehouse_id": "WH_001",
+    "temperature": 17.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:42:38"
+  },
+  {
+    "id": 222,
+    "warehouse_id": "WH_001",
+    "temperature": 17.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:45:38"
+  },
+  {
+    "id": 223,
+    "warehouse_id": "WH_001",
+    "temperature": 17.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:48:38"
+  },
+  {
+    "id": 224,
+    "warehouse_id": "WH_001",
+    "temperature": 17.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:51:39"
+  },
+  {
+    "id": 225,
+    "warehouse_id": "WH_001",
+    "temperature": 17.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:54:39"
+  },
+  {
+    "id": 226,
+    "warehouse_id": "WH_001",
+    "temperature": 17.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 20:57:39"
+  },
+  {
+    "id": 227,
+    "warehouse_id": "WH_001",
+    "temperature": 17.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:06:40"
+  },
+  {
+    "id": 228,
+    "warehouse_id": "WH_001",
+    "temperature": 17.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:09:41"
+  },
+  {
+    "id": 229,
+    "warehouse_id": "WH_001",
+    "temperature": 17.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:15:41"
+  },
+  {
+    "id": 230,
+    "warehouse_id": "WH_001",
+    "temperature": 17.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:18:42"
+  },
+  {
+    "id": 231,
+    "warehouse_id": "WH_001",
+    "temperature": 17.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:21:42"
+  },
+  {
+    "id": 232,
+    "warehouse_id": "WH_001",
+    "temperature": 17.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:24:43"
+  },
+  {
+    "id": 233,
+    "warehouse_id": "WH_001",
+    "temperature": 17.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:27:43"
+  },
+  {
+    "id": 234,
+    "warehouse_id": "WH_001",
+    "temperature": 17.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:30:43"
+  },
+  {
+    "id": 235,
+    "warehouse_id": "WH_001",
+    "temperature": 16.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:33:44"
+  },
+  {
+    "id": 236,
+    "warehouse_id": "WH_001",
+    "temperature": 16.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:39:44"
+  },
+  {
+    "id": 237,
+    "warehouse_id": "WH_001",
+    "temperature": 16.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:51:45"
+  },
+  {
+    "id": 238,
+    "warehouse_id": "WH_001",
+    "temperature": 16.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:54:46"
+  },
+  {
+    "id": 239,
+    "warehouse_id": "WH_001",
+    "temperature": 16.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 21:57:46"
+  },
+  {
+    "id": 240,
+    "warehouse_id": "WH_001",
+    "temperature": 16.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:00:46"
+  },
+  {
+    "id": 241,
+    "warehouse_id": "WH_001",
+    "temperature": 16.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:03:47"
+  },
+  {
+    "id": 242,
+    "warehouse_id": "WH_001",
+    "temperature": 16.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:06:47"
+  },
+  {
+    "id": 243,
+    "warehouse_id": "WH_001",
+    "temperature": 16.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:09:47"
+  },
+  {
+    "id": 244,
+    "warehouse_id": "WH_001",
+    "temperature": 16.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:12:48"
+  },
+  {
+    "id": 245,
+    "warehouse_id": "WH_001",
+    "temperature": 16.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:15:49"
+  },
+  {
+    "id": 246,
+    "warehouse_id": "WH_001",
+    "temperature": 16.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:18:49"
+  },
+  {
+    "id": 247,
+    "warehouse_id": "WH_001",
+    "temperature": 16.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:21:50"
+  },
+  {
+    "id": 248,
+    "warehouse_id": "WH_001",
+    "temperature": 16.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:24:50"
+  },
+  {
+    "id": 249,
+    "warehouse_id": "WH_001",
+    "temperature": 16.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:27:50"
+  },
+  {
+    "id": 250,
+    "warehouse_id": "WH_001",
+    "temperature": 16.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:30:51"
+  },
+  {
+    "id": 251,
+    "warehouse_id": "WH_001",
+    "temperature": 16.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:33:51"
+  },
+  {
+    "id": 252,
+    "warehouse_id": "WH_001",
+    "temperature": 16.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:36:52"
+  },
+  {
+    "id": 253,
+    "warehouse_id": "WH_001",
+    "temperature": 16.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:39:52"
+  },
+  {
+    "id": 254,
+    "warehouse_id": "WH_001",
+    "temperature": 16.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:42:52"
+  },
+  {
+    "id": 255,
+    "warehouse_id": "WH_001",
+    "temperature": 16.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-16 22:45:53"
+  },
+  {
+    "id": 256,
+    "warehouse_id": "WH_001",
+    "temperature": 16.3,
+    "humidity": 24.0,
+    "recorded_at": "2026-03-16 22:51:53"
+  },
+  {
+    "id": 257,
+    "warehouse_id": "WH_001",
+    "temperature": 16.3,
+    "humidity": 24.0,
+    "recorded_at": "2026-03-16 22:57:54"
+  },
+  {
+    "id": 258,
+    "warehouse_id": "WH_001",
+    "temperature": 16.2,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 23:00:54"
+  },
+  {
+    "id": 259,
+    "warehouse_id": "WH_001",
+    "temperature": 16.2,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 23:06:55"
+  },
+  {
+    "id": 260,
+    "warehouse_id": "WH_001",
+    "temperature": 16.2,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 23:09:55"
+  },
+  {
+    "id": 261,
+    "warehouse_id": "WH_001",
+    "temperature": 16.2,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 23:12:56"
+  },
+  {
+    "id": 262,
+    "warehouse_id": "WH_001",
+    "temperature": 16.1,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 23:15:56"
+  },
+  {
+    "id": 263,
+    "warehouse_id": "WH_001",
+    "temperature": 16.1,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 23:18:56"
+  },
+  {
+    "id": 264,
+    "warehouse_id": "WH_001",
+    "temperature": 16.1,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-16 23:21:57"
+  },
+  {
+    "id": 265,
+    "warehouse_id": "WH_001",
+    "temperature": 16.1,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 23:24:57"
+  },
+  {
+    "id": 266,
+    "warehouse_id": "WH_001",
+    "temperature": 16.0,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 23:27:57"
+  },
+  {
+    "id": 267,
+    "warehouse_id": "WH_001",
+    "temperature": 16.0,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 23:30:58"
+  },
+  {
+    "id": 268,
+    "warehouse_id": "WH_001",
+    "temperature": 16.0,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 23:33:58"
+  },
+  {
+    "id": 269,
+    "warehouse_id": "WH_001",
+    "temperature": 16.0,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 23:36:59"
+  },
+  {
+    "id": 270,
+    "warehouse_id": "WH_001",
+    "temperature": 16.0,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 23:39:59"
+  },
+  {
+    "id": 271,
+    "warehouse_id": "WH_001",
+    "temperature": 16.0,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 23:42:59"
+  },
+  {
+    "id": 272,
+    "warehouse_id": "WH_001",
+    "temperature": 16.0,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-16 23:46:00"
+  },
+  {
+    "id": 273,
+    "warehouse_id": "WH_001",
+    "temperature": 16.0,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-16 23:49:00"
+  },
+  {
+    "id": 274,
+    "warehouse_id": "WH_001",
+    "temperature": 16.0,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 23:52:00"
+  },
+  {
+    "id": 275,
+    "warehouse_id": "WH_001",
+    "temperature": 15.9,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-16 23:55:01"
+  },
+  {
+    "id": 276,
+    "warehouse_id": "WH_001",
+    "temperature": 15.9,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-16 23:58:01"
+  },
+  {
+    "id": 277,
+    "warehouse_id": "WH_001",
+    "temperature": 15.9,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:01:02"
+  },
+  {
+    "id": 278,
+    "warehouse_id": "WH_001",
+    "temperature": 15.9,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:04:02"
+  },
+  {
+    "id": 279,
+    "warehouse_id": "WH_001",
+    "temperature": 15.9,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:07:02"
+  },
+  {
+    "id": 280,
+    "warehouse_id": "WH_001",
+    "temperature": 15.9,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:13:03"
+  },
+  {
+    "id": 281,
+    "warehouse_id": "WH_001",
+    "temperature": 15.9,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:16:03"
+  },
+  {
+    "id": 282,
+    "warehouse_id": "WH_001",
+    "temperature": 15.8,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-17 00:22:04"
+  },
+  {
+    "id": 283,
+    "warehouse_id": "WH_001",
+    "temperature": 15.8,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:28:05"
+  },
+  {
+    "id": 284,
+    "warehouse_id": "WH_001",
+    "temperature": 15.8,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:37:06"
+  },
+  {
+    "id": 285,
+    "warehouse_id": "WH_001",
+    "temperature": 15.7,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:40:06"
+  },
+  {
+    "id": 286,
+    "warehouse_id": "WH_001",
+    "temperature": 15.7,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:43:06"
+  },
+  {
+    "id": 287,
+    "warehouse_id": "WH_001",
+    "temperature": 15.7,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:46:07"
+  },
+  {
+    "id": 288,
+    "warehouse_id": "WH_001",
+    "temperature": 15.7,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:49:07"
+  },
+  {
+    "id": 289,
+    "warehouse_id": "WH_001",
+    "temperature": 15.7,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:55:08"
+  },
+  {
+    "id": 290,
+    "warehouse_id": "WH_001",
+    "temperature": 15.7,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 00:58:08"
+  },
+  {
+    "id": 291,
+    "warehouse_id": "WH_001",
+    "temperature": 15.7,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 01:01:08"
+  },
+  {
+    "id": 292,
+    "warehouse_id": "WH_001",
+    "temperature": 15.7,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 01:04:09"
+  },
+  {
+    "id": 293,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 01:13:10"
+  },
+  {
+    "id": 294,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 01:16:10"
+  },
+  {
+    "id": 295,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 01:19:11"
+  },
+  {
+    "id": 296,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 01:25:11"
+  },
+  {
+    "id": 297,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 01:28:11"
+  },
+  {
+    "id": 298,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 01:31:12"
+  },
+  {
+    "id": 299,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 01:34:12"
+  },
+  {
+    "id": 300,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 01:37:12"
+  },
+  {
+    "id": 301,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 01:40:13"
+  },
+  {
+    "id": 302,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 01:46:14"
+  },
+  {
+    "id": 303,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 01:49:14"
+  },
+  {
+    "id": 304,
+    "warehouse_id": "WH_001",
+    "temperature": 15.5,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 01:52:14"
+  },
+  {
+    "id": 305,
+    "warehouse_id": "WH_001",
+    "temperature": 15.4,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 01:55:15"
+  },
+  {
+    "id": 306,
+    "warehouse_id": "WH_001",
+    "temperature": 15.4,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 01:58:15"
+  },
+  {
+    "id": 307,
+    "warehouse_id": "WH_001",
+    "temperature": 15.4,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:01:15"
+  },
+  {
+    "id": 308,
+    "warehouse_id": "WH_001",
+    "temperature": 15.3,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 02:04:16"
+  },
+  {
+    "id": 309,
+    "warehouse_id": "WH_001",
+    "temperature": 15.4,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:07:16"
+  },
+  {
+    "id": 310,
+    "warehouse_id": "WH_001",
+    "temperature": 15.3,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:10:17"
+  },
+  {
+    "id": 311,
+    "warehouse_id": "WH_001",
+    "temperature": 15.3,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:13:17"
+  },
+  {
+    "id": 312,
+    "warehouse_id": "WH_001",
+    "temperature": 15.3,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:16:17"
+  },
+  {
+    "id": 313,
+    "warehouse_id": "WH_001",
+    "temperature": 15.3,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:19:18"
+  },
+  {
+    "id": 314,
+    "warehouse_id": "WH_001",
+    "temperature": 15.3,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:22:18"
+  },
+  {
+    "id": 315,
+    "warehouse_id": "WH_001",
+    "temperature": 15.3,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:25:18"
+  },
+  {
+    "id": 316,
+    "warehouse_id": "WH_001",
+    "temperature": 15.3,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:28:19"
+  },
+  {
+    "id": 317,
+    "warehouse_id": "WH_001",
+    "temperature": 15.2,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:31:20"
+  },
+  {
+    "id": 318,
+    "warehouse_id": "WH_001",
+    "temperature": 15.3,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:34:20"
+  },
+  {
+    "id": 319,
+    "warehouse_id": "WH_001",
+    "temperature": 15.3,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:37:21"
+  },
+  {
+    "id": 320,
+    "warehouse_id": "WH_001",
+    "temperature": 15.3,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:40:21"
+  },
+  {
+    "id": 321,
+    "warehouse_id": "WH_001",
+    "temperature": 15.2,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:43:21"
+  },
+  {
+    "id": 322,
+    "warehouse_id": "WH_001",
+    "temperature": 15.1,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:46:22"
+  },
+  {
+    "id": 323,
+    "warehouse_id": "WH_001",
+    "temperature": 15.2,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:49:22"
+  },
+  {
+    "id": 324,
+    "warehouse_id": "WH_001",
+    "temperature": 15.2,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:52:22"
+  },
+  {
+    "id": 325,
+    "warehouse_id": "WH_001",
+    "temperature": 15.2,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 02:58:23"
+  },
+  {
+    "id": 326,
+    "warehouse_id": "WH_001",
+    "temperature": 15.0,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 03:04:24"
+  },
+  {
+    "id": 327,
+    "warehouse_id": "WH_001",
+    "temperature": 15.1,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:07:24"
+  },
+  {
+    "id": 328,
+    "warehouse_id": "WH_001",
+    "temperature": 15.1,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:13:25"
+  },
+  {
+    "id": 329,
+    "warehouse_id": "WH_001",
+    "temperature": 15.0,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:16:25"
+  },
+  {
+    "id": 330,
+    "warehouse_id": "WH_001",
+    "temperature": 15.0,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:22:25"
+  },
+  {
+    "id": 331,
+    "warehouse_id": "WH_001",
+    "temperature": 15.0,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:25:26"
+  },
+  {
+    "id": 332,
+    "warehouse_id": "WH_001",
+    "temperature": 15.0,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:28:26"
+  },
+  {
+    "id": 333,
+    "warehouse_id": "WH_001",
+    "temperature": 15.0,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:31:27"
+  },
+  {
+    "id": 334,
+    "warehouse_id": "WH_001",
+    "temperature": 14.9,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:34:27"
+  },
+  {
+    "id": 335,
+    "warehouse_id": "WH_001",
+    "temperature": 15.0,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:37:27"
+  },
+  {
+    "id": 336,
+    "warehouse_id": "WH_001",
+    "temperature": 15.0,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 03:40:28"
+  },
+  {
+    "id": 337,
+    "warehouse_id": "WH_001",
+    "temperature": 14.9,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:43:28"
+  },
+  {
+    "id": 338,
+    "warehouse_id": "WH_001",
+    "temperature": 15.0,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:46:29"
+  },
+  {
+    "id": 339,
+    "warehouse_id": "WH_001",
+    "temperature": 14.9,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 03:52:29"
+  },
+  {
+    "id": 340,
+    "warehouse_id": "WH_001",
+    "temperature": 14.9,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 03:55:30"
+  },
+  {
+    "id": 341,
+    "warehouse_id": "WH_001",
+    "temperature": 15.0,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 03:58:30"
+  },
+  {
+    "id": 342,
+    "warehouse_id": "WH_001",
+    "temperature": 15.0,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 04:01:30"
+  },
+  {
+    "id": 343,
+    "warehouse_id": "WH_001",
+    "temperature": 14.9,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:04:31"
+  },
+  {
+    "id": 344,
+    "warehouse_id": "WH_001",
+    "temperature": 14.9,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:07:31"
+  },
+  {
+    "id": 345,
+    "warehouse_id": "WH_001",
+    "temperature": 14.9,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:10:31"
+  },
+  {
+    "id": 346,
+    "warehouse_id": "WH_001",
+    "temperature": 14.9,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:13:32"
+  },
+  {
+    "id": 347,
+    "warehouse_id": "WH_001",
+    "temperature": 14.8,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:16:33"
+  },
+  {
+    "id": 348,
+    "warehouse_id": "WH_001",
+    "temperature": 14.8,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:19:33"
+  },
+  {
+    "id": 349,
+    "warehouse_id": "WH_001",
+    "temperature": 14.8,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 04:22:34"
+  },
+  {
+    "id": 350,
+    "warehouse_id": "WH_001",
+    "temperature": 14.8,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:25:34"
+  },
+  {
+    "id": 351,
+    "warehouse_id": "WH_001",
+    "temperature": 14.8,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:28:34"
+  },
+  {
+    "id": 352,
+    "warehouse_id": "WH_001",
+    "temperature": 14.8,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:31:35"
+  },
+  {
+    "id": 353,
+    "warehouse_id": "WH_001",
+    "temperature": 14.8,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:34:35"
+  },
+  {
+    "id": 354,
+    "warehouse_id": "WH_001",
+    "temperature": 14.8,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:37:36"
+  },
+  {
+    "id": 355,
+    "warehouse_id": "WH_001",
+    "temperature": 14.7,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 04:43:36"
+  },
+  {
+    "id": 356,
+    "warehouse_id": "WH_001",
+    "temperature": 14.7,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 04:46:37"
+  },
+  {
+    "id": 357,
+    "warehouse_id": "WH_001",
+    "temperature": 14.7,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 04:52:37"
+  },
+  {
+    "id": 358,
+    "warehouse_id": "WH_001",
+    "temperature": 14.7,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 04:58:38"
+  },
+  {
+    "id": 359,
+    "warehouse_id": "WH_001",
+    "temperature": 14.6,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:01:38"
+  },
+  {
+    "id": 360,
+    "warehouse_id": "WH_001",
+    "temperature": 14.6,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:04:39"
+  },
+  {
+    "id": 361,
+    "warehouse_id": "WH_001",
+    "temperature": 14.6,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:07:39"
+  },
+  {
+    "id": 362,
+    "warehouse_id": "WH_001",
+    "temperature": 14.6,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:10:40"
+  },
+  {
+    "id": 363,
+    "warehouse_id": "WH_001",
+    "temperature": 14.6,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:13:41"
+  },
+  {
+    "id": 364,
+    "warehouse_id": "WH_001",
+    "temperature": 14.6,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:19:41"
+  },
+  {
+    "id": 365,
+    "warehouse_id": "WH_001",
+    "temperature": 14.6,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:22:41"
+  },
+  {
+    "id": 366,
+    "warehouse_id": "WH_001",
+    "temperature": 14.5,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:25:42"
+  },
+  {
+    "id": 367,
+    "warehouse_id": "WH_001",
+    "temperature": 14.5,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:31:43"
+  },
+  {
+    "id": 368,
+    "warehouse_id": "WH_001",
+    "temperature": 14.5,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:37:43"
+  },
+  {
+    "id": 369,
+    "warehouse_id": "WH_001",
+    "temperature": 14.5,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:40:43"
+  },
+  {
+    "id": 370,
+    "warehouse_id": "WH_001",
+    "temperature": 14.5,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:43:44"
+  },
+  {
+    "id": 371,
+    "warehouse_id": "WH_001",
+    "temperature": 14.5,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:49:45"
+  },
+  {
+    "id": 372,
+    "warehouse_id": "WH_001",
+    "temperature": 14.5,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:52:45"
+  },
+  {
+    "id": 373,
+    "warehouse_id": "WH_001",
+    "temperature": 14.5,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:55:46"
+  },
+  {
+    "id": 374,
+    "warehouse_id": "WH_001",
+    "temperature": 14.4,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 05:58:46"
+  },
+  {
+    "id": 375,
+    "warehouse_id": "WH_001",
+    "temperature": 14.4,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:07:47"
+  },
+  {
+    "id": 376,
+    "warehouse_id": "WH_001",
+    "temperature": 14.4,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:10:48"
+  },
+  {
+    "id": 377,
+    "warehouse_id": "WH_001",
+    "temperature": 14.4,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:19:49"
+  },
+  {
+    "id": 378,
+    "warehouse_id": "WH_001",
+    "temperature": 14.4,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:22:49"
+  },
+  {
+    "id": 379,
+    "warehouse_id": "WH_001",
+    "temperature": 14.4,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:25:49"
+  },
+  {
+    "id": 380,
+    "warehouse_id": "WH_001",
+    "temperature": 14.4,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:28:50"
+  },
+  {
+    "id": 381,
+    "warehouse_id": "WH_001",
+    "temperature": 14.4,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:31:50"
+  },
+  {
+    "id": 382,
+    "warehouse_id": "WH_001",
+    "temperature": 14.3,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:34:51"
+  },
+  {
+    "id": 383,
+    "warehouse_id": "WH_001",
+    "temperature": 14.3,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:37:51"
+  },
+  {
+    "id": 384,
+    "warehouse_id": "WH_001",
+    "temperature": 14.3,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:40:51"
+  },
+  {
+    "id": 385,
+    "warehouse_id": "WH_001",
+    "temperature": 14.3,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:43:52"
+  },
+  {
+    "id": 386,
+    "warehouse_id": "WH_001",
+    "temperature": 14.3,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:46:52"
+  },
+  {
+    "id": 387,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:49:52"
+  },
+  {
+    "id": 388,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:52:53"
+  },
+  {
+    "id": 389,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 06:58:53"
+  },
+  {
+    "id": 390,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 07:01:54"
+  },
+  {
+    "id": 391,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 07:04:54"
+  },
+  {
+    "id": 392,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 07:10:55"
+  },
+  {
+    "id": 393,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 31.0,
+    "recorded_at": "2026-03-17 07:16:55"
+  },
+  {
+    "id": 394,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 07:19:56"
+  },
+  {
+    "id": 395,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 07:25:57"
+  },
+  {
+    "id": 396,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 07:31:57"
+  },
+  {
+    "id": 397,
+    "warehouse_id": "WH_001",
+    "temperature": 14.3,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 07:34:57"
+  },
+  {
+    "id": 398,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 07:37:58"
+  },
+  {
+    "id": 399,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 31.0,
+    "recorded_at": "2026-03-17 07:40:58"
+  },
+  {
+    "id": 400,
+    "warehouse_id": "WH_001",
+    "temperature": 14.3,
+    "humidity": 31.0,
+    "recorded_at": "2026-03-17 07:43:59"
+  },
+  {
+    "id": 401,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 07:46:59"
+  },
+  {
+    "id": 402,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 31.0,
+    "recorded_at": "2026-03-17 07:49:59"
+  },
+  {
+    "id": 403,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 31.0,
+    "recorded_at": "2026-03-17 07:53:00"
+  },
+  {
+    "id": 404,
+    "warehouse_id": "WH_001",
+    "temperature": 14.2,
+    "humidity": 31.0,
+    "recorded_at": "2026-03-17 07:56:00"
+  },
+  {
+    "id": 405,
+    "warehouse_id": "WH_001",
+    "temperature": 14.3,
+    "humidity": 31.0,
+    "recorded_at": "2026-03-17 08:02:00"
+  },
+  {
+    "id": 406,
+    "warehouse_id": "WH_001",
+    "temperature": 14.0,
+    "humidity": 31.0,
+    "recorded_at": "2026-03-17 08:05:01"
+  },
+  {
+    "id": 407,
+    "warehouse_id": "WH_001",
+    "temperature": 13.8,
+    "humidity": 32.0,
+    "recorded_at": "2026-03-17 08:11:01"
+  },
+  {
+    "id": 408,
+    "warehouse_id": "WH_001",
+    "temperature": 13.8,
+    "humidity": 32.0,
+    "recorded_at": "2026-03-17 08:14:02"
+  },
+  {
+    "id": 409,
+    "warehouse_id": "WH_001",
+    "temperature": 13.8,
+    "humidity": 32.0,
+    "recorded_at": "2026-03-17 08:17:02"
+  },
+  {
+    "id": 410,
+    "warehouse_id": "WH_001",
+    "temperature": 14.4,
+    "humidity": 32.0,
+    "recorded_at": "2026-03-17 08:20:03"
+  },
+  {
+    "id": 411,
+    "warehouse_id": "WH_001",
+    "temperature": 14.8,
+    "humidity": 31.0,
+    "recorded_at": "2026-03-17 08:23:03"
+  },
+  {
+    "id": 412,
+    "warehouse_id": "WH_001",
+    "temperature": 15.7,
+    "humidity": 31.0,
+    "recorded_at": "2026-03-17 08:26:03"
+  },
+  {
+    "id": 413,
+    "warehouse_id": "WH_001",
+    "temperature": 16.4,
+    "humidity": 30.0,
+    "recorded_at": "2026-03-17 08:29:04"
+  },
+  {
+    "id": 414,
+    "warehouse_id": "WH_001",
+    "temperature": 17.0,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 08:32:04"
+  },
+  {
+    "id": 415,
+    "warehouse_id": "WH_001",
+    "temperature": 17.5,
+    "humidity": 29.0,
+    "recorded_at": "2026-03-17 08:35:04"
+  },
+  {
+    "id": 416,
+    "warehouse_id": "WH_001",
+    "temperature": 18.2,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 08:41:05"
+  },
+  {
+    "id": 417,
+    "warehouse_id": "WH_001",
+    "temperature": 18.4,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 08:44:05"
+  },
+  {
+    "id": 418,
+    "warehouse_id": "WH_001",
+    "temperature": 18.9,
+    "humidity": 28.0,
+    "recorded_at": "2026-03-17 08:47:06"
+  },
+  {
+    "id": 419,
+    "warehouse_id": "WH_001",
+    "temperature": 19.4,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-17 08:50:06"
+  },
+  {
+    "id": 420,
+    "warehouse_id": "WH_001",
+    "temperature": 19.7,
+    "humidity": 27.0,
+    "recorded_at": "2026-03-17 08:56:07"
+  },
+  {
+    "id": 421,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-17 09:02:07"
+  },
+  {
+    "id": 422,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-17 09:05:08"
+  },
+  {
+    "id": 423,
+    "warehouse_id": "WH_001",
+    "temperature": 20.8,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-17 09:08:08"
+  },
+  {
+    "id": 424,
+    "warehouse_id": "WH_001",
+    "temperature": 20.7,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-17 09:11:08"
+  },
+  {
+    "id": 425,
+    "warehouse_id": "WH_001",
+    "temperature": 21.0,
+    "humidity": 26.0,
+    "recorded_at": "2026-03-17 09:14:09"
+  },
+  {
+    "id": 426,
+    "warehouse_id": "WH_001",
+    "temperature": 21.4,
+    "humidity": 25.0,
+    "recorded_at": "2026-03-17 09:20:09"
+  },
+  {
+    "id": 427,
+    "warehouse_id": "WH_001",
+    "temperature": 21.7,
+    "humidity": 21.0,
+    "recorded_at": "2026-03-17 09:23:10"
+  },
+  {
+    "id": 428,
+    "warehouse_id": "WH_001",
+    "temperature": 21.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 09:26:10"
+  },
+  {
+    "id": 429,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 09:29:11"
+  },
+  {
+    "id": 430,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 09:35:11"
+  },
+  {
+    "id": 431,
+    "warehouse_id": "WH_001",
+    "temperature": 22.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 09:38:12"
+  },
+  {
+    "id": 432,
+    "warehouse_id": "WH_001",
+    "temperature": 22.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 09:41:12"
+  },
+  {
+    "id": 433,
+    "warehouse_id": "WH_001",
+    "temperature": 22.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 09:47:13"
+  },
+  {
+    "id": 434,
+    "warehouse_id": "WH_001",
+    "temperature": 22.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 09:50:13"
+  },
+  {
+    "id": 435,
+    "warehouse_id": "WH_001",
+    "temperature": 22.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 09:53:14"
+  },
+  {
+    "id": 436,
+    "warehouse_id": "WH_001",
+    "temperature": 22.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 09:56:14"
+  },
+  {
+    "id": 437,
+    "warehouse_id": "WH_001",
+    "temperature": 22.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 09:59:14"
+  },
+  {
+    "id": 438,
+    "warehouse_id": "WH_001",
+    "temperature": 22.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:02:15"
+  },
+  {
+    "id": 439,
+    "warehouse_id": "WH_001",
+    "temperature": 22.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:05:15"
+  },
+  {
+    "id": 440,
+    "warehouse_id": "WH_001",
+    "temperature": 23.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:08:15"
+  },
+  {
+    "id": 441,
+    "warehouse_id": "WH_001",
+    "temperature": 23.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:11:16"
+  },
+  {
+    "id": 442,
+    "warehouse_id": "WH_001",
+    "temperature": 23.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:14:16"
+  },
+  {
+    "id": 443,
+    "warehouse_id": "WH_001",
+    "temperature": 23.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:20:17"
+  },
+  {
+    "id": 444,
+    "warehouse_id": "WH_001",
+    "temperature": 23.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:23:17"
+  },
+  {
+    "id": 445,
+    "warehouse_id": "WH_001",
+    "temperature": 23.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:26:17"
+  },
+  {
+    "id": 446,
+    "warehouse_id": "WH_001",
+    "temperature": 23.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:29:18"
+  },
+  {
+    "id": 447,
+    "warehouse_id": "WH_001",
+    "temperature": 24.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:32:18"
+  },
+  {
+    "id": 448,
+    "warehouse_id": "WH_001",
+    "temperature": 24.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:35:18"
+  },
+  {
+    "id": 449,
+    "warehouse_id": "WH_001",
+    "temperature": 24.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:38:19"
+  },
+  {
+    "id": 450,
+    "warehouse_id": "WH_001",
+    "temperature": 24.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:41:19"
+  },
+  {
+    "id": 451,
+    "warehouse_id": "WH_001",
+    "temperature": 24.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:44:20"
+  },
+  {
+    "id": 452,
+    "warehouse_id": "WH_001",
+    "temperature": 24.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:47:20"
+  },
+  {
+    "id": 453,
+    "warehouse_id": "WH_001",
+    "temperature": 24.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:50:20"
+  },
+  {
+    "id": 454,
+    "warehouse_id": "WH_001",
+    "temperature": 24.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:53:21"
+  },
+  {
+    "id": 455,
+    "warehouse_id": "WH_001",
+    "temperature": 24.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:56:21"
+  },
+  {
+    "id": 456,
+    "warehouse_id": "WH_001",
+    "temperature": 24.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 10:59:21"
+  },
+  {
+    "id": 457,
+    "warehouse_id": "WH_001",
+    "temperature": 24.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:02:22"
+  },
+  {
+    "id": 458,
+    "warehouse_id": "WH_001",
+    "temperature": 24.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:05:22"
+  },
+  {
+    "id": 459,
+    "warehouse_id": "WH_001",
+    "temperature": 23.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:11:23"
+  },
+  {
+    "id": 460,
+    "warehouse_id": "WH_001",
+    "temperature": 23.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:14:23"
+  },
+  {
+    "id": 461,
+    "warehouse_id": "WH_001",
+    "temperature": 23.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:17:23"
+  },
+  {
+    "id": 462,
+    "warehouse_id": "WH_001",
+    "temperature": 23.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:20:24"
+  },
+  {
+    "id": 463,
+    "warehouse_id": "WH_001",
+    "temperature": 23.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:23:24"
+  },
+  {
+    "id": 464,
+    "warehouse_id": "WH_001",
+    "temperature": 23.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:26:24"
+  },
+  {
+    "id": 465,
+    "warehouse_id": "WH_001",
+    "temperature": 23.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:32:25"
+  },
+  {
+    "id": 466,
+    "warehouse_id": "WH_001",
+    "temperature": 23.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:35:26"
+  },
+  {
+    "id": 467,
+    "warehouse_id": "WH_001",
+    "temperature": 23.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:38:26"
+  },
+  {
+    "id": 468,
+    "warehouse_id": "WH_001",
+    "temperature": 23.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:44:27"
+  },
+  {
+    "id": 469,
+    "warehouse_id": "WH_001",
+    "temperature": 22.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:47:27"
+  },
+  {
+    "id": 470,
+    "warehouse_id": "WH_001",
+    "temperature": 22.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:50:28"
+  },
+  {
+    "id": 471,
+    "warehouse_id": "WH_001",
+    "temperature": 22.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:53:28"
+  },
+  {
+    "id": 472,
+    "warehouse_id": "WH_001",
+    "temperature": 22.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:56:29"
+  },
+  {
+    "id": 473,
+    "warehouse_id": "WH_001",
+    "temperature": 22.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 11:59:29"
+  },
+  {
+    "id": 474,
+    "warehouse_id": "WH_001",
+    "temperature": 22.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:02:29"
+  },
+  {
+    "id": 475,
+    "warehouse_id": "WH_001",
+    "temperature": 22.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:05:30"
+  },
+  {
+    "id": 476,
+    "warehouse_id": "WH_001",
+    "temperature": 22.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:11:30"
+  },
+  {
+    "id": 477,
+    "warehouse_id": "WH_001",
+    "temperature": 22.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:14:31"
+  },
+  {
+    "id": 478,
+    "warehouse_id": "WH_001",
+    "temperature": 22.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:17:31"
+  },
+  {
+    "id": 479,
+    "warehouse_id": "WH_001",
+    "temperature": 22.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:20:32"
+  },
+  {
+    "id": 480,
+    "warehouse_id": "WH_001",
+    "temperature": 22.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:23:32"
+  },
+  {
+    "id": 481,
+    "warehouse_id": "WH_001",
+    "temperature": 22.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:26:32"
+  },
+  {
+    "id": 482,
+    "warehouse_id": "WH_001",
+    "temperature": 22.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:29:33"
+  },
+  {
+    "id": 483,
+    "warehouse_id": "WH_001",
+    "temperature": 22.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:32:33"
+  },
+  {
+    "id": 484,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:35:33"
+  },
+  {
+    "id": 485,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:38:34"
+  },
+  {
+    "id": 486,
+    "warehouse_id": "WH_001",
+    "temperature": 22.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:41:34"
+  },
+  {
+    "id": 487,
+    "warehouse_id": "WH_001",
+    "temperature": 22.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:44:34"
+  },
+  {
+    "id": 488,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:47:35"
+  },
+  {
+    "id": 489,
+    "warehouse_id": "WH_001",
+    "temperature": 22.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:50:35"
+  },
+  {
+    "id": 490,
+    "warehouse_id": "WH_001",
+    "temperature": 22.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:53:36"
+  },
+  {
+    "id": 491,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:56:36"
+  },
+  {
+    "id": 492,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 12:59:36"
+  },
+  {
+    "id": 493,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:02:37"
+  },
+  {
+    "id": 494,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:05:37"
+  },
+  {
+    "id": 495,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:08:37"
+  },
+  {
+    "id": 496,
+    "warehouse_id": "WH_001",
+    "temperature": 21.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:11:38"
+  },
+  {
+    "id": 497,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:14:38"
+  },
+  {
+    "id": 498,
+    "warehouse_id": "WH_001",
+    "temperature": 21.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:26:39"
+  },
+  {
+    "id": 499,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:29:40"
+  },
+  {
+    "id": 500,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:32:40"
+  },
+  {
+    "id": 501,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:35:40"
+  },
+  {
+    "id": 502,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:38:41"
+  },
+  {
+    "id": 503,
+    "warehouse_id": "WH_001",
+    "temperature": 21.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:41:41"
+  },
+  {
+    "id": 504,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:44:41"
+  },
+  {
+    "id": 505,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:47:42"
+  },
+  {
+    "id": 506,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:53:42"
+  },
+  {
+    "id": 507,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:56:43"
+  },
+  {
+    "id": 508,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 13:59:43"
+  },
+  {
+    "id": 509,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:08:44"
+  },
+  {
+    "id": 510,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:17:45"
+  },
+  {
+    "id": 511,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:20:45"
+  },
+  {
+    "id": 512,
+    "warehouse_id": "WH_001",
+    "temperature": 21.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:23:45"
+  },
+  {
+    "id": 513,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:26:46"
+  },
+  {
+    "id": 514,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:29:46"
+  },
+  {
+    "id": 515,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:32:47"
+  },
+  {
+    "id": 516,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:35:47"
+  },
+  {
+    "id": 517,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:38:48"
+  },
+  {
+    "id": 518,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:41:48"
+  },
+  {
+    "id": 519,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:47:49"
+  },
+  {
+    "id": 520,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:50:49"
+  },
+  {
+    "id": 521,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:53:49"
+  },
+  {
+    "id": 522,
+    "warehouse_id": "WH_001",
+    "temperature": 22.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:56:50"
+  },
+  {
+    "id": 523,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 14:59:50"
+  },
+  {
+    "id": 524,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:02:51"
+  },
+  {
+    "id": 525,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:05:51"
+  },
+  {
+    "id": 526,
+    "warehouse_id": "WH_001",
+    "temperature": 22.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:08:51"
+  },
+  {
+    "id": 527,
+    "warehouse_id": "WH_001",
+    "temperature": 21.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:14:52"
+  },
+  {
+    "id": 528,
+    "warehouse_id": "WH_001",
+    "temperature": 21.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:17:52"
+  },
+  {
+    "id": 529,
+    "warehouse_id": "WH_001",
+    "temperature": 21.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:20:53"
+  },
+  {
+    "id": 530,
+    "warehouse_id": "WH_001",
+    "temperature": 21.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:23:53"
+  },
+  {
+    "id": 531,
+    "warehouse_id": "WH_001",
+    "temperature": 21.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:26:54"
+  },
+  {
+    "id": 532,
+    "warehouse_id": "WH_001",
+    "temperature": 21.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:29:54"
+  },
+  {
+    "id": 533,
+    "warehouse_id": "WH_001",
+    "temperature": 21.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:35:55"
+  },
+  {
+    "id": 534,
+    "warehouse_id": "WH_001",
+    "temperature": 21.0,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:38:55"
+  },
+  {
+    "id": 535,
+    "warehouse_id": "WH_001",
+    "temperature": 20.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:41:55"
+  },
+  {
+    "id": 536,
+    "warehouse_id": "WH_001",
+    "temperature": 20.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:44:56"
+  },
+  {
+    "id": 537,
+    "warehouse_id": "WH_001",
+    "temperature": 20.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:47:56"
+  },
+  {
+    "id": 538,
+    "warehouse_id": "WH_001",
+    "temperature": 20.9,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:50:56"
+  },
+  {
+    "id": 539,
+    "warehouse_id": "WH_001",
+    "temperature": 20.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:53:57"
+  },
+  {
+    "id": 540,
+    "warehouse_id": "WH_001",
+    "temperature": 20.7,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 15:56:57"
+  },
+  {
+    "id": 541,
+    "warehouse_id": "WH_001",
+    "temperature": 20.6,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:02:58"
+  },
+  {
+    "id": 542,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:05:58"
+  },
+  {
+    "id": 543,
+    "warehouse_id": "WH_001",
+    "temperature": 20.5,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:08:58"
+  },
+  {
+    "id": 544,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:11:59"
+  },
+  {
+    "id": 545,
+    "warehouse_id": "WH_001",
+    "temperature": 20.4,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:14:59"
+  },
+  {
+    "id": 546,
+    "warehouse_id": "WH_001",
+    "temperature": 20.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:17:59"
+  },
+  {
+    "id": 547,
+    "warehouse_id": "WH_001",
+    "temperature": 20.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:21:00"
+  },
+  {
+    "id": 548,
+    "warehouse_id": "WH_001",
+    "temperature": 20.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:24:00"
+  },
+  {
+    "id": 549,
+    "warehouse_id": "WH_001",
+    "temperature": 20.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:27:01"
+  },
+  {
+    "id": 550,
+    "warehouse_id": "WH_001",
+    "temperature": 20.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:33:01"
+  },
+  {
+    "id": 551,
+    "warehouse_id": "WH_001",
+    "temperature": 20.3,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:36:02"
+  },
+  {
+    "id": 552,
+    "warehouse_id": "WH_001",
+    "temperature": 20.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:39:02"
+  },
+  {
+    "id": 553,
+    "warehouse_id": "WH_001",
+    "temperature": 20.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:42:02"
+  },
+  {
+    "id": 554,
+    "warehouse_id": "WH_001",
+    "temperature": 20.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:45:03"
+  },
+  {
+    "id": 555,
+    "warehouse_id": "WH_001",
+    "temperature": 20.2,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:48:03"
+  },
+  {
+    "id": 556,
+    "warehouse_id": "WH_001",
+    "temperature": 20.1,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-17 16:51:04"
+  },
+  {
+    "id": 557,
+    "warehouse_id": "WH_001",
+    "temperature": 18.8,
+    "humidity": 10.0,
+    "recorded_at": "2026-03-23 14:24:43"
+  }
+]
