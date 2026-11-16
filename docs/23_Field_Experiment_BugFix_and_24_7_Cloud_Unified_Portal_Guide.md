@@ -51,8 +51,11 @@
   * **PIN 번호**: `0000` (통합관리자) | `1111` (농가 `A00`) | `2222` (APC `A12`)
   * **소비자 QR 스캔 시 (`?FmID=85&grade=상`)**: 관리자 메뉴가 숨겨지고 100% 소비자 안심 이력 화면만 표시됨.
 
-### 2.2 [차세대 메인 후보] 4-in-1 FastAPI + WebSocket 통합 포털 (`Final_Experiment/5_Unified_FastAPI_Portal/`)
+### 2.2 [AWS EC2 24/7 상시 배포 완료] 4-in-1 FastAPI + WebSocket 통합 포털 (`Final_Experiment/5_Unified_FastAPI_Portal/`)
 * **폴더 위치**: [Final_Experiment/5_Unified_FastAPI_Portal/](../Final_Experiment/5_Unified_FastAPI_Portal/)
+* **상시 접속 URL (2026-11-16 AWS EC2 배포 완료)**:
+  * 🔗 **통합 포털 메인**: **http://54.180.112.191:8080** (`coldchain-portal.service`, 기존 `coldchain-daemon.service`와 병렬 상시 가동)
+  * 🔗 **소비자 이력 직접 조회 예시**: **http://54.180.112.191:8080/?FmID=85**
 * **구성**: 단일 웹 서버(`app.py` + `templates/index.html`)에서 **① 소비자 안심 조회(기존 Streamlit 디자인·정보 100% 동일)**, **② 농가 수확·무색 QR 생성(`A00`, `StD`/`DD`/`HN` 분리 및 `Rp=NULL`)**, **③ APC 스캐너/FmID 연동 난수 등급 배분 및 유색 QR 생성(`A12`, `A11` 필수 검증)**, **④ 실시간 차량 관제(WebSocket 무깜빡임 + 조도 그래프 + 접이식 텔레메트리 로그)** 4개 탭을 PIN 권한별로 통합 제공.
 * **생성된 QR 이미지 자동 저장 위치**:
   1. [Final_Experiment/1_PC_QR_Generators/](../Final_Experiment/1_PC_QR_Generators/) (`{AC}{FmID}{YYMMDD}_QR.png`, `{FmID}_A_QR.png`, `_B_QR.png`, `_C_QR.png`)
