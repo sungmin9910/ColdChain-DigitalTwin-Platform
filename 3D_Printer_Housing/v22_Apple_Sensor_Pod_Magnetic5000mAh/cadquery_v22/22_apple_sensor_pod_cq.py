@@ -1,7 +1,7 @@
 """
 Cold Chain Digital Twin Platform
 v22 Apple Sensor Pod Housing - CadQuery (OpenCASCADE B-Rep) Edition
-(Bayonet Twist-Lock Edition + Chimney Convection Vents + GPS Holder)
+(Enlarged Magnetic Snap + Chimney Convection Vents + GPS Holder)
 
 원본 OpenSCAD 설계(22_apple_sensor_pod.scad)와 100% 동일한 치수의 CadQuery 2.7 기반 B-Rep 스크립트.
 실행 시 STEP(.step, 정밀 CAD 원본) 및 STL(.stl, 3D 프린터 슬라이서용) 파일을 자동 생성한다.
@@ -39,11 +39,20 @@ PCB_Z_CENTER = 3.0
 PCB_Y_MOUNT = 0.0                # 전면 쉘 베드 바닥(Z=0.0)과 100% 밀착!
 PCB_Y_BACK = PCB_Y_MOUNT - PCB_T  # Y = -1.6 mm
 
-# 방식 A: 4점 원형 베요넷 회전 잠금(Bayonet Twist-Lock) 규격 (자석/나사/본드 불필요!)
-BAYONET_R = 38.6
-BAYONET_W = 3.0                  # R_in = 37.1 mm, R_out = 40.1 mm
-BAYONET_H = 3.4                  # Y = 0.0 -> +3.4 mm 돌출
-BAYONET_ANGLES: list[float] = [28.0, 150.0, 210.0, 332.0]
+# 4x 네오디뮴 자석 보스 좌표 (X, Z) - 보스 내측 모서리(|X|=28.50mm)가 배터리 공간(|X|=28.20mm) 바깥에 위치!
+SCREW_PTS: list[tuple[float, float]] = [
+    (-35.0, 25.0),
+    (35.0, 25.0),
+    (-35.0, -22.0),
+    (35.0, -22.0),
+]
+
+# 확장된 자석 포켓 규격 (넓고 긴 자석도 여유롭게 들어가도록 지름 7.60mm, 원통 깊이 5.50mm + 65도 원뿔 지붕 8.20mm 적용!)
+MAG_R_FRONT = 3.80
+MAG_H_FRONT = 5.50
+MAG_R_REAR = 3.80
+MAG_H_REAR = 5.50
+MAG_BOSS_R = 6.50
 
 # 외장형 GPS 세라믹 안테나 규격 (20 x 5 x 7 mm)
 GPS_LEN_Z = 21.6
@@ -107,73 +116,10 @@ def make_revolved_apple(profile: list[tuple[float, float]], use_spline: bool = F
     return wp.revolve(360, (0, 0, 0), (0, 1, 0))
 
 
-def _arc_wire_on_wp(
-    wp: cq.Workplane,
-    r_in: float,
-    r_out: float,
-    start_deg: float,
-    span_deg: float,
-) -> cq.Workplane:
-    """Workplane("XZ") 상에 정밀 원호(Annular Sector) 닫힌 와이어를 생성한다."""
-    a0 = math.radians(start_deg)
-    a1 = math.radians(start_deg + span_deg)
-    am = 0.5 * (a0 + a1)
-    return (
-        wp.moveTo(r_in * math.cos(a0), r_in * math.sin(a0))
-        .lineTo(r_out * math.cos(a0), r_out * math.sin(a0))
-        .threePointArc(
-            (r_out * math.cos(am), r_out * math.sin(am)),
-            (r_out * math.cos(a1), r_out * math.sin(a1)),
-        )
-        .lineTo(r_in * math.cos(a1), r_in * math.sin(a1))
-        .threePointArc(
-            (r_in * math.cos(am), r_in * math.sin(am)),
-            (r_in * math.cos(a0), r_in * math.sin(a0)),
-        )
-        .close()
-    )
-
-
-def make_bayonet_arc(
-    r_in: float,
-    r_out: float,
-    start_deg: float,
-    span_deg: float,
-    y_start: float,
-    y_len: float,
-) -> cq.Workplane:
-    """
-    XZ 평면 원호 단면을 Y = y_start 에서 Y = y_start + y_len 까지(+Y 방향) 돌출한다.
-    참고: Workplane("XZ")의 법선은 -Y 이므로 offset=-y_start, extrude(-y_len)을 사용한다.
-    """
-    wp = cq.Workplane("XZ").workplane(offset=-y_start)
-    return _arc_wire_on_wp(wp, r_in, r_out, start_deg, span_deg).extrude(-y_len)
-
-
-def make_bayonet_loft(
-    r_in1: float,
-    r_out1: float,
-    start1: float,
-    span1: float,
-    y1: float,
-    r_in2: float,
-    r_out2: float,
-    start2: float,
-    span2: float,
-    y2: float,
-) -> cq.Workplane:
-    """두 원호 단면(Y=y1 및 Y=y2) 사이를 직선 로프트(ruled loft)로 연결하여 65도 무서포트 경사를 만든다."""
-    wp = cq.Workplane("XZ").workplane(offset=-y1)
-    wp = _arc_wire_on_wp(wp, r_in1, r_out1, start1, span1)
-    wp = wp.workplane(offset=-(y2 - y1))
-    wp = _arc_wire_on_wp(wp, r_in2, r_out2, start2, span2)
-    return wp.loft(ruled=True)
-
-
 def make_functional_cutouts() -> cq.Workplane:
     """
     1) 상단 사과 꼭지 소켓 홈
-    2) 우측(+X) SHT45 온습도 센서 3슬롯 통기 그릴 (Z = +10, +16, +22 mm)
+    2) 우측(+X) SHT45 온습도 센서 3슬롯 통기 그릴 (Z = -4, +2, +8 mm)
     3) 상·하단 굴뚝 효과(Stack Effect) 자연대류 통풍 슬릿 (하단 냉기 유입 Z=-28mm, 상단 열기 배출 Z=+30mm)
     """
     cutouts = (
@@ -205,9 +151,7 @@ def make_functional_cutouts() -> cq.Workplane:
                 .arc((x_v, y_sign * 19.0), 0.35, 0.0, 360.0)
                 .hull()
             )
-            # 하단 흡기 슬릿 (Z = -45 ~ -15 mm)
             intake = cq.Workplane("XY").workplane(offset=-45.0).placeSketch(sk_louver).extrude(30.0)
-            # 상단 배기 슬릿 (Z = +15 ~ +45 mm)
             exhaust = cq.Workplane("XY").workplane(offset=15.0).placeSketch(sk_louver).extrude(30.0)
             cutouts = cutouts.union(intake).union(exhaust)
 
@@ -215,7 +159,7 @@ def make_functional_cutouts() -> cq.Workplane:
 
 
 # ============================================================================
-# 3. 후면 쉘 (REAR SHELL - 배터리 벨크로 평면 바닥 + 4점 베요넷 수(Male) L-후크)
+# 3. 후면 쉘 (REAR SHELL - 배터리 벨크로 평면 바닥 + 확장형 자석 홈 4곳 + 굴뚝 통풍구)
 # ============================================================================
 def build_rear_shell(outer: cq.Workplane, hollow_apple: cq.Workplane) -> cq.Workplane:
     # A. 중공 사과에서 Y <= 0 후면 반구 추출
@@ -226,71 +170,106 @@ def build_rear_shell(outer: cq.Workplane, hollow_apple: cq.Workplane) -> cq.Work
     velcro_platform = cq.Workplane("XY").transformed(offset=(0.0, -38.0, 0.0)).box(140.0, 27.0, 140.0)
     internal_union = shell_body.union(velcro_platform)
 
-    # C. 4x 원형 베요넷 회전 잠금 수(Male) L-후크 (R = 38.6mm, [28, 150, 210, 332] deg)
-    # Dome-Up 출력 시 L-후크 걸림턱(Y = +1.7 ~ +3.4mm)이 베드 바닥(Z = 0.00mm)에 100% 평평하게 안착됨!
-    r_in = BAYONET_R - BAYONET_W / 2.0
-    r_out = BAYONET_R + BAYONET_W / 2.0
-    for ang in BAYONET_ANGLES:
-        # 1) 후면 외벽 연결 앵커 보스 (Y = 0.0 -> -2.5mm 수직 + Y = -2.5 -> -9.5mm 65도 경사 테이퍼)
-        anchor_top = make_bayonet_arc(r_in, BAYONET_R + 7.5, ang - 3.5, 7.0, -2.5, 2.5)
-        anchor_taper = make_bayonet_loft(
-            r_in, BAYONET_R + 7.5, ang - 3.5, 7.0, -2.5,
-            BAYONET_R + 3.0, BAYONET_R + 7.5, ang - 3.0, 6.0, -9.5,
-        )
-        # 2) 분할면 통과 기둥 (Y = 0.0 -> +3.4mm, 폭 6.0도)
-        stem = make_bayonet_arc(r_in, r_out, ang - 3.0, 6.0, 0.0, BAYONET_H)
-        # 3) 시계방향 잠금 L-후크 팁 (Y = +1.7 -> +3.4mm, 폭 12.5도, 베드 바닥 Z=0 직접 밀착!)
-        hook_tip = make_bayonet_arc(r_in, r_out, ang - 3.0, 12.5, 1.7, BAYONET_H - 1.7)
+    # C. 4x 확장형 벽체 일체형 자석 보스 (r = 6.50mm, 깊이 Y = -18.5mm 까지 확장하여 긴 자석 + 원뿔 지붕 완벽 수용!)
+    for px, pz in SCREW_PTS:
+        norm_len = math.hypot(px, pz)
+        dir_x, dir_z = px / norm_len, pz / norm_len
 
-        internal_union = (
-            internal_union
-            .union(anchor_top)
-            .union(anchor_taper)
-            .union(stem)
-            .union(hook_tip)
+        sk_top = (
+            cq.Sketch()
+            .arc((px, pz), MAG_BOSS_R, 0.0, 360.0)
+            .arc((px + dir_x * 10.0, pz + dir_z * 10.0), MAG_BOSS_R, 0.0, 360.0)
+            .hull()
         )
+        sk_bot = cq.Sketch().push([(px + dir_x * 3.0, pz + dir_z * 3.0)]).circle(5.5)
+
+        # 상단 기둥 (Y = 0 -> -12.0mm) + 하단 경사 로프트 (Y = -12.0 -> -20.0mm)
+        boss_upper = cq.Workplane("XZ").placeSketch(sk_top).extrude(12.0)
+        boss_taper = (
+            cq.Workplane("XZ")
+            .workplane(offset=12.0)
+            .placeSketch(sk_top, sk_bot.moved(cq.Location(cq.Vector(0.0, 0.0, 8.0))))
+            .loft(ruled=True)
+        )
+        internal_union = internal_union.union(boss_upper).union(boss_taper)
 
     # 사과 외형 바깥으로 나간 보스 외곽 트리밍
     rear = outer.intersect(internal_union)
 
-    # D. 5000mAh 배터리 사각 코너 여유 공간 컷아웃 (56.4 x 70.4 mm, 코너 필렛 R2.2, Y = +0.5 -> -24.5)
+    # D. 5000mAh 배터리 사각 코너 여유 공간 컷아웃 (56.4 x 70.4 mm, 코너 필렛 R2.2, Y = +0.5 -> -24.48)
     battery_bay_cut = (
         cq.Workplane("XZ")
         .workplane(offset=-0.5)
         .center(0.0, -0.5)
         .rect(56.4, 70.4)
-        .extrude(25.0)
+        .extrude(24.98)
         .edges("|Y")
         .fillet(2.2)
     )
     rear = rear.cut(battery_bay_cut)
+
+    # E. 4x 후면 확장형 자석 포켓 (입구 챔퍼 D=8.50mm + 본체 D=7.60mm x 깊이 5.50mm + 65도 원뿔 지붕 8.20mm)
+    for px, pz in SCREW_PTS:
+        chamfer_cone = cq.Solid.makeCone(
+            MAG_R_REAR + 0.45,
+            MAG_R_REAR,
+            0.9,
+            cq.Vector(px, 0.1, pz),
+            cq.Vector(0.0, -1.0, 0.0),
+        )
+        pocket_cyl = (
+            cq.Workplane("XZ")
+            .workplane(offset=-0.1)
+            .center(px, pz)
+            .circle(MAG_R_REAR)
+            .extrude(MAG_H_REAR + 0.1)
+        )
+        spire_cone = cq.Solid.makeCone(
+            MAG_R_REAR,
+            0.05,
+            8.20,
+            cq.Vector(px, -(MAG_H_REAR - 0.02), pz),
+            cq.Vector(0.0, -1.0, 0.0),
+        )
+        rear = (
+            rear
+            .cut(cq.Workplane(obj=chamfer_cone))
+            .cut(pocket_cyl)
+            .cut(cq.Workplane(obj=spire_cone))
+        )
+
     rear = rear.cut(make_functional_cutouts())
     return rear
 
 
 # ============================================================================
-# 4. 전면 쉘 (FRONT SHELL - 베드 밀착 PCB 스탠드오프 4곳 + GPS 포켓 + 베요넷 암 슬롯)
+# 4. 전면 쉘 (FRONT SHELL - 베드 밀착 PCB 스탠드오프 4곳 + GPS 포켓 + 확장형 자석 홈 4곳)
 # ============================================================================
 def build_front_shell(outer: cq.Workplane, hollow_apple: cq.Workplane) -> cq.Workplane:
     # A. 중공 사과에서 Y >= 0 전면 반구 추출
     front_half_box = cq.Workplane("XY").transformed(offset=(0.0, 70.0, 0.0)).box(140.0, 140.0, 140.0)
     internal_union = hollow_apple.intersect(front_half_box)
 
-    # B. 4x 전면 베요넷 암(Female) 하우징 보스 (Y = 0.0 베드 바닥에 100% 밀착 + 상단 65도 테이퍼!)
-    for ang in BAYONET_ANGLES:
-        boss_base = make_bayonet_arc(
-            BAYONET_R - BAYONET_W / 2.0 - 1.8,
-            BAYONET_R + 9.0,
-            ang - 13.0,
-            24.5,
-            0.0,
-            4.5,
+    # B. 4x 전면 확장형 자석 보스 (r = 6.50mm, Y = 0.0 베드 바닥에 100% 밀착 + 상단 테이퍼!)
+    for px, pz in SCREW_PTS:
+        norm_len = math.hypot(px, pz)
+        dir_x, dir_z = px / norm_len, pz / norm_len
+        sk_top = (
+            cq.Sketch()
+            .arc((px, pz), MAG_BOSS_R, 0.0, 360.0)
+            .arc((px + dir_x * 12.0, pz + dir_z * 12.0), MAG_BOSS_R, 0.0, 360.0)
+            .hull()
         )
-        boss_taper = make_bayonet_loft(
-            BAYONET_R - BAYONET_W / 2.0 - 1.8, BAYONET_R + 9.0, ang - 13.0, 24.5, 4.5,
-            BAYONET_R + 2.5, BAYONET_R + 9.0, ang - 12.0, 22.5, 12.0,
+        sk_bot = cq.Sketch().push([(px + dir_x * 3.0, pz + dir_z * 3.0)]).circle(5.5)
+
+        boss_lower = cq.Workplane("XZ").placeSketch(sk_top).extrude(-12.0)
+        boss_taper = (
+            cq.Workplane("XZ")
+            .workplane(offset=-12.0)
+            .placeSketch(sk_top, sk_bot.moved(cq.Location(cq.Vector(0.0, 0.0, -8.0))))
+            .loft(ruled=True)
         )
-        internal_union = internal_union.union(boss_base).union(boss_taper)
+        internal_union = internal_union.union(boss_lower).union(boss_taper)
 
     # C. 4x PCB 고정용 스탠드오프 기둥 + 외벽 보강 리브 (Y = 0.0 베드 바닥에 100% 밀착 -> 잔조각 0%!)
     for dx in (-1, 1):
@@ -377,23 +356,35 @@ def build_front_shell(outer: cq.Workplane, hollow_apple: cq.Workplane) -> cq.Wor
     # 사과 외형 안쪽으로 깔끔하게 교집합 트리밍
     front = outer.intersect(internal_union)
 
-    # E. 4x 전면 베요넷 암(Female) 회전 잠금 슬롯 (65도 자기지지 지붕 -> 슬롯 내부 서포트 0%!)
-    r_slot_in = BAYONET_R - BAYONET_W / 2.0 - 0.35
-    r_slot_out = BAYONET_R + BAYONET_W / 2.0 + 0.35
-    for ang in BAYONET_ANGLES:
-        # 1) 축방향 진입 통로 (Y = -0.1 -> +3.75mm 수직 + Y = +3.75 -> +7.80mm 65도 지붕)
-        entry_box = make_bayonet_arc(r_slot_in, r_slot_out, ang - 11.5, 14.0, -0.1, 3.85)
-        entry_roof = make_bayonet_loft(
-            r_slot_in, r_slot_out, ang - 11.5, 14.0, 3.75,
-            BAYONET_R - 0.25, BAYONET_R + 0.25, ang - 10.5, 12.0, 7.80,
+    # E. 4x 전면 확장형 자석 포켓 (입구 챔퍼 D=8.50mm + 본체 D=7.60mm x 깊이 5.50mm + 65도 원뿔 지붕 8.20mm)
+    for px, pz in SCREW_PTS:
+        chamfer_cone = cq.Solid.makeCone(
+            MAG_R_FRONT + 0.45,
+            MAG_R_FRONT,
+            0.9,
+            cq.Vector(px, -0.1, pz),
+            cq.Vector(0.0, 1.0, 0.0),
         )
-        # 2) 시계방향 회전 잠금 포켓 (Y = +1.45 -> +3.75mm + 65도 지붕, 하단 Y=0~1.45mm 걸림턱은 베드에 밀착!)
-        lock_box = make_bayonet_arc(r_slot_in, r_slot_out, ang - 11.5, 22.0, 1.45, 2.30)
-        lock_roof = make_bayonet_loft(
-            r_slot_in, r_slot_out, ang - 11.5, 22.0, 3.75,
-            BAYONET_R - 0.25, BAYONET_R + 0.25, ang - 10.5, 20.0, 7.80,
+        pocket_cyl = (
+            cq.Workplane("XZ")
+            .workplane(offset=0.1)
+            .center(px, pz)
+            .circle(MAG_R_FRONT)
+            .extrude(-(MAG_H_FRONT + 0.1))
         )
-        front = front.cut(entry_box).cut(entry_roof).cut(lock_box).cut(lock_roof)
+        spire_cone = cq.Solid.makeCone(
+            MAG_R_FRONT,
+            0.05,
+            8.20,
+            cq.Vector(px, MAG_H_FRONT - 0.02, pz),
+            cq.Vector(0.0, 1.0, 0.0),
+        )
+        front = (
+            front
+            .cut(cq.Workplane(obj=chamfer_cone))
+            .cut(pocket_cyl)
+            .cut(cq.Workplane(obj=spire_cone))
+        )
 
     # F. 4x PCB M3 블라인드 파일럿 홀 (깊이 20.0mm)
     for dx in (-1, 1):
@@ -466,6 +457,14 @@ def build_hardware_mockup() -> dict[str, tuple[cq.Workplane, str]]:
     gps_mod = cq.Workplane("XY").transformed(offset=(4.0, PCB_Y_MOUNT + 5.0, 18.0)).box(16.0, 10.0, 16.0)
     gps_ant = cq.Workplane("XY").transformed(offset=(GPS_X_CENTER, 4.5, GPS_Z_CENTER)).box(5.0, 7.0, 20.0)
 
+    magnets: cq.Workplane | None = None
+    for px, pz in SCREW_PTS:
+        m_rear = cq.Workplane("XZ").workplane(offset=0.0).center(px, pz).circle(3.5).extrude(4.5)
+        m_front = cq.Workplane("XZ").workplane(offset=0.0).center(px, pz).circle(3.5).extrude(-4.5)
+        pair = m_rear.union(m_front)
+        magnets = pair if magnets is None else magnets.union(pair)
+
+    assert magnets is not None
     return {
         "Battery_5000mAh": (battery, "#3373e6"),
         "CarrierBoard_PCB": (pcb, "#148c40"),
@@ -473,6 +472,7 @@ def build_hardware_mockup() -> dict[str, tuple[cq.Workplane, str]]:
         "ESP32_C6_MCU": (esp32, "#2e2e2e"),
         "ATGM336H_GPS": (gps_mod, "#ccbf66"),
         "GPS_Ceramic_Antenna": (gps_ant, "#e09e6b"),
+        "Neodymium_Magnets_8x": (magnets, "#ccd4e0"),
     }
 
 
@@ -503,7 +503,7 @@ def render_for_cq_editor(show_fn) -> None:
         for hw_name, (hw_part, hw_color) in build_hardware_mockup().items():
             show_fn(hw_part, name=hw_name, options={"color": hw_color})
     elif VIEW_MODE == "print_layout":
-        # Dome-Up 출력 정렬 (둥근 사과 외면이 +Z 위쪽, 내부 열린 면이 베드 바닥 Z=0.00mm)
+        # Dome-Up 출력 정렬 (둥근 사과 외면이 +Z 위쪽, Y=0.00mm 평면 테두리가 베드 바닥 Z=0.00mm에 100% 밀착!)
         rear_rot = rear_shell.rotate((0, 0, 0), (1, 0, 0), -90.0)
         _, _, _, r_zmin, _ = measure_exact_mesh_bounds(rear_rot)
         front_rot = front_shell.rotate((0, 0, 0), (1, 0, 0), 90.0)
@@ -551,7 +551,7 @@ def export_all(out_dir: Path) -> None:
     stem_print = stem.translate((0.0, -1.5, -s_zmin))
 
     print("[3/4] 전체 조립체(Assembly) 구성 중...")
-    assy = cq.Assembly(name="v22_Apple_Sensor_Pod_Bayonet")
+    assy = cq.Assembly(name="v22_Apple_Sensor_Pod_Magnetic")
     assy.add(rear_shell, name="rear_shell", color=cq.Color(0.62, 0.18, 0.75, 0.6))
     assy.add(front_shell, name="front_shell", color=cq.Color(0.95, 0.78, 0.12, 0.6))
     assy.add(stem, name="apple_stem", color=cq.Color(0.28, 0.65, 0.22, 1.0))
@@ -569,7 +569,6 @@ def export_all(out_dir: Path) -> None:
         cq.exporters.export(part, str(step_path))
         cq.exporters.export(part, str(stl_path), tolerance=0.04, angularTolerance=0.08)
 
-        # 상위 폴더(v22_Apple_Sensor_Pod_Magnetic5000mAh/)의 대표 STL 파일도 동기화 복사
         root_stl_path = parent_dir / root_stl_name
         shutil.copy2(stl_path, root_stl_path)
 
