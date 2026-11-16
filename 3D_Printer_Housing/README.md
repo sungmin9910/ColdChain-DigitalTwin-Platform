@@ -8,8 +8,9 @@
 
 | 경로 | 설명 |
 | :--- | :--- |
-| [`v22_Apple_Sensor_Pod_Magnetic5000mAh/cadquery_v22/22_apple_sensor_pod_cq.py`](./v22_Apple_Sensor_Pod_Magnetic5000mAh/cadquery_v22/22_apple_sensor_pod_cq.py) | `v22` 사과 센서 포드 정식 CadQuery B-Rep 설계 코드 (CQ-Editor & CLI 겸용) |
-| [`cadquery_template.py`](./cadquery_template.py) | 신규 버전(`v23` 등) 설계를 시작할 때 복사해서 바로 쓰는 표준 템플릿 |
+| [`v22_Apple_Sensor_Pod_Magnetic5000mAh/cadquery_v22/22_apple_sensor_pod_cq.py`](./v22_Apple_Sensor_Pod_Magnetic5000mAh/cadquery_v22/22_apple_sensor_pod_cq.py) | `v22` 사과 센서 포드 정식 CadQuery B-Rep 설계 코드 (확장형 자석 결합 + 자연대류 환풍구) |
+| [`v23_Apple_Sensor_Pod_ActiveCoolingFan/cadquery_v23/23_apple_sensor_pod_fan_cq.py`](./v23_Apple_Sensor_Pod_ActiveCoolingFan/cadquery_v23/23_apple_sensor_pod_fan_cq.py) | `v23` 사과 센서 포드 액티브 냉각팬(`2510` 쿨링팬 슬라이드 포켓 + 4단 직결 에어덕트) 에디션 |
+| [`cadquery_template.py`](./cadquery_template.py) | 신규 버전(`v24` 등) 설계를 시작할 때 복사해서 바로 쓰는 표준 템플릿 |
 | [`../AGENTS.md`](../AGENTS.md) | AI 코딩 어시스턴트가 항상 CadQuery + CQ-Editor 규격을 따르도록 강제하는 저장소 규칙 |
 
 ---
