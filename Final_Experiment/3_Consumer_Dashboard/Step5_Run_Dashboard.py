@@ -1678,14 +1678,13 @@ with tab3:
         gforces = [float(p["g_force"]) for p in all_sensor_pts if p.get("g_force") is not None]
         avg_t_str = f"{(sum(temps) / len(temps)):.1f}°C" if temps else "-"
         max_g_str = f"{max(gforces):.2f}G" if gforces else "-"
-        pts_str = L['route_pts_unit'].format(len(all_sensor_pts))
         st.markdown(f"""
         <div style="background-color:#f4f9ff; border:1px solid #cfe4ff; border-radius:12px; padding:12px 16px; margin-bottom:14px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
                 <span style="font-weight:700; color:#0b5394; font-size:0.95rem;">{L['route_telemetry_title']}</span>
                 <span style="font-size:0.8rem; font-weight:600; color:#27ae60;">{L['route_safe_badge']}</span>
             </div>
-            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; text-align:center;">
+            <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; text-align:center;">
                 <div style="background:#ffffff; border-radius:8px; padding:6px 8px; border:1px solid #e1ecf7;">
                     <small style="color:#666; font-size:0.72rem; display:block;">{L['route_avg_temp']}</small>
                     <b style="color:#0b5394; font-size:0.98rem;">{avg_t_str}</b>
@@ -1693,10 +1692,6 @@ with tab3:
                 <div style="background:#ffffff; border-radius:8px; padding:6px 8px; border:1px solid #e1ecf7;">
                     <small style="color:#666; font-size:0.72rem; display:block;">{L['route_max_g']}</small>
                     <b style="color:#27ae60; font-size:0.98rem;">{max_g_str}</b>
-                </div>
-                <div style="background:#ffffff; border-radius:8px; padding:6px 8px; border:1px solid #e1ecf7;">
-                    <small style="color:#666; font-size:0.72rem; display:block;">{L['route_gps_pts']}</small>
-                    <b style="color:#1d1d1f; font-size:0.98rem;">{pts_str}</b>
                 </div>
             </div>
         </div>
@@ -1789,9 +1784,9 @@ with tab3:
 
         if map_data:
             df_map = pd.DataFrame(map_data)
-            st.markdown(f"<h4 style='font-size:1.15rem; font-weight:700; margin-top:25px; margin-bottom:10px;'>{L['route_list']}</h4>", unsafe_allow_html=True)
-            display_df = df_map[["단계", "시간", "latitude", "longitude"]].copy()
-            display_df.columns = [L['col_stage'], L['col_time'], L['col_lat'], L['col_lon']]
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            with st.expander(L['route_list'], expanded=False):
+                display_df = df_map[["단계", "시간", "latitude", "longitude"]].copy()
+                display_df.columns = [L['col_stage'], L['col_time'], L['col_lat'], L['col_lon']]
+                st.dataframe(display_df, use_container_width=True, hide_index=True)
     else:
         st.warning(L['no_gps'])

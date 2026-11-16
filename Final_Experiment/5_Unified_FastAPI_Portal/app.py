@@ -643,12 +643,27 @@ def api_apc_scan_qr(req: ApcScanRequest):
         with conn.cursor() as cur:
             cur.execute(
                 f"""
-                SELECT hl.lot_id AS FmID, hl.origin_zip AS AC, hl.fruit_type AS FrT, hl.variety AS Vt,
-                       hl.total_qty AS Qt, hl.current_stage,
+                SELECT hl.lot_id AS FmID,
+                       hl.origin_zip AS AC,
+                       hl.farmer_phone AS Ct,
+                       hl.fruit_type AS FrT,
+                       hl.variety AS Vt,
+                       hl.cultivation AS Mt,
+                       hl.harvest_no AS HN,
+                       hl.total_qty AS Qt,
+                       hl.current_stage,
+                       COALESCE(
+                           DATE_FORMAT(se_a00.event_at, '%%Y-%%m-%%d %%H:%%i:%%s'),
+                           DATE_FORMAT(hl.harvest_date, '%%Y-%%m-%%d')
+                       ) AS HD,
+                       DATE_FORMAT(hl.deliver_date, '%%Y-%%m-%%d') AS DD,
+                       DATE_FORMAT(hl.storage_date, '%%Y-%%m-%%d') AS StD,
                        DATE_FORMAT(se.event_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS APC_WD
                 FROM `{DB_NAME}`.`harvest_lots` hl
                 JOIN `{DB_NAME}`.`stage_events` se
                   ON hl.lot_id = se.lot_id AND se.stage_code = 'A11'
+                LEFT JOIN `{DB_NAME}`.`stage_events` se_a00
+                  ON hl.lot_id = se_a00.lot_id AND se_a00.stage_code = 'A00'
                 WHERE hl.lot_id = %s
                 LIMIT 1
                 """,
@@ -661,8 +676,17 @@ def api_apc_scan_qr(req: ApcScanRequest):
                     detail=f"DB에서 A11(세척 완료) 데이터를 찾을 수 없음 (FmID={fm_id}: A10 입고 및 A11 세척 단계가 먼저 완료되어야 QR 생성이 가능합니다)",
                 )
 
+            cur.execute(f"SELECT grade_code, grade_qty FROM `{DB_NAME}`.`sorted_lots` WHERE lot_id = %s", (fm_id,))
+            existing_sorted = {r["grade_code"]: int(r["grade_qty"] or 0) for r in cur.fetchall()}
+
             total_qt = int(row.get("Qt") or 0)
-            if total_qt > 0:
+            already_sorted = len(existing_sorted) > 0
+            if already_sorted:
+                a_val = existing_sorted.get("A", 0)
+                b_val = existing_sorted.get("B", 0)
+                c_val = existing_sorted.get("C", 0)
+                defect_val = existing_sorted.get("DEFECT", 0)
+            elif total_qt > 0:
                 defect_val = random.randint(1, min(3, total_qt))
                 rem_after_defect = total_qt - defect_val
                 a_val = int(total_qt * random.uniform(0.78, 0.82))
@@ -678,10 +702,29 @@ def api_apc_scan_qr(req: ApcScanRequest):
             else:
                 a_val, b_val, c_val, defect_val = 0, 0, 0, 0
 
+            qrs_preview = []
+            if already_sorted:
+                fruit = str(row.get("FrT") or "Apples")
+                ac = str(row.get("AC") or "")
+                grade_icons = FRUIT_IMAGES_GRADE.get(fruit, FRUIT_IMAGES_GRADE["Apples"])
+                for idx, (g_kr, g_en, cnt) in enumerate([("상", "A", a_val), ("중", "B", b_val), ("하", "C", c_val)]):
+                    q_url = f"{STREAMLIT_CONSUMER_URL}/?FmID={fm_id}&grade={g_kr}&pkg_grade={g_en}&AC={ac}&FrT={fruit}"
+                    q_b64 = make_qr_base64(q_url, overlay_filename=grade_icons[idx], rounded=False)
+                    qrs_preview.append({
+                        "grade_en": g_en,
+                        "grade_kr": g_kr,
+                        "count": str(cnt),
+                        "qr_url": q_url,
+                        "qr_base64": q_b64,
+                        "filename": f"{fm_id}_{g_en}_QR.png",
+                    })
+
             return {
                 "ok": True,
                 "fmid": str(fm_id),
+                "already_sorted": already_sorted,
                 "row": row,
+                "qrs": qrs_preview,
                 "auto_grades": {
                     "AGrade": a_val,
                     "BGrade": b_val,

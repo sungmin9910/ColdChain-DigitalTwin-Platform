@@ -246,9 +246,10 @@
     <!-- ========================================================================= -->
     <section id="tab-consumer">
       <div class="consumer-device-card">
+        <!-- Top Bar: Master-Only Batch Selector (Hidden for Public/Other Roles) + Language Selector -->
         <div class="flex flex-wrap items-center justify-between gap-2 mb-5 pb-3 border-b border-gray-100">
-          <div class="flex items-center gap-1.5 text-xs text-gray-500">
-            <span id="cs-lbl-fmid-select">🔎 Batch ID (FmID):</span>
+          <div id="consumer-master-selector" class="hidden flex items-center gap-1.5 text-xs text-gray-500">
+            <span id="cs-lbl-fmid-select" class="font-bold text-sky-700">🔑 [Master] Batch ID (FmID):</span>
             <select id="consumer-fmid-select" onchange="loadConsumerTrace()"
                     class="px-2.5 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-xs font-bold text-gray-800">
             </select>
@@ -259,7 +260,7 @@
               <option id="cs-opt-grade-c" value="하">Grade: L (C)</option>
             </select>
           </div>
-          <div>
+          <div class="ml-auto">
             <select id="consumer-lang-select" onchange="onConsumerLangChange(this.value)"
                     class="px-3 py-1.5 rounded-lg bg-gray-100 border border-gray-200 text-xs font-semibold text-gray-800">
               <option value="EN" selected>English (EN)</option>
@@ -268,162 +269,183 @@
           </div>
         </div>
 
-        <div class="flex items-start justify-between gap-4 mb-6">
-          <div class="flex-1">
-            <h1 id="cs-hero-title" class="text-3xl md:text-[2.15rem] font-extrabold text-[#1d1d1f] leading-tight mb-1.5">
-              🍏 Apple Traceability
-            </h1>
-            <p id="cs-hero-subtitle" class="text-sm md:text-[0.95rem] text-[#515154] font-medium mb-4">
-              Blockchain-based Safe Food Information Service
-            </p>
-            <button onclick="loadConsumerTrace()" id="cs-refresh-btn"
-                    class="px-5 py-2 rounded-full bg-[#f0f2f6] hover:bg-[#e0e4ea] text-[#1d1d1f] hover:text-[#2ecc71] text-xs font-bold transition">
-              🔄 Refresh Real-time Info
+        <!-- [Landing View] Shown when Consumer opens URL without scanning a QR (?FmID=...) and is not Master -->
+        <div id="cs-landing-view" class="hidden text-center py-10 px-4">
+          <div class="text-5xl mb-4">🍏</div>
+          <h1 id="cs-landing-title" class="text-2xl md:text-3xl font-extrabold text-[#2ecc71] mb-3">
+            Scan the True Story of the Fruit
+          </h1>
+          <p id="cs-landing-subtitle" class="text-sm md:text-base text-[#515154] font-medium mb-6 max-w-md mx-auto leading-relaxed">
+            We transparently show you the honest journey of your fruit from origin to table.
+          </p>
+          <div id="cs-landing-guide" class="rounded-xl bg-[#f4f9ff] border border-[#cfe4ff] px-4 py-3.5 text-xs md:text-sm font-semibold text-[#0b5394] max-w-md mx-auto">
+            💡 How to scan: Focus your smartphone camera on the safe QR code attached to the product.
+          </div>
+        </div>
+
+        <!-- [Traceability Content] Shown when ?FmID=... is scanned OR when logged in as Master (0000) -->
+        <div id="cs-trace-content">
+          <div class="flex items-start justify-between gap-4 mb-6">
+            <div class="flex-1">
+              <h1 id="cs-hero-title" class="text-3xl md:text-[2.15rem] font-extrabold text-[#1d1d1f] leading-tight mb-1.5">
+                🍏 Apple Traceability
+              </h1>
+              <p id="cs-hero-subtitle" class="text-sm md:text-[0.95rem] text-[#515154] font-medium mb-4">
+                Blockchain-based Safe Food Information Service
+              </p>
+              <button onclick="loadConsumerTrace()" id="cs-refresh-btn"
+                      class="px-5 py-2 rounded-full bg-[#f0f2f6] hover:bg-[#e0e4ea] text-[#1d1d1f] hover:text-[#2ecc71] text-xs font-bold transition">
+                🔄 Refresh Real-time Info
+              </button>
+            </div>
+            <div class="w-32 sm:w-36 flex-shrink-0 flex justify-end">
+              <img id="cs-auth-qr-img" src="" alt="Auth QR" class="w-32 h-32 sm:w-36 sm:h-36 object-contain rounded-lg border border-gray-100" />
+            </div>
+          </div>
+
+          <div class="cs-seg-bar">
+            <button id="cs-subtab-btn-summary" onclick="switchConsumerSubTab('summary')" class="cs-seg-btn active">
+              ✨ Safe Summary
+            </button>
+            <button id="cs-subtab-btn-timeline" onclick="switchConsumerSubTab('timeline')" class="cs-seg-btn">
+              🚚 Log & Timeline
+            </button>
+            <button id="cs-subtab-btn-route" onclick="switchConsumerSubTab('route')" class="cs-seg-btn">
+              📍 Route Map
             </button>
           </div>
-          <div class="w-32 sm:w-36 flex-shrink-0 flex justify-end">
-            <img id="cs-auth-qr-img" src="" alt="Auth QR" class="w-32 h-32 sm:w-36 sm:h-36 object-contain rounded-lg border border-gray-100" />
-          </div>
-        </div>
 
-        <div class="cs-seg-bar">
-          <button id="cs-subtab-btn-summary" onclick="switchConsumerSubTab('summary')" class="cs-seg-btn active">
-            ✨ Safe Summary
-          </button>
-          <button id="cs-subtab-btn-timeline" onclick="switchConsumerSubTab('timeline')" class="cs-seg-btn">
-            🚚 Log & Timeline
-          </button>
-          <button id="cs-subtab-btn-route" onclick="switchConsumerSubTab('route')" class="cs-seg-btn">
-            📍 Route Map
-          </button>
-        </div>
+          <!-- [Subtab 1] Safe Summary -->
+          <div id="cs-subtab-summary">
+            <h2 id="cs-premium-heading" class="text-center text-2xl font-extrabold text-[#1d1d1f] mt-2 mb-1">
+              🍎 Premium Apple
+            </h2>
+            <p id="cs-premium-desc" class="text-center text-sm text-[#666666] mb-6">
+              This is the premium Apple, transparently verified for its honest journey from origin to table.
+            </p>
 
-        <!-- [Subtab 1] Safe Summary -->
-        <div id="cs-subtab-summary">
-          <h2 id="cs-premium-heading" class="text-center text-2xl font-extrabold text-[#1d1d1f] mt-2 mb-1">
-            🍎 Premium Apple
-          </h2>
-          <p id="cs-premium-desc" class="text-center text-sm text-[#666666] mb-6">
-            This is the premium Apple, transparently verified for its honest journey from origin to table.
-          </p>
-
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-6">
-            <div class="cs-info-card">
-              <small id="lbl-origin" class="text-[#666] text-xs">Origin</small>
-              <b id="val-origin" class="text-[0.98rem] text-[#1d1d1f] mt-1 leading-snug">-</b>
-            </div>
-            <div class="cs-info-card">
-              <small id="lbl-variety" class="text-[#666] text-xs">Variety</small>
-              <b id="val-variety" class="text-[1.02rem] text-[#1d1d1f] mt-1">-</b>
-            </div>
-            <div class="cs-info-card">
-              <small id="lbl-grade" class="text-[#666] text-xs">Grade</small>
-              <b id="val-grade" class="text-xl text-[#2ecc71] my-0.5">-</b>
-              <span id="val-grade-qty" class="text-[0.75rem] text-[#8e8e93] font-medium">Quantity: -</span>
-            </div>
-            <div class="cs-info-card">
-              <small id="lbl-method" class="text-[#666] text-xs">Cultivation</small>
-              <b id="val-method" class="text-[1.02rem] text-[#1d1d1f] mt-1">-</b>
-            </div>
-          </div>
-
-          <h3 id="lbl-farmer-title" class="text-lg font-bold text-[#1d1d1f] mb-3">🚜 Farm & Harvest Info</h3>
-          <div class="cs-farmer-card">
-            <div class="flex items-center gap-3.5">
-              <div class="text-2xl">🆔</div>
-              <div>
-                <div id="lbl-farmer-id" class="text-xs text-[#86868b]">Farm ID</div>
-                <div id="val-farmer-id" class="text-base font-bold text-[#1d1d1f]">-</div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-6">
+              <div class="cs-info-card">
+                <small id="lbl-origin" class="text-[#666] text-xs">Origin</small>
+                <b id="val-origin" class="text-[0.98rem] text-[#1d1d1f] mt-1 leading-snug">-</b>
+              </div>
+              <div class="cs-info-card">
+                <small id="lbl-variety" class="text-[#666] text-xs">Variety</small>
+                <b id="val-variety" class="text-[1.02rem] text-[#1d1d1f] mt-1">-</b>
+              </div>
+              <div class="cs-info-card">
+                <small id="lbl-grade" class="text-[#666] text-xs">Grade</small>
+                <b id="val-grade" class="text-xl text-[#2ecc71] my-0.5">-</b>
+                <span id="val-grade-qty" class="text-[0.75rem] text-[#8e8e93] font-medium">Quantity: -</span>
+              </div>
+              <div class="cs-info-card">
+                <small id="lbl-method" class="text-[#666] text-xs">Cultivation</small>
+                <b id="val-method" class="text-[1.02rem] text-[#1d1d1f] mt-1">-</b>
               </div>
             </div>
-            <div class="flex items-center gap-3.5">
-              <div class="text-2xl">📞</div>
-              <div>
-                <div id="lbl-contact" class="text-xs text-[#86868b]">Contact (Safe #)</div>
-                <div id="val-contact" class="text-base font-bold text-[#1d1d1f]">-</div>
+
+            <h3 id="lbl-farmer-title" class="text-lg font-bold text-[#1d1d1f] mb-3">🚜 Farm & Harvest Info</h3>
+            <div class="cs-farmer-card">
+              <div class="flex items-center gap-3.5">
+                <div class="text-2xl">🆔</div>
+                <div>
+                  <div id="lbl-farmer-id" class="text-xs text-[#86868b]">Farm ID</div>
+                  <div id="val-farmer-id" class="text-base font-bold text-[#1d1d1f]">-</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-3.5">
+                <div class="text-2xl">📞</div>
+                <div>
+                  <div id="lbl-contact" class="text-xs text-[#86868b]">Contact (Safe #)</div>
+                  <div id="val-contact" class="text-base font-bold text-[#1d1d1f]">-</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-3.5">
+                <div class="text-2xl">📅</div>
+                <div>
+                  <div id="lbl-harvest-date" class="text-xs text-[#86868b]">Harvest Date</div>
+                  <div id="val-harvest-date" class="text-base font-bold text-[#1d1d1f]">-</div>
+                </div>
               </div>
             </div>
-            <div class="flex items-center gap-3.5">
-              <div class="text-2xl">📅</div>
-              <div>
-                <div id="lbl-harvest-date" class="text-xs text-[#86868b]">Harvest Date</div>
-                <div id="val-harvest-date" class="text-base font-bold text-[#1d1d1f]">-</div>
-              </div>
+
+            <div id="cs-blockchain-banner" class="rounded-xl bg-[#e8f5e9] border border-[#c8e6c9] px-4 py-3.5 text-sm font-medium text-[#1b5e20]">
+              ✨ This fruit has been verified through a transparent and secure blockchain management system. Enjoy your healthy choice!
             </div>
           </div>
 
-          <div id="cs-blockchain-banner" class="rounded-xl bg-[#e8f5e9] border border-[#c8e6c9] px-4 py-3.5 text-sm font-medium text-[#1b5e20]">
-            ✨ This fruit has been verified through a transparent and secure blockchain management system. Enjoy your healthy choice!
+          <!-- [Subtab 2] Log & Timeline -->
+          <div id="cs-subtab-timeline" class="hidden">
+            <h3 id="lbl-timeline-title" class="text-lg font-bold text-[#1d1d1f] mb-4">🚚 Cold Chain Timeline</h3>
+            <div id="consumer-timeline" class="pl-2.5 pt-2"></div>
           </div>
-        </div>
 
-        <!-- [Subtab 2] Log & Timeline -->
-        <div id="cs-subtab-timeline" class="hidden">
-          <h3 id="lbl-timeline-title" class="text-lg font-bold text-[#1d1d1f] mb-4">🚚 Cold Chain Timeline</h3>
-          <div id="consumer-timeline" class="pl-2.5 pt-2"></div>
-        </div>
+          <!-- [Subtab 3] Route Map -->
+          <div id="cs-subtab-route" class="hidden">
+            <h3 id="lbl-route-title" class="text-lg font-bold text-[#1d1d1f] mb-1">📍 Real-time Route Map</h3>
+            <p id="lbl-route-subtitle" class="text-sm text-[#515154] mb-3.5">
+              This is the real-time geographical route of the fruit collected via smart QR scans and GPS trackers.
+            </p>
 
-        <!-- [Subtab 3] Route Map -->
-        <div id="cs-subtab-route" class="hidden">
-          <h3 id="lbl-route-title" class="text-lg font-bold text-[#1d1d1f] mb-1">📍 Real-time Route Map</h3>
-          <p id="lbl-route-subtitle" class="text-sm text-[#515154] mb-3.5">
-            This is the real-time geographical route of the fruit collected via smart QR scans and GPS trackers.
-          </p>
-
-          <div id="cs-route-telemetry-box" class="bg-[#f4f9ff] border border-[#cfe4ff] rounded-xl p-3.5 mb-3.5">
-            <div class="flex flex-wrap items-center justify-between gap-1.5 mb-2">
-              <span id="lbl-route-telemetry-title" class="font-bold text-[#0b5394] text-sm">❄️ Transport Cold-Chain Telemetry</span>
-              <span id="lbl-route-safe-badge" class="text-xs font-semibold text-[#27ae60]">🟢 Verified Safe Route</span>
-            </div>
-            <div class="grid grid-cols-3 gap-2 text-center">
-              <div class="bg-white rounded-lg py-1.5 px-2 border border-[#e1ecf7]">
-                <small id="lbl-route-avg-temp" class="text-[#666] text-[11px] block">Avg Transport Temp</small>
-                <b id="val-route-avg-temp" class="text-[#0b5394] text-sm">-</b>
+            <!-- 2-Column Telemetry Summary (Removed Road GPS Track) -->
+            <div id="cs-route-telemetry-box" class="bg-[#f4f9ff] border border-[#cfe4ff] rounded-xl p-3.5 mb-3.5">
+              <div class="flex flex-wrap items-center justify-between gap-1.5 mb-2">
+                <span id="lbl-route-telemetry-title" class="font-bold text-[#0b5394] text-sm">❄️ Transport Cold-Chain Telemetry</span>
+                <span id="lbl-route-safe-badge" class="text-xs font-semibold text-[#27ae60]">🟢 Verified Safe Route</span>
               </div>
-              <div class="bg-white rounded-lg py-1.5 px-2 border border-[#e1ecf7]">
-                <small id="lbl-route-max-g" class="text-[#666] text-[11px] block">Peak Impact</small>
-                <b id="val-route-max-g" class="text-[#27ae60] text-sm">-</b>
-              </div>
-              <div class="bg-white rounded-lg py-1.5 px-2 border border-[#e1ecf7]">
-                <small id="lbl-route-gps-pts" class="text-[#666] text-[11px] block">Road GPS Track</small>
-                <b id="val-route-gps-pts" class="text-[#1d1d1f] text-sm">-</b>
+              <div class="grid grid-cols-2 gap-3 text-center">
+                <div class="bg-white rounded-lg py-2 px-3 border border-[#e1ecf7]">
+                  <small id="lbl-route-avg-temp" class="text-[#666] text-xs block">Avg Transport Temp</small>
+                  <b id="val-route-avg-temp" class="text-[#0b5394] text-base">-</b>
+                </div>
+                <div class="bg-white rounded-lg py-2 px-3 border border-[#e1ecf7]">
+                  <small id="lbl-route-max-g" class="text-[#666] text-xs block">Peak Impact</small>
+                  <b id="val-route-max-g" class="text-[#27ae60] text-base">-</b>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="flex flex-wrap gap-4 mb-2.5 text-xs text-[#515154] font-medium">
-            <span class="inline-flex items-center gap-1.5">
-              <span class="w-4 h-1 bg-[#2ecc71] rounded inline-block"></span>
-              <span id="lbl-leg1">🌱 Farm → APC Route</span>
-            </span>
-            <span class="inline-flex items-center gap-1.5">
-              <span class="w-4 h-1 bg-[#007aff] rounded inline-block"></span>
-              <span id="lbl-leg2">🚛 APC → Retail Cold-Chain</span>
-            </span>
-          </div>
+            <div class="flex flex-wrap gap-4 mb-2.5 text-xs text-[#515154] font-medium">
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-4 h-1 bg-[#2ecc71] rounded inline-block"></span>
+                <span id="lbl-leg1">🌱 Farm → APC Route</span>
+              </span>
+              <span class="inline-flex items-center gap-1.5">
+                <span class="w-4 h-1 bg-[#007aff] rounded inline-block"></span>
+                <span id="lbl-leg2">🚛 APC → Retail Cold-Chain</span>
+              </span>
+            </div>
 
-          <div id="consumer-map" class="w-full h-[380px] border border-gray-200 rounded-xl mb-5"></div>
+            <div id="consumer-map" class="w-full h-[380px] border border-gray-200 rounded-xl mb-4"></div>
 
-          <h4 id="lbl-route-list" class="text-base font-bold text-[#1d1d1f] mb-2.5">📋 Geographical Coordinate Route List</h4>
-          <div class="overflow-x-auto border border-gray-200 rounded-xl">
-            <table class="w-full text-left text-xs text-[#1d1d1f]">
-              <thead class="bg-gray-50 border-b border-gray-200 text-gray-600">
-                <tr>
-                  <th id="th-stage" class="py-2.5 px-3 font-bold">Logistics Stage</th>
-                  <th id="th-time" class="py-2.5 px-3 font-bold">Processed Time</th>
-                  <th id="th-lat" class="py-2.5 px-3 font-bold">Latitude</th>
-                  <th id="th-lon" class="py-2.5 px-3 font-bold">Longitude</th>
-                </tr>
-              </thead>
-              <tbody id="cs-route-tbody" class="divide-y divide-gray-100"></tbody>
-            </table>
+            <!-- Collapsible Geographical Coordinate Route List (Default: Hidden) -->
+            <div>
+              <button id="toggle-cs-route-list-btn" onclick="toggleConsumerRouteList()"
+                      class="w-full py-2.5 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs md:text-sm font-bold text-[#1d1d1f] flex items-center justify-between transition">
+                <span id="lbl-route-list">📋 Geographical Coordinate Route List</span>
+                <span id="toggle-cs-route-arrow" class="text-xs text-gray-600">▼ Expand</span>
+              </button>
+              <div id="cs-route-list-panel" class="hidden mt-3 overflow-x-auto border border-gray-200 rounded-xl">
+                <table class="w-full text-left text-xs text-[#1d1d1f]">
+                  <thead class="bg-gray-50 border-b border-gray-200 text-gray-600">
+                    <tr>
+                      <th id="th-stage" class="py-2.5 px-3 font-bold">Logistics Stage</th>
+                      <th id="th-time" class="py-2.5 px-3 font-bold">Processed Time</th>
+                      <th id="th-lat" class="py-2.5 px-3 font-bold">Latitude</th>
+                      <th id="th-lon" class="py-2.5 px-3 font-bold">Longitude</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cs-route-tbody" class="divide-y divide-gray-100"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
     <!-- ============================================================== -->
-    <!-- [Tab 2] 🌾 Farm Harvest Registration & QR Generation (A00) -->
+    <!-- [Tab 2] 🌾 Farm Harvest Registration & QR Generation (Starts Blank) -->
     <!-- ============================================================== -->
     <section id="tab-farm" class="hidden space-y-6 pt-6">
       <div class="glass-card p-6">
@@ -442,59 +464,61 @@
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div class="lg:col-span-8 space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 sub-panel">
-              <div id="farm-sec1-title" class="sm:col-span-3 text-xs font-extrabold text-sky-700 tracking-wider">1. FARMER INFO</div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 sub-panel">
+              <div id="farm-sec1-title" class="sm:col-span-3 text-base md:text-lg font-extrabold text-sky-700 tracking-wide">1. FARMER INFO</div>
               <div>
-                <label id="lbl-f-fmid" class="text-xs font-semibold text-slate-600">Farmer ID (FmID)</label>
-                <input id="f-fmid" type="text" maxlength="3" value="86" class="form-input w-full mt-1 px-3 py-2 text-sm font-bold text-sky-700" />
+                <label id="lbl-f-fmid" class="text-sm font-semibold text-slate-700">Farmer ID (FmID)</label>
+                <input id="f-fmid" type="text" maxlength="3" value="" placeholder="" class="form-input w-full mt-1.5 px-3 py-2 text-sm font-bold text-sky-700" />
               </div>
               <div>
-                <label id="lbl-f-ac" class="text-xs font-semibold text-slate-600">Area Code (AC)</label>
-                <select id="f-ac" class="form-input w-full mt-1 px-3 py-2 text-sm">
+                <label id="lbl-f-ac" class="text-sm font-semibold text-slate-700">Area Code (AC)</label>
+                <select id="f-ac" class="form-input w-full mt-1.5 px-3 py-2 text-sm">
+                  <option value="" selected></option>
                   <option value="55630">55630</option>
                   <option value="55631">55631</option>
-                  <option value="55632" selected>55632</option>
+                  <option value="55632">55632</option>
                   <option value="55633">55633</option>
                   <option value="55634">55634</option>
                   <option value="55635">55635</option>
                 </select>
               </div>
               <div>
-                <label id="lbl-f-ct" class="text-xs font-semibold text-slate-600">Contact Info (Ct)</label>
-                <input id="f-ct" type="text" value="01012345678" oninput="this.value=this.value.replace(/[^0-9]/g,'')" class="form-input w-full mt-1 px-3 py-2 text-sm" />
+                <label id="lbl-f-ct" class="text-sm font-semibold text-slate-700">Contact Info (Ct)</label>
+                <input id="f-ct" type="text" value="" placeholder="" oninput="this.value=this.value.replace(/[^0-9]/g,'')" class="form-input w-full mt-1.5 px-3 py-2 text-sm" />
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 sub-panel">
-              <div id="farm-sec2-title" class="sm:col-span-3 text-xs font-extrabold text-emerald-700 tracking-wider">2. HARVEST LOGISTICS</div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 sub-panel">
+              <div id="farm-sec2-title" class="sm:col-span-3 text-base md:text-lg font-extrabold text-emerald-700 tracking-wide">2. HARVEST LOGISTICS</div>
               <div>
-                <label id="lbl-f-hd" class="text-xs font-semibold text-slate-600">Harvest Date (HD)</label>
-                <input id="f-hd" type="date" class="form-input w-full mt-1 px-3 py-2 text-sm" />
+                <label id="lbl-f-hd" class="text-sm font-semibold text-slate-700">Harvest Date (HD)</label>
+                <input id="f-hd" type="date" value="" class="form-input w-full mt-1.5 px-3 py-2 text-sm" />
               </div>
               <div>
-                <label id="lbl-f-std" class="text-xs font-semibold text-slate-600">Storage Date (StD)</label>
-                <input id="f-std" type="date" class="form-input w-full mt-1 px-3 py-2 text-sm" />
+                <label id="lbl-f-std" class="text-sm font-semibold text-slate-700">Storage Date (StD)</label>
+                <input id="f-std" type="date" value="" class="form-input w-full mt-1.5 px-3 py-2 text-sm" />
               </div>
               <div>
-                <label id="lbl-f-dd" class="text-xs font-semibold text-slate-600">Delivery Date (DD)</label>
-                <input id="f-dd" type="date" class="form-input w-full mt-1 px-3 py-2 text-sm" />
+                <label id="lbl-f-dd" class="text-sm font-semibold text-slate-700">Delivery Date (DD)</label>
+                <input id="f-dd" type="date" value="" class="form-input w-full mt-1.5 px-3 py-2 text-sm" />
               </div>
               <div>
-                <label id="lbl-f-hn" class="text-xs font-semibold text-slate-600">Harvesting No. (HN)</label>
-                <input id="f-hn" type="number" value="1" min="1" class="form-input w-full mt-1 px-3 py-2 text-sm" />
+                <label id="lbl-f-hn" class="text-sm font-semibold text-slate-700">Harvesting No. (HN)</label>
+                <input id="f-hn" type="number" value="" min="1" class="form-input w-full mt-1.5 px-3 py-2 text-sm" />
               </div>
               <div class="sm:col-span-2">
-                <label id="lbl-f-qt" class="text-xs font-semibold text-slate-600">Total Quantity (Boxes, Qt)</label>
-                <input id="f-qt" type="number" value="1000" min="1" class="form-input w-full mt-1 px-3 py-2 text-sm font-bold" />
+                <label id="lbl-f-qt" class="text-sm font-semibold text-slate-700">Total Quantity (Boxes, Qt)</label>
+                <input id="f-qt" type="number" value="" min="1" class="form-input w-full mt-1.5 px-3 py-2 text-sm font-bold" />
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 sub-panel">
-              <div id="farm-sec3-title" class="sm:col-span-3 text-xs font-extrabold text-amber-700 tracking-wider">3. CULTIVATION DETAILS</div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 sub-panel">
+              <div id="farm-sec3-title" class="sm:col-span-3 text-base md:text-lg font-extrabold text-amber-700 tracking-wide">3. CULTIVATION DETAILS</div>
               <div>
-                <label id="lbl-f-frt" class="text-xs font-semibold text-slate-600">Fruit Type (FrT)</label>
-                <select id="f-frt" onchange="onFarmFruitChange()" class="form-input w-full mt-1 px-3 py-2 text-sm">
-                  <option value="Apples" selected>Apples</option>
+                <label id="lbl-f-frt" class="text-sm font-semibold text-slate-700">Fruit Type (FrT)</label>
+                <select id="f-frt" onchange="onFarmFruitChange()" class="form-input w-full mt-1.5 px-3 py-2 text-sm">
+                  <option value="" selected></option>
+                  <option value="Apples">Apples</option>
                   <option value="Pears">Pears</option>
                   <option value="Peaches">Peaches</option>
                   <option value="Tangerines">Tangerines</option>
@@ -502,13 +526,16 @@
                 </select>
               </div>
               <div>
-                <label id="lbl-f-vt" class="text-xs font-semibold text-slate-600">Variety (Vt)</label>
-                <select id="f-vt" class="form-input w-full mt-1 px-3 py-2 text-sm"></select>
+                <label id="lbl-f-vt" class="text-sm font-semibold text-slate-700">Variety (Vt)</label>
+                <select id="f-vt" class="form-input w-full mt-1.5 px-3 py-2 text-sm">
+                  <option value="" selected></option>
+                </select>
               </div>
               <div>
-                <label id="lbl-f-mt" class="text-xs font-semibold text-slate-600">Farming Method (Mt)</label>
-                <select id="f-mt" class="form-input w-full mt-1 px-3 py-2 text-sm">
-                  <option value="Organic" selected>Organic</option>
+                <label id="lbl-f-mt" class="text-sm font-semibold text-slate-700">Farming Method (Mt)</label>
+                <select id="f-mt" class="form-input w-full mt-1.5 px-3 py-2 text-sm">
+                  <option value="" selected></option>
+                  <option value="Organic">Organic</option>
                   <option value="Conventional">Conventional</option>
                 </select>
               </div>
@@ -523,7 +550,7 @@
           </div>
 
           <div class="lg:col-span-4 sub-panel p-5 flex flex-col items-center justify-center text-center">
-            <div id="farm-qr-box-title" class="text-xs font-bold text-slate-600 mb-3">Issued Farm Raw QR Code (A00)</div>
+            <div id="farm-qr-box-title" class="text-sm font-bold text-slate-600 mb-3">Issued Farm Raw QR Code (A00)</div>
             <img id="farm-qr-img" src="" alt="QR Preview" class="hidden w-52 h-52 rounded-xl border-4 border-white shadow-md bg-white p-1" />
             <div id="farm-qr-placeholder" class="w-52 h-52 rounded-xl border border-dashed border-slate-300 bg-white flex items-center justify-center text-xs text-slate-400 px-4">
               Fill out the form and click Save to generate QR
@@ -571,85 +598,85 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="p-4 sub-panel space-y-2.5">
-            <div id="apc-sec1-title" class="text-xs font-extrabold text-sky-700">1. BASIC LOT INFO</div>
-            <div class="grid grid-cols-3 gap-2">
+          <div class="p-5 sub-panel space-y-3">
+            <div id="apc-sec1-title" class="text-base md:text-lg font-extrabold text-sky-700">1. BASIC LOT INFO</div>
+            <div class="grid grid-cols-3 gap-2.5">
               <div>
-                <label class="text-[11px] font-semibold text-slate-500">FmID</label>
-                <input id="apc-info-fmid" type="text" readonly class="form-input w-full mt-0.5 px-2.5 py-1.5 text-xs font-bold text-sky-700" />
+                <label class="text-xs font-semibold text-slate-600">FmID</label>
+                <input id="apc-info-fmid" type="text" readonly class="form-input w-full mt-1 px-2.5 py-1.5 text-sm font-bold text-sky-700" />
               </div>
               <div>
-                <label class="text-[11px] font-semibold text-slate-500">AC (Zip)</label>
-                <input id="apc-info-ac" type="text" readonly class="form-input w-full mt-0.5 px-2.5 py-1.5 text-xs" />
+                <label class="text-xs font-semibold text-slate-600">AC (Zip)</label>
+                <input id="apc-info-ac" type="text" readonly class="form-input w-full mt-1 px-2.5 py-1.5 text-sm" />
               </div>
               <div>
-                <label class="text-[11px] font-semibold text-slate-500">Ct (Contact)</label>
-                <input id="apc-info-ct" type="text" readonly class="form-input w-full mt-0.5 px-2.5 py-1.5 text-xs" />
+                <label class="text-xs font-semibold text-slate-600">Ct (Contact)</label>
+                <input id="apc-info-ct" type="text" readonly class="form-input w-full mt-1 px-2.5 py-1.5 text-sm" />
               </div>
             </div>
           </div>
 
-          <div class="p-4 sub-panel space-y-2.5">
-            <div id="apc-sec2-title" class="text-xs font-extrabold text-emerald-700">2. DATE & QUANTITY</div>
+          <div class="p-5 sub-panel space-y-3">
+            <div id="apc-sec2-title" class="text-base md:text-lg font-extrabold text-emerald-700">2. DATE & QUANTITY</div>
             <div class="grid grid-cols-5 gap-2">
               <div class="col-span-2">
-                <label class="text-[11px] font-semibold text-slate-500">HD (Harvest)</label>
-                <input id="apc-info-hd" type="text" readonly class="form-input w-full mt-0.5 px-2 py-1.5 text-[11px]" />
+                <label class="text-xs font-semibold text-slate-600">HD (Harvest)</label>
+                <input id="apc-info-hd" type="text" readonly class="form-input w-full mt-1 px-2 py-1.5 text-xs" />
               </div>
               <div>
-                <label class="text-[11px] font-semibold text-slate-500">DD (Dispatch)</label>
-                <input id="apc-info-dd" type="text" readonly class="form-input w-full mt-0.5 px-2 py-1.5 text-[11px]" />
+                <label class="text-xs font-semibold text-slate-600">DD (Dispatch)</label>
+                <input id="apc-info-dd" type="text" readonly class="form-input w-full mt-1 px-2 py-1.5 text-xs" />
               </div>
               <div>
-                <label class="text-[11px] font-semibold text-slate-500">StD (Storage)</label>
-                <input id="apc-info-std" type="text" readonly class="form-input w-full mt-0.5 px-2 py-1.5 text-[11px]" />
+                <label class="text-xs font-semibold text-slate-600">StD (Storage)</label>
+                <input id="apc-info-std" type="text" readonly class="form-input w-full mt-1 px-2 py-1.5 text-xs" />
               </div>
               <div>
-                <label class="text-[11px] font-semibold text-slate-500">HN / Qt</label>
-                <input id="apc-info-qt" type="text" readonly class="form-input w-full mt-0.5 px-2 py-1.5 text-xs font-bold" />
+                <label class="text-xs font-semibold text-slate-600">HN / Qt</label>
+                <input id="apc-info-qt" type="text" readonly class="form-input w-full mt-1 px-2 py-1.5 text-xs font-bold" />
               </div>
             </div>
           </div>
 
-          <div class="p-4 sub-panel space-y-2.5">
-            <div id="apc-sec3-title" class="text-xs font-extrabold text-amber-700">3. FRUIT DETAILS</div>
-            <div class="grid grid-cols-3 gap-2">
+          <div class="p-5 sub-panel space-y-3">
+            <div id="apc-sec3-title" class="text-base md:text-lg font-extrabold text-amber-700">3. FRUIT DETAILS</div>
+            <div class="grid grid-cols-3 gap-2.5">
               <div>
-                <label class="text-[11px] font-semibold text-slate-500">FrT (Fruit)</label>
-                <input id="apc-info-frt" type="text" readonly class="form-input w-full mt-0.5 px-2.5 py-1.5 text-xs" />
+                <label class="text-xs font-semibold text-slate-600">FrT (Fruit)</label>
+                <input id="apc-info-frt" type="text" readonly class="form-input w-full mt-1 px-2.5 py-1.5 text-sm" />
               </div>
               <div>
-                <label class="text-[11px] font-semibold text-slate-500">Vt (Variety)</label>
-                <input id="apc-info-vt" type="text" readonly class="form-input w-full mt-0.5 px-2.5 py-1.5 text-xs" />
+                <label class="text-xs font-semibold text-slate-600">Vt (Variety)</label>
+                <input id="apc-info-vt" type="text" readonly class="form-input w-full mt-1 px-2.5 py-1.5 text-sm" />
               </div>
               <div>
-                <label class="text-[11px] font-semibold text-slate-500">Mt (Method)</label>
-                <input id="apc-info-mt" type="text" readonly class="form-input w-full mt-0.5 px-2.5 py-1.5 text-xs" />
+                <label class="text-xs font-semibold text-slate-600">Mt (Method)</label>
+                <input id="apc-info-mt" type="text" readonly class="form-input w-full mt-1 px-2.5 py-1.5 text-sm" />
               </div>
             </div>
           </div>
 
-          <div class="p-4 sub-panel space-y-2.5">
+          <div class="p-5 sub-panel space-y-3">
             <div class="flex items-center justify-between">
-              <span id="apc-sec4-title" class="text-xs font-extrabold text-rose-600">4. GRADE ALLOCATION</span>
-              <span class="text-[11px] text-slate-500">A + B + C + Defect = Total Qt</span>
+              <span id="apc-sec4-title" class="text-base md:text-lg font-extrabold text-rose-600">4. GRADE ALLOCATION</span>
+              <span class="text-xs text-slate-500">A + B + C + Defect = Total Qt</span>
             </div>
-            <div class="grid grid-cols-4 gap-2">
+            <div class="grid grid-cols-4 gap-2.5">
               <div>
-                <label id="lbl-apc-a" class="text-[11px] font-semibold text-slate-600">Grade A</label>
-                <input id="apc-a" type="number" value="0" class="form-input w-full mt-0.5 px-2.5 py-1.5 text-xs font-bold text-rose-600" />
+                <label id="lbl-apc-a" class="text-xs font-semibold text-slate-600">Grade A</label>
+                <input id="apc-a" type="number" value="" class="form-input w-full mt-1 px-2.5 py-1.5 text-sm font-bold text-rose-600" />
               </div>
               <div>
-                <label id="lbl-apc-b" class="text-[11px] font-semibold text-slate-600">Grade B</label>
-                <input id="apc-b" type="number" value="0" class="form-input w-full mt-0.5 px-2.5 py-1.5 text-xs font-bold text-amber-600" />
+                <label id="lbl-apc-b" class="text-xs font-semibold text-slate-600">Grade B</label>
+                <input id="apc-b" type="number" value="" class="form-input w-full mt-1 px-2.5 py-1.5 text-sm font-bold text-amber-600" />
               </div>
               <div>
-                <label id="lbl-apc-c" class="text-[11px] font-semibold text-slate-600">Grade C</label>
-                <input id="apc-c" type="number" value="0" class="form-input w-full mt-0.5 px-2.5 py-1.5 text-xs font-bold text-sky-600" />
+                <label id="lbl-apc-c" class="text-xs font-semibold text-slate-600">Grade C</label>
+                <input id="apc-c" type="number" value="" class="form-input w-full mt-1 px-2.5 py-1.5 text-sm font-bold text-sky-600" />
               </div>
               <div>
-                <label id="lbl-apc-def" class="text-[11px] font-semibold text-slate-600">Defect</label>
-                <input id="apc-defect" type="number" value="0" class="form-input w-full mt-0.5 px-2.5 py-1.5 text-xs" />
+                <label id="lbl-apc-def" class="text-xs font-semibold text-slate-600">Defect</label>
+                <input id="apc-defect" type="number" value="" class="form-input w-full mt-1 px-2.5 py-1.5 text-sm" />
               </div>
             </div>
           </div>
@@ -779,6 +806,8 @@
     // =====================================================================
     let csLang = "EN";
     let lastConsumerData = null;
+    let urlScannedFmid = null;
+    let urlScannedGrade = null;
 
     const CS_LANG = {
       KO: {
@@ -792,10 +821,13 @@
         tab_3: "🏭 3. APC 선별·등급 QR 생성 (A12)",
         tab_4: "🛰️ 4. 실시간 차량 관제 대시보드",
         pin_guide: "PIN 안내 — <b>0000</b>: 통합관리자 | <b>1111</b>: 농가 | <b>2222</b>: APC | <b>3333</b>: 관제사",
-        cs_fmid_lbl: "🔎 조회 번호(FmID):",
+        cs_fmid_lbl: "🔑 [마스터] 조회 번호(FmID):",
         cs_grade_a: "등급: 상 (A)",
         cs_grade_b: "등급: 중 (B)",
         cs_grade_c: "등급: 하 (C)",
+        landing_title: "과일의 진실된 이야기를 스캔하세요",
+        landing_subtitle: "고객님이 구매하신 과일이 생산지에서 식탁까지 온 정직한 과정을 투명하게 보여드립니다.",
+        landing_guide: "💡 방법: 제품에 부착된 안심 QR 코드를 스마트폰 카메라로 비춰주세요.",
         title_suffix: "안심 이력",
         subtitle: "블록체인 기반의 먹거리 안심 정보 서비스",
         refresh_btn: "🔄 실시간 정보 갱신",
@@ -829,12 +861,12 @@
         route_safe_badge: "🟢 전 구간 안전 운송",
         route_avg_temp: "운송 평균 온도",
         route_max_g: "최대 충격량",
-        route_gps_pts: "실측 도로 궤적",
-        route_pts_unit: (n) => `${n}개 지점`,
         route_leg1: "🌱 산지 → APC 운송",
         route_leg2: "🚛 APC → 판매처 냉장운송",
         route_apc_hub: "🏢 APC 품질공정 (A10~A15)",
         route_list: "📋 지리 좌표 경로 목록",
+        expand_txt: "▼ 펼치기",
+        collapse_txt: "▲ 접기",
         col_stage: "유통 단계",
         col_time: "처리 일시",
         col_lat: "위도 (Latitude)",
@@ -905,10 +937,13 @@
         tab_3: "🏭 3. APC Sorting & Grade QR (A12)",
         tab_4: "🛰️ 4. Live Vehicle Control",
         pin_guide: "PIN Guide — <b>0000</b>: Master | <b>1111</b>: Farm | <b>2222</b>: APC | <b>3333</b>: Control",
-        cs_fmid_lbl: "🔎 Batch ID (FmID):",
+        cs_fmid_lbl: "🔑 [Master] Batch ID (FmID):",
         cs_grade_a: "Grade: H (A)",
         cs_grade_b: "Grade: M (B)",
         cs_grade_c: "Grade: L (C)",
+        landing_title: "Scan the True Story of the Fruit",
+        landing_subtitle: "We transparently show you the honest journey of your fruit from origin to table.",
+        landing_guide: "💡 How to scan: Focus your smartphone camera on the safe QR code attached to the product.",
         title_suffix: "Traceability",
         subtitle: "Blockchain-based Safe Food Information Service",
         refresh_btn: "🔄 Refresh Real-time Info",
@@ -942,12 +977,12 @@
         route_safe_badge: "🟢 Verified Safe Route",
         route_avg_temp: "Avg Transport Temp",
         route_max_g: "Peak Impact",
-        route_gps_pts: "Road GPS Track",
-        route_pts_unit: (n) => `${n} pts`,
         route_leg1: "🌱 Farm → APC Route",
         route_leg2: "🚛 APC → Retail Cold-Chain",
         route_apc_hub: "🏢 APC Quality Hub (A10~A15)",
         route_list: "📋 Geographical Coordinate Route List",
+        expand_txt: "▼ Expand",
+        collapse_txt: "▲ Collapse",
         col_stage: "Logistics Stage",
         col_time: "Processed Time",
         col_lat: "Latitude",
@@ -1096,6 +1131,19 @@
       }
     }
 
+    function toggleConsumerRouteList() {
+      const panel = document.getElementById("cs-route-list-panel");
+      const arrow = document.getElementById("toggle-cs-route-arrow");
+      const L = CS_LANG[csLang];
+      if (panel.classList.contains("hidden")) {
+        panel.classList.remove("hidden");
+        arrow.textContent = L.collapse_txt;
+      } else {
+        panel.classList.add("hidden");
+        arrow.textContent = L.expand_txt;
+      }
+    }
+
     function applyGlobalLangUI() {
       const L = CS_LANG[csLang];
       document.documentElement.lang = csLang.toLowerCase();
@@ -1119,6 +1167,14 @@
       document.getElementById("cs-opt-grade-a").textContent = L.cs_grade_a;
       document.getElementById("cs-opt-grade-b").textContent = L.cs_grade_b;
       document.getElementById("cs-opt-grade-c").textContent = L.cs_grade_c;
+
+      document.getElementById("cs-landing-title").textContent = L.landing_title;
+      document.getElementById("cs-landing-subtitle").textContent = L.landing_subtitle;
+      document.getElementById("cs-landing-guide").textContent = L.landing_guide;
+
+      const csRoutePanel = document.getElementById("cs-route-list-panel");
+      document.getElementById("toggle-cs-route-arrow").textContent =
+        csRoutePanel.classList.contains("hidden") ? L.expand_txt : L.collapse_txt;
 
       document.getElementById("farm-title").textContent = L.farm_title;
       document.getElementById("farm-target-lbl").textContent = L.farm_target_lbl;
@@ -1173,7 +1229,7 @@
     }
 
     // =====================================================================
-    // 2. RBAC & Main Tab Switching (All Light Theme)
+    // 2. RBAC & Main Tab Switching (Master-only FmID dropdown)
     // =====================================================================
     let currentRole = "public";
     let allowedTabs = ["consumer"];
@@ -1194,13 +1250,36 @@
     function onFarmFruitChange() {
       const fruit = document.getElementById("f-frt").value;
       const vtSel = document.getElementById("f-vt");
-      vtSel.innerHTML = "";
+      vtSel.innerHTML = `<option value="" selected></option>`;
       (VARIETY_MAP[fruit] || []).forEach(v => {
         const opt = document.createElement("option");
         opt.value = v;
         opt.textContent = v;
         vtSel.appendChild(opt);
       });
+    }
+
+    function updateConsumerAccessView() {
+      const masterSel = document.getElementById("consumer-master-selector");
+      const landingView = document.getElementById("cs-landing-view");
+      const traceContent = document.getElementById("cs-trace-content");
+
+      // Only Master ("admin") can see and use the Batch ID (FmID) dropdown selector
+      if (currentRole === "admin") {
+        masterSel.classList.remove("hidden");
+      } else {
+        masterSel.classList.add("hidden");
+      }
+
+      // Show traceability page if Consumer scanned a QR (?FmID=...) OR if logged in as Master ("admin")
+      if (urlScannedFmid || currentRole === "admin") {
+        landingView.classList.add("hidden");
+        traceContent.classList.remove("hidden");
+        initConsumerMap();
+      } else {
+        landingView.classList.remove("hidden");
+        traceContent.classList.add("hidden");
+      }
     }
 
     function updateTabVisibility() {
@@ -1218,6 +1297,7 @@
           btn.classList.add("hidden");
         }
       });
+      updateConsumerAccessView();
     }
 
     function switchTab(tabName) {
@@ -1272,9 +1352,15 @@
         document.getElementById("logout-btn").classList.remove("hidden");
         document.getElementById("pin-input").value = "";
         updateTabVisibility();
-        if (data.role === "farm") switchTab("farm");
-        else if (data.role === "apc") switchTab("apc");
-        else if (data.role === "control") switchTab("control");
+        if (data.role === "admin") {
+          await loadConsumerTrace();
+        } else if (data.role === "farm") {
+          switchTab("farm");
+        } else if (data.role === "apc") {
+          switchTab("apc");
+        } else if (data.role === "control") {
+          switchTab("control");
+        }
       } catch (e) {
         alert("Login failed: " + e);
       }
@@ -1287,6 +1373,10 @@
       document.getElementById("logout-btn").classList.add("hidden");
       updateTabVisibility();
       switchTab("consumer");
+      if (urlScannedFmid) {
+        document.getElementById("consumer-fmid-select").value = urlScannedFmid;
+        loadConsumerTrace();
+      }
     }
 
     // =====================================================================
@@ -1294,6 +1384,8 @@
     // =====================================================================
     function initConsumerMap() {
       if (consumerMap) return;
+      const mapEl = document.getElementById("consumer-map");
+      if (!mapEl) return;
       consumerMap = L.map("consumer-map").setView([35.825, 127.13], 12);
       L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
@@ -1303,16 +1395,15 @@
     }
 
     async function initConsumerFmidList() {
-      initConsumerMap();
       const urlParams = new URLSearchParams(window.location.search);
-      const queryFmid = urlParams.get("FmID") || urlParams.get("fmid");
-      const queryGrade = urlParams.get("grade") || urlParams.get("pkg_grade");
+      urlScannedFmid = urlParams.get("FmID") || urlParams.get("fmid") || null;
+      urlScannedGrade = urlParams.get("grade") || urlParams.get("pkg_grade") || null;
       const queryLang = (urlParams.get("lang") || "EN").toUpperCase();
       csLang = (queryLang === "KO") ? "KO" : "EN";
       applyGlobalLangUI();
 
-      if (queryGrade) {
-        const gNorm = queryGrade === "H" || queryGrade === "A" ? "상" : (queryGrade === "M" || queryGrade === "B" ? "중" : (queryGrade === "L" || queryGrade === "C" ? "하" : queryGrade));
+      if (urlScannedGrade) {
+        const gNorm = urlScannedGrade === "H" || urlScannedGrade === "A" ? "상" : (urlScannedGrade === "M" || urlScannedGrade === "B" ? "중" : (urlScannedGrade === "L" || urlScannedGrade === "C" ? "하" : urlScannedGrade));
         document.getElementById("consumer-grade-select").value = gNorm;
       }
 
@@ -1326,13 +1417,19 @@
         opt.textContent = `FmID ${item.FmID} (${item.Vt || item.FrT || 'Apple'} · ${item.latest_step})`;
         sel.appendChild(opt);
       });
-      const target = queryFmid || (data.items && data.items[0] ? data.items[0].FmID : "85");
+
+      const target = urlScannedFmid || (data.items && data.items[0] ? data.items[0].FmID : "09");
       sel.value = target;
-      await loadConsumerTrace();
+      updateConsumerAccessView();
+
+      if (urlScannedFmid || currentRole === "admin") {
+        await loadConsumerTrace();
+      }
     }
 
     async function loadConsumerTrace() {
-      const fmid = document.getElementById("consumer-fmid-select").value || "85";
+      const fmid = (currentRole === "admin" ? document.getElementById("consumer-fmid-select").value : urlScannedFmid) || document.getElementById("consumer-fmid-select").value;
+      if (!fmid) return;
       const grade = document.getElementById("consumer-grade-select").value || "상";
       try {
         const res = await fetch(`/api/consumer/trace/${encodeURIComponent(fmid)}?grade=${encodeURIComponent(grade)}`);
@@ -1455,6 +1552,8 @@
     }
 
     function renderConsumerRouteMap(data) {
+      initConsumerMap();
+      if (!consumerMap || !consumerLayerGroup) return;
       const L_dict = CS_LANG[csLang];
       const s = data.summary || {};
       const stageLookup = data.stage_lookup || {};
@@ -1465,7 +1564,6 @@
       document.getElementById("lbl-route-safe-badge").textContent = L_dict.route_safe_badge;
       document.getElementById("lbl-route-avg-temp").textContent = L_dict.route_avg_temp;
       document.getElementById("lbl-route-max-g").textContent = L_dict.route_max_g;
-      document.getElementById("lbl-route-gps-pts").textContent = L_dict.route_gps_pts;
       document.getElementById("lbl-leg1").textContent = L_dict.route_leg1;
       document.getElementById("lbl-leg2").textContent = L_dict.route_leg2;
       document.getElementById("lbl-route-list").textContent = L_dict.route_list;
@@ -1485,11 +1583,9 @@
         const maxG = gforces.length ? Math.max(...gforces).toFixed(2) + "G" : "-";
         document.getElementById("val-route-avg-temp").textContent = avgT;
         document.getElementById("val-route-max-g").textContent = maxG;
-        document.getElementById("val-route-gps-pts").textContent = L_dict.route_pts_unit(allPts.length);
       } else {
         document.getElementById("val-route-avg-temp").textContent = "-";
         document.getElementById("val-route-max-g").textContent = "-";
-        document.getElementById("val-route-gps-pts").textContent = L_dict.route_pts_unit(0);
       }
 
       const acCode = String(s.AC || "");
@@ -1606,21 +1702,38 @@
     }
 
     // =====================================================================
-    // 4. [Tab 2] Farm Harvest Registration & QR Generation
+    // 4. [Tab 2] Farm Harvest Registration & QR Generation (Starts Blank)
     // =====================================================================
     async function createFarmQR() {
+      const fmid = document.getElementById("f-fmid").value.trim();
+      const ac = document.getElementById("f-ac").value;
+      const ct = document.getElementById("f-ct").value.trim();
+      const hd = document.getElementById("f-hd").value;
+      const std = document.getElementById("f-std").value;
+      const dd = document.getElementById("f-dd").value;
+      const hn = document.getElementById("f-hn").value.trim();
+      const qt = document.getElementById("f-qt").value.trim();
+      const frt = document.getElementById("f-frt").value;
+      const vt = document.getElementById("f-vt").value;
+      const mt = document.getElementById("f-mt").value;
+
+      if (!fmid || !ac || !ct || !hd || !std || !dd || !hn || !qt || !frt || !vt || !mt) {
+        alert(csLang === "KO" ? "모든 항목을 입력해 주세요." : "Please fill out all fields before saving.");
+        return;
+      }
+
       const payload = {
-        AC: document.getElementById("f-ac").value,
-        FmID: document.getElementById("f-fmid").value.trim(),
-        Ct: document.getElementById("f-ct").value.trim(),
-        FrT: document.getElementById("f-frt").value,
-        Vt: document.getElementById("f-vt").value,
-        HD_date: document.getElementById("f-hd").value,
-        StD_date: document.getElementById("f-std").value,
-        DD_date: document.getElementById("f-dd").value,
-        Mt: document.getElementById("f-mt").value,
-        HN: String(document.getElementById("f-hn").value || "1"),
-        Qt: String(document.getElementById("f-qt").value || "50"),
+        AC: ac,
+        FmID: fmid,
+        Ct: ct,
+        FrT: frt,
+        Vt: vt,
+        HD_date: hd,
+        StD_date: std,
+        DD_date: dd,
+        Mt: mt,
+        HN: String(hn),
+        Qt: String(qt),
         target_mode: document.getElementById("farm-target-mode").value,
         portal_base_url: window.location.origin
       };
@@ -1656,6 +1769,25 @@
         if (el) el.value = "";
       });
       document.getElementById("apc-qr-grid").innerHTML = "";
+    }
+
+    function renderApcQrCards(fmid, qrs) {
+      const grid = document.getElementById("apc-qr-grid");
+      grid.innerHTML = "";
+      const borderColors = ["border-rose-400", "border-amber-400", "border-sky-400"];
+      (qrs || []).forEach((q, i) => {
+        const div = document.createElement("div");
+        div.className = `bg-slate-50 border-2 ${borderColors[i]} rounded-xl p-4 flex flex-col items-center text-center shadow-sm`;
+        div.innerHTML = `
+          <div class="text-sm font-extrabold text-slate-800 mb-2">Grade ${q.grade_en} QR — ${q.count} boxes</div>
+          <img src="${q.qr_base64}" class="w-44 h-44 rounded-lg bg-white p-1 border border-slate-200" />
+          <a href="${q.qr_base64}" download="${fmid}_${q.grade_en}_QR.png"
+             class="mt-3 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white">
+            📥 Download Grade ${q.grade_en} QR
+          </a>
+        `;
+        grid.appendChild(div);
+      });
     }
 
     async function loadApcCandidates() {
@@ -1710,11 +1842,16 @@
       document.getElementById("apc-c").value = g.CGrade;
       document.getElementById("apc-defect").value = g.DefectRate;
 
-      msgEl.textContent =
-        `✅ QR Scanned (A=${g.AGrade}, B=${g.BGrade}, C=${g.CGrade}, Defect=${g.DefectRate}) ➔ Generating colored QRs...`;
-
-      if (autoSave) {
-        setTimeout(() => createApcSortingQR(), 300);
+      if (data.already_sorted) {
+        msgEl.textContent =
+          `✅ Loaded existing A12 sorting record (A=${g.AGrade}, B=${g.BGrade}, C=${g.CGrade}, Defect=${g.DefectRate})`;
+        renderApcQrCards(data.fmid, data.qrs || []);
+      } else {
+        msgEl.textContent =
+          `✅ QR Scanned (A=${g.AGrade}, B=${g.BGrade}, C=${g.CGrade}, Defect=${g.DefectRate}) ➔ Generating colored QRs...`;
+        if (autoSave) {
+          setTimeout(() => createApcSortingQR(), 300);
+        }
       }
     }
 
@@ -1751,22 +1888,7 @@
       msgEl.className = "text-xs font-semibold text-emerald-700";
       msgEl.textContent =
         `✅ A12 Saved & Colored QRs Generated (${(data.saved_files || []).join(", ")} | Time: ${data.apc_rt})`;
-      const grid = document.getElementById("apc-qr-grid");
-      grid.innerHTML = "";
-      const borderColors = ["border-rose-400", "border-amber-400", "border-sky-400"];
-      (data.qrs || []).forEach((q, i) => {
-        const div = document.createElement("div");
-        div.className = `bg-slate-50 border-2 ${borderColors[i]} rounded-xl p-4 flex flex-col items-center text-center shadow-sm`;
-        div.innerHTML = `
-          <div class="text-sm font-extrabold text-slate-800 mb-2">Grade ${q.grade_en} QR — ${q.count} boxes</div>
-          <img src="${q.qr_base64}" class="w-44 h-44 rounded-lg bg-white p-1 border border-slate-200" />
-          <a href="${q.qr_base64}" download="${data.fmid}_${q.grade_en}_QR.png"
-             class="mt-3 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white">
-            📥 Download Grade ${q.grade_en} QR
-          </a>
-        `;
-        grid.appendChild(div);
-      });
+      renderApcQrCards(data.fmid, data.qrs || []);
       document.getElementById("apc-qr-scanner-input").focus();
     }
 
@@ -1776,12 +1898,13 @@
     function toggleTelemetryLog() {
       const panel = document.getElementById("telemetry-log-panel");
       const arrow = document.getElementById("toggle-log-arrow");
+      const L = CS_LANG[csLang];
       if (panel.classList.contains("hidden")) {
         panel.classList.remove("hidden");
-        arrow.textContent = csLang === "KO" ? "▲ 접기" : "▲ Collapse";
+        arrow.textContent = L.collapse_txt;
       } else {
         panel.classList.add("hidden");
-        arrow.textContent = csLang === "KO" ? "▼ 펼치기" : "▼ Expand";
+        arrow.textContent = L.expand_txt;
       }
     }
 
@@ -1985,11 +2108,6 @@
     }
 
     window.addEventListener("DOMContentLoaded", () => {
-      const today = new Date().toISOString().slice(0, 10);
-      document.getElementById("f-hd").value = today;
-      document.getElementById("f-std").value = today;
-      document.getElementById("f-dd").value = today;
-      onFarmFruitChange();
       initConsumerFmidList();
       connectTelemetryWebSocket();
     });
