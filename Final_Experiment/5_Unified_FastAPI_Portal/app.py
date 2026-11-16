@@ -421,9 +421,39 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
                 "A15": "APC_OP",
                 "A16": "Retail_AD",
             }
+            # 1구간(leg_no=1) 및 2구간(leg_no=2) 운송 궤적 JOIN
+            cur.execute(
+                f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 1 LIMIT 1",
+                (fmid,),
+            )
+            sh_leg1 = cur.fetchone()
+            leg1_pts = fetch_shipment_pts(cur, sh_leg1) if (sh_leg1 and (sh_leg1.get("status") == "ARRIVED" or sh_leg1.get("run_id"))) else []
+
+            cur.execute(
+                f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 2 AND pkg_id = %s LIMIT 1",
+                (fmid, effective_pkg),
+            )
+            sh_leg2 = cur.fetchone()
+            leg2_pts = fetch_shipment_pts(cur, sh_leg2) if sh_leg2 else []
+
             for ev in ev_rows:
                 code = ev["stage_code"]
-                ev_str = ev["event_at"].strftime("%Y-%m-%d %H:%M:%S") if hasattr(ev["event_at"], "strftime") else str(ev["event_at"])
+                raw_str = ev["event_at"].strftime("%Y-%m-%d %H:%M:%S") if hasattr(ev["event_at"], "strftime") else str(ev["event_at"])
+                if code in ("A00", "A01"):
+                    ev_str = raw_str[:10]
+                elif code == "A02":
+                    if leg1_pts and leg1_pts[0].get("timestamp_str"):
+                        ev_str = leg1_pts[0]["timestamp_str"]
+                    elif sh_leg1 and sh_leg1.get("run_id") and sh_leg1.get("departed_at"):
+                        dep_v = sh_leg1["departed_at"]
+                        ev_str = dep_v.strftime("%Y-%m-%d %H:%M:%S") if hasattr(dep_v, "strftime") else str(dep_v)
+                    elif raw_str.endswith("00:00:00"):
+                        ev_str = raw_str[:10]
+                    else:
+                        ev_str = raw_str
+                else:
+                    ev_str = raw_str
+
                 item = {
                     "Lo": code,
                     "FmID": lot["lot_id"],
@@ -447,21 +477,6 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
                     merged["Hm"] = ev["humi"]
                 stage_lookup[code] = item
                 clean_records.append(item)
-
-            # 1구간(leg_no=1) 및 2구간(leg_no=2) 운송 궤적 JOIN
-            cur.execute(
-                f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 1 LIMIT 1",
-                (fmid,),
-            )
-            sh_leg1 = cur.fetchone()
-            leg1_pts = fetch_shipment_pts(cur, sh_leg1) if (sh_leg1 and (sh_leg1.get("status") == "ARRIVED" or sh_leg1.get("run_id"))) else []
-
-            cur.execute(
-                f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 2 AND pkg_id = %s LIMIT 1",
-                (fmid, effective_pkg),
-            )
-            sh_leg2 = cur.fetchone()
-            leg2_pts = fetch_shipment_pts(cur, sh_leg2) if sh_leg2 else []
 
             fruit_raw = str(lot["fruit_type"] or "Apples")
             cat_key = "Apples"
@@ -513,18 +528,18 @@ def api_create_farm_qr(req: FarmQRRequest):
         lot_id = req.FmID.strip()
         with conn.cursor() as cur:
             cur.execute("SET time_zone = '+09:00'")
-            cur.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_dt, DATE_FORMAT(NOW(), '%H:%i:%s') as srv_time")
+            cur.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_dt")
             srv_info = cur.fetchone()
             srv_now_dt = datetime.strptime(srv_info["srv_dt"], "%Y-%m-%d %H:%M:%S")
-            hd_full = f"{req.HD_date} {srv_info['srv_time']}"
-            dt_a00 = datetime.strptime(hd_full, "%Y-%m-%d %H:%M:%S")
-            if dt_a00 > srv_now_dt:
-                dt_a00 = srv_now_dt - timedelta(seconds=2)
-                hd_full = dt_a00.strftime("%Y-%m-%d %H:%M:%S")
 
-            std_d = datetime.strptime(req.StD_date[:10], "%Y-%m-%d").date()
-            dt_a01 = datetime(std_d.year, std_d.month, std_d.day, 9, 0, 0) if std_d > dt_a00.date() else (dt_a00 + timedelta(seconds=1))
-            dt_a02 = max(srv_now_dt, dt_a01 + timedelta(seconds=1))
+            hd_date_clean = req.HD_date[:10]
+            std_date_clean = req.StD_date[:10]
+            dd_date_clean = req.DD_date[:10]
+            hd_full = hd_date_clean
+
+            dt_a00 = datetime.strptime(f"{hd_date_clean} 00:00:00", "%Y-%m-%d %H:%M:%S")
+            dt_a01 = datetime.strptime(f"{std_date_clean} 00:00:00", "%Y-%m-%d %H:%M:%S")
+            dt_a02 = datetime.strptime(f"{dd_date_clean} 00:00:00", "%Y-%m-%d %H:%M:%S")
 
             # 1) 물리 ESP32 스캐너 호환용 v1 기록
             cur.execute(
@@ -532,7 +547,7 @@ def api_create_farm_qr(req: FarmQRRequest):
                 INSERT INTO `{DB_V1_NAME}`.`qr` (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                ("A00", req.AC, lot_id, req.FrT, req.Vt, req.Ct, hd_full, req.DD_date, req.Qt, req.Mt, req.HN, req.StD_date, None),
+                ("A00", req.AC, lot_id, req.FrT, req.Vt, req.Ct, hd_date_clean, dd_date_clean, req.Qt, req.Mt, req.HN, std_date_clean, None),
             )
             v1_id = cur.lastrowid
 
@@ -550,12 +565,12 @@ def api_create_farm_qr(req: FarmQRRequest):
                     total_qty=VALUES(total_qty), harvest_date=VALUES(harvest_date), storage_date=VALUES(storage_date),
                     deliver_date=VALUES(deliver_date), current_stage='A02', is_test=0
                 """,
-                (lot_id, req.AC, req.FrT, req.Vt, req.Ct, req.Mt, int(req.HN), int(req.Qt), req.HD_date[:10], req.StD_date[:10], req.DD_date[:10], hd_full),
+                (lot_id, req.AC, req.FrT, req.Vt, req.Ct, req.Mt, int(req.HN), int(req.Qt), hd_date_clean, std_date_clean, dd_date_clean, srv_now_dt.strftime("%Y-%m-%d %H:%M:%S")),
             )
 
             params = {
                 "AC": req.AC, "FmID": lot_id, "Ct": req.Ct, "FrT": req.FrT,
-                "Vt": req.Vt, "HD": hd_full, "DD": req.DD_date, "StD": req.StD_date,
+                "Vt": req.Vt, "HD": hd_date_clean, "DD": dd_date_clean, "StD": std_date_clean,
                 "Mt": req.Mt, "HN": req.HN, "Qt": req.Qt,
             }
             integrity_hash = make_sha256(params)
@@ -576,7 +591,7 @@ def api_create_farm_qr(req: FarmQRRequest):
                 VALUES (1, %s, NULL, %s, 'IN_TRANSIT')
                 ON DUPLICATE KEY UPDATE departed_at=VALUES(departed_at), status='IN_TRANSIT'
                 """,
-                (lot_id, dt_a02.strftime("%Y-%m-%d %H:%M:%S")),
+                (lot_id, srv_now_dt.strftime("%Y-%m-%d %H:%M:%S")),
             )
 
             if v1_id:
@@ -652,18 +667,13 @@ def api_apc_scan_qr(req: ApcScanRequest):
                        hl.harvest_no AS HN,
                        hl.total_qty AS Qt,
                        hl.current_stage,
-                       COALESCE(
-                           DATE_FORMAT(se_a00.event_at, '%%Y-%%m-%%d %%H:%%i:%%s'),
-                           DATE_FORMAT(hl.harvest_date, '%%Y-%%m-%%d')
-                       ) AS HD,
+                       DATE_FORMAT(hl.harvest_date, '%%Y-%%m-%%d') AS HD,
                        DATE_FORMAT(hl.deliver_date, '%%Y-%%m-%%d') AS DD,
                        DATE_FORMAT(hl.storage_date, '%%Y-%%m-%%d') AS StD,
                        DATE_FORMAT(se.event_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS APC_WD
                 FROM `{DB_NAME}`.`harvest_lots` hl
                 JOIN `{DB_NAME}`.`stage_events` se
                   ON hl.lot_id = se.lot_id AND se.stage_code = 'A11'
-                LEFT JOIN `{DB_NAME}`.`stage_events` se_a00
-                  ON hl.lot_id = se_a00.lot_id AND se_a00.stage_code = 'A00'
                 WHERE hl.lot_id = %s
                 LIMIT 1
                 """,

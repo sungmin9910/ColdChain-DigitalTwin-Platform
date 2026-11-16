@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet">
   <style>
     body {
@@ -492,15 +495,24 @@
               <div id="farm-sec2-title" class="sm:col-span-3 text-base md:text-lg font-extrabold text-emerald-700 tracking-wide">2. HARVEST LOGISTICS</div>
               <div>
                 <label id="lbl-f-hd" class="text-sm font-semibold text-slate-700">Harvest Date (HD)</label>
-                <input id="f-hd" type="date" value="" class="form-input w-full mt-1.5 px-3 py-2 text-sm" />
+                <div class="relative mt-1.5">
+                  <input id="f-hd" type="text" value="" placeholder="YYYY-MM-DD" autocomplete="off" class="form-input w-full px-3 py-2 pr-9 text-sm" />
+                  <span onclick="document.getElementById('f-hd')._flatpickr && document.getElementById('f-hd')._flatpickr.open()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer select-none">📅</span>
+                </div>
               </div>
               <div>
                 <label id="lbl-f-std" class="text-sm font-semibold text-slate-700">Storage Date (StD)</label>
-                <input id="f-std" type="date" value="" class="form-input w-full mt-1.5 px-3 py-2 text-sm" />
+                <div class="relative mt-1.5">
+                  <input id="f-std" type="text" value="" placeholder="YYYY-MM-DD" autocomplete="off" class="form-input w-full px-3 py-2 pr-9 text-sm" />
+                  <span onclick="document.getElementById('f-std')._flatpickr && document.getElementById('f-std')._flatpickr.open()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer select-none">📅</span>
+                </div>
               </div>
               <div>
                 <label id="lbl-f-dd" class="text-sm font-semibold text-slate-700">Delivery Date (DD)</label>
-                <input id="f-dd" type="date" value="" class="form-input w-full mt-1.5 px-3 py-2 text-sm" />
+                <div class="relative mt-1.5">
+                  <input id="f-dd" type="text" value="" placeholder="YYYY-MM-DD" autocomplete="off" class="form-input w-full px-3 py-2 pr-9 text-sm" />
+                  <span onclick="document.getElementById('f-dd')._flatpickr && document.getElementById('f-dd')._flatpickr.open()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer select-none">📅</span>
+                </div>
               </div>
               <div>
                 <label id="lbl-f-hn" class="text-sm font-semibold text-slate-700">Harvesting No. (HN)</label>
@@ -1186,6 +1198,40 @@
       document.getElementById("btn-farm-save").textContent = L.btn_farm_save;
       document.getElementById("farm-qr-box-title").textContent = L.farm_qr_box_title;
       document.getElementById("farm-qr-placeholder").textContent = L.farm_qr_placeholder;
+
+      const isKo = csLang === "KO";
+      document.getElementById("lbl-f-fmid").textContent = isKo ? "농가 고유 번호 (FmID)" : "Farmer ID (FmID)";
+      document.getElementById("lbl-f-ac").textContent = isKo ? "우편번호 (AC)" : "Area Code (AC)";
+      document.getElementById("lbl-f-ct").textContent = isKo ? "연락처 (Ct)" : "Contact Info (Ct)";
+      document.getElementById("lbl-f-hd").textContent = isKo ? "수확일자 (HD)" : "Harvest Date (HD)";
+      document.getElementById("lbl-f-std").textContent = isKo ? "보관일자 (StD)" : "Storage Date (StD)";
+      document.getElementById("lbl-f-dd").textContent = isKo ? "출하예정일 (DD)" : "Delivery Date (DD)";
+      document.getElementById("lbl-f-hn").textContent = isKo ? "수확 횟수 (HN)" : "Harvesting No. (HN)";
+      document.getElementById("lbl-f-qt").textContent = isKo ? "총 수확 수량 (박스, Qt)" : "Total Quantity (Boxes, Qt)";
+      document.getElementById("lbl-f-frt").textContent = isKo ? "과일 종류 (FrT)" : "Fruit Type (FrT)";
+      document.getElementById("lbl-f-vt").textContent = isKo ? "품종 (Vt)" : "Variety (Vt)";
+      document.getElementById("lbl-f-mt").textContent = isKo ? "재배 방식 (Mt)" : "Farming Method (Mt)";
+
+      const datePlaceholder = isKo ? "년-월-일" : "YYYY-MM-DD";
+      ["f-hd", "f-std", "f-dd"].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.placeholder = datePlaceholder;
+        if (window.flatpickr) {
+          const curVal = el.value;
+          if (el._flatpickr) {
+            el._flatpickr.destroy();
+          }
+          flatpickr(el, {
+            dateFormat: "Y-m-d",
+            allowInput: true,
+            disableMobile: true,
+            locale: isKo && flatpickr.l10ns && flatpickr.l10ns.ko ? flatpickr.l10ns.ko : "default",
+            defaultDate: curVal || null
+          });
+          el.placeholder = datePlaceholder;
+        }
+      });
 
       document.getElementById("apc-title").textContent = L.apc_title;
       document.getElementById("apc-opt-streamlit").textContent = L.opt_streamlit;

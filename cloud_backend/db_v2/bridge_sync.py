@@ -207,6 +207,15 @@ def refresh_shipment_stats_v2(cur, dst_db: str = "lab225_v2", lot_id: str = None
                     sh_id,
                 ),
             )
+            if leg_no == 1 and match.get("min_t"):
+                cur.execute(
+                    f"""
+                    UPDATE `{dst_db}`.`stage_events`
+                    SET event_at = %s
+                    WHERE lot_id = %s AND stage_code = 'A02'
+                    """,
+                    (new_dep, sh["lot_id"]),
+                )
 
 
 def upsert_sensor_packet_v2(cur, record: dict, dst_db: str = "lab225_v2", refresh_stats: bool = True):
@@ -360,10 +369,10 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
     )
 
     if stage == "A00":
-        dt_a00 = hd_dt
-        dt_a01 = datetime(std_dt.year, std_dt.month, std_dt.day, 9, 0, 0) if std_dt.date() > dt_a00.date() else (dt_a00 + timedelta(seconds=1))
-        dt_a02 = max(now_kst, dt_a01 + timedelta(seconds=1))
-        h_a00 = make_sha256({"lot_id": lot_id, "stage": "A00", "ac": ac, "qt": qt, "hd": dt_a00.strftime("%Y-%m-%d %H:%M:%S")})
+        dt_a00 = datetime(hd_dt.year, hd_dt.month, hd_dt.day, 0, 0, 0)
+        dt_a01 = datetime(std_dt.year, std_dt.month, std_dt.day, 0, 0, 0)
+        dt_a02 = datetime(dd_dt.year, dd_dt.month, dd_dt.day, 0, 0, 0)
+        h_a00 = make_sha256({"lot_id": lot_id, "stage": "A00", "ac": ac, "qt": qt, "hd": dt_a00.strftime("%Y-%m-%d")})
 
         for s_code, s_dt, s_hash in [("A00", dt_a00, h_a00), ("A01", dt_a01, None), ("A02", dt_a02, None)]:
             cur.execute(
@@ -380,7 +389,7 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
             VALUES (1, %s, NULL, %s, %s, 'IN_TRANSIT')
             ON DUPLICATE KEY UPDATE device_id = COALESCE(VALUES(device_id), device_id)
             """,
-            (lot_id, dev, dt_a02.strftime("%Y-%m-%d %H:%M:%S")),
+            (lot_id, dev, now_kst.strftime("%Y-%m-%d %H:%M:%S")),
         )
 
     elif stage == "A10":
@@ -452,6 +461,15 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
                 round(float(leg1["max_g"]), 2) if (leg1 and leg1["max_g"] is not None) else None,
             ),
         )
+        if leg1 and leg1.get("min_t"):
+            cur.execute(
+                f"""
+                UPDATE `{dst_db}`.`stage_events`
+                SET event_at = %s
+                WHERE lot_id = %s AND stage_code = 'A02'
+                """,
+                (dep_dt.strftime("%Y-%m-%d %H:%M:%S"), lot_id),
+            )
 
     elif stage == "A11":
         ev_dt = parse_dt_safe(row.get("APC_WD")) or now_kst

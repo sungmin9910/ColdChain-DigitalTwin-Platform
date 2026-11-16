@@ -776,20 +776,17 @@ if not fm_id:
                     sync_v1_delta_to_v2(conn_p, src_db=DB_V1_NAME, dst_db=DB_NAME)
                     cur_p = conn_p.cursor()
                     cur_p.execute("SET time_zone = '+09:00'")
-                    cur_p.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_dt, DATE_FORMAT(NOW(), '%H:%i:%s') as srv_t")
+                    cur_p.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_dt")
                     srv_info = cur_p.fetchone()
                     srv_now_str = srv_info["srv_dt"]
                     srv_now_dt = datetime.strptime(srv_now_str, "%Y-%m-%d %H:%M:%S")
-                    hd_full_str = f"{f_hd.strftime('%Y-%m-%d')} {srv_info['srv_t']}"
-                    dt_a00 = datetime.strptime(hd_full_str, "%Y-%m-%d %H:%M:%S")
-                    if dt_a00 > srv_now_dt:
-                        dt_a00 = srv_now_dt - timedelta(seconds=2)
-                        hd_full_str = dt_a00.strftime("%Y-%m-%d %H:%M:%S")
-                    dt_a01 = datetime(f_std.year, f_std.month, f_std.day, 9, 0, 0) if f_std > dt_a00.date() else (dt_a00 + timedelta(seconds=1))
-                    dt_a02 = max(srv_now_dt, dt_a01 + timedelta(seconds=1))
-
+                    hd_str = f_hd.strftime("%Y-%m-%d")
                     std_str = f_std.strftime("%Y-%m-%d")
                     dd_str = f_dd.strftime("%Y-%m-%d")
+                    hd_full_str = hd_str
+                    dt_a00 = datetime(f_hd.year, f_hd.month, f_hd.day, 0, 0, 0)
+                    dt_a01 = datetime(f_std.year, f_std.month, f_std.day, 0, 0, 0)
+                    dt_a02 = datetime(f_dd.year, f_dd.month, f_dd.day, 0, 0, 0)
                     lot_id_val = str(f_fmid).strip()
 
                     # 1) 물리 ESP32 스캐너 호환을 위해 기존 lab225.qr에도 A00 기록 후 워터마크 동기화
@@ -798,7 +795,7 @@ if not fm_id:
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         "A00", f_ac, lot_id_val, f_frt, f_vt, f_ct.strip(),
-                        hd_full_str, dd_str, str(f_qt), f_mt, str(f_hn), std_str, None
+                        hd_str, dd_str, str(f_qt), f_mt, str(f_hn), std_str, None
                     ))
                     v1_qr_id = cur_p.lastrowid
 
@@ -816,10 +813,10 @@ if not fm_id:
                             deliver_date=VALUES(deliver_date), current_stage='A02', is_test=0
                     """, (
                         lot_id_val, f_ac, f_frt, f_vt, f_ct.strip(), f_mt,
-                        int(f_hn), int(f_qt), f_hd.strftime("%Y-%m-%d"), std_str, dd_str, hd_full_str
+                        int(f_hn), int(f_qt), hd_str, std_str, dd_str, srv_now_str
                     ))
 
-                    a00_hash = make_sha256({"lot_id": lot_id_val, "stage": "A00", "ac": f_ac, "qt": int(f_qt), "hd": hd_full_str})
+                    a00_hash = make_sha256({"lot_id": lot_id_val, "stage": "A00", "ac": f_ac, "qt": int(f_qt), "hd": hd_str})
                     for s_cd, s_dt, s_h in [("A00", dt_a00, a00_hash), ("A01", dt_a01, None), ("A02", dt_a02, None)]:
                         cur_p.execute(f"""
                             INSERT INTO `{DB_NAME}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, tx_hash)
@@ -831,7 +828,7 @@ if not fm_id:
                         INSERT INTO `{DB_NAME}`.`shipments` (leg_no, lot_id, pkg_id, departed_at, status)
                         VALUES (1, %s, NULL, %s, 'IN_TRANSIT')
                         ON DUPLICATE KEY UPDATE departed_at=VALUES(departed_at), status='IN_TRANSIT'
-                    """, (lot_id_val, dt_a02.strftime("%Y-%m-%d %H:%M:%S")))
+                    """, (lot_id_val, srv_now_str))
 
                     if v1_qr_id:
                         cur_p.execute(f"""
@@ -1178,9 +1175,43 @@ try:
         c_qty = sorted_map.get("C", {}).get("grade_qty")
         def_qty = sorted_map.get("DEFECT", {}).get("grade_qty")
 
+        # (4) 1구간(leg_no=1: A02~A10) 및 2구간(leg_no=2: A15~A16) 운송 궤적 정밀 JOIN 조회
+        cursor.execute(f"""
+            SELECT * FROM `{DB_NAME}`.`shipments`
+            WHERE lot_id = %s AND leg_no = 1
+            LIMIT 1
+        """, (fm_id,))
+        sh_leg1 = cursor.fetchone()
+        if sh_leg1 and (sh_leg1.get("status") == "ARRIVED" or sh_leg1.get("run_id")):
+            leg1_sensor_pts = fetch_shipment_telemetry(cursor, sh_leg1)
+
+        cursor.execute(f"""
+            SELECT * FROM `{DB_NAME}`.`shipments`
+            WHERE lot_id = %s AND leg_no = 2 AND pkg_id = %s
+            LIMIT 1
+        """, (fm_id, effective_pkg_id))
+        sh_leg2 = cursor.fetchone()
+        if sh_leg2:
+            leg2_sensor_pts = fetch_shipment_telemetry(cursor, sh_leg2)
+
         for ev in ev_rows:
             st_cd = ev["stage_code"]
-            ev_time_str = ev["event_at"].strftime("%Y-%m-%d %H:%M:%S") if hasattr(ev["event_at"], "strftime") else str(ev["event_at"])
+            raw_ev_str = ev["event_at"].strftime("%Y-%m-%d %H:%M:%S") if hasattr(ev["event_at"], "strftime") else str(ev["event_at"])
+            if st_cd in ("A00", "A01"):
+                ev_time_str = raw_ev_str[:10]
+            elif st_cd == "A02":
+                if leg1_sensor_pts and leg1_sensor_pts[0].get("timestamp_str"):
+                    ev_time_str = leg1_sensor_pts[0]["timestamp_str"]
+                elif sh_leg1 and sh_leg1.get("run_id") and sh_leg1.get("departed_at"):
+                    dep_v = sh_leg1["departed_at"]
+                    ev_time_str = dep_v.strftime("%Y-%m-%d %H:%M:%S") if hasattr(dep_v, "strftime") else str(dep_v)
+                elif raw_ev_str.endswith("00:00:00"):
+                    ev_time_str = raw_ev_str[:10]
+                else:
+                    ev_time_str = raw_ev_str
+            else:
+                ev_time_str = raw_ev_str
+
             rec_item = {
                 "Lo": st_cd,
                 "FmID": lot_master["lot_id"],
@@ -1206,25 +1237,6 @@ try:
                 "DefectRate": def_qty,
             }
             records.append(rec_item)
-
-        # (4) 1구간(leg_no=1: A02~A10) 및 2구간(leg_no=2: A15~A16) 운송 궤적 정밀 JOIN 조회
-        cursor.execute(f"""
-            SELECT * FROM `{DB_NAME}`.`shipments`
-            WHERE lot_id = %s AND leg_no = 1
-            LIMIT 1
-        """, (fm_id,))
-        sh_leg1 = cursor.fetchone()
-        if sh_leg1 and (sh_leg1.get("status") == "ARRIVED" or sh_leg1.get("run_id")):
-            leg1_sensor_pts = fetch_shipment_telemetry(cursor, sh_leg1)
-
-        cursor.execute(f"""
-            SELECT * FROM `{DB_NAME}`.`shipments`
-            WHERE lot_id = %s AND leg_no = 2 AND pkg_id = %s
-            LIMIT 1
-        """, (fm_id, effective_pkg_id))
-        sh_leg2 = cursor.fetchone()
-        if sh_leg2:
-            leg2_sensor_pts = fetch_shipment_telemetry(cursor, sh_leg2)
 
     conn.close()
 except Exception as e:
