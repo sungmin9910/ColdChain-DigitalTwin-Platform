@@ -297,6 +297,31 @@ String getFmID(String url) {
   return "NULL";
 }
 
+// 유색 QR URL의 grade 파라미터(상/중/하 또는 A/B/C)를 정규화 등급 코드("A", "B", "C")로 추출 (무색 농가 QR이면 "" 반환)
+String extractGradeCode(String url) {
+  String gParam = getQueryParam(url, "grade");
+  if (gParam == "NULL" || gParam == "''") {
+    gParam = getQueryParam(url, "pkg_grade");
+  }
+  if (gParam == "NULL" || gParam == "''") return "";
+
+  gParam.replace("'", "");
+  gParam.trim();
+  String gUpper = gParam;
+  gUpper.toUpperCase();
+
+  if (gUpper == "B" || gUpper == "M" || gUpper == "MEDIUM" || gParam.indexOf("중") != -1) {
+    return "B";
+  }
+  if (gUpper == "C" || gUpper == "L" || gUpper == "LOW" || gParam.indexOf("하") != -1) {
+    return "C";
+  }
+  if (gUpper == "A" || gUpper == "H" || gUpper == "HIGH" || gParam.indexOf("상") != -1) {
+    return "A";
+  }
+  return "";
+}
+
 void processScan(String rawData) {
   // 1. 스캔 데이터 수신 시 앞쪽에 섞인 GM77 ACK 응답 바이너리(0x04 등) 정제
   int httpIdx = rawData.indexOf("http");
@@ -338,6 +363,11 @@ void processScan(String rawData) {
     return;
   }
 
+  String scannedGrade = extractGradeCode(rawData); // 유색 QR이면 "A", "B", "C", 무색 농가 QR이면 ""
+  String cleanFmId = fmId;
+  cleanFmId.replace("'", "");
+  String displayPkgId = (scannedGrade.length() > 0) ? ("'" + cleanFmId + "-" + scannedGrade + "'") : fmId;
+
   String ac = getQueryParam(rawData, "AC");
   String frt = getQueryParam(rawData, "FrT");
   String vt = getQueryParam(rawData, "Vt");
@@ -376,25 +406,60 @@ void processScan(String rawData) {
     
     query_executor.execute("SET time_zone = '+09:00'");
 
-    // 타겟 모드 결정 (AUTO 메인 vs MANUAL 수동)
+    // 타겟 모드 결정 (AUTO 메인 vs MANUAL 수동 - A/B/C 등급별 독립 상태 머신 지원)
     String targetMode = "";
     if (isAutoMode) {
-      // DB에서 해당 FmID의 최신 Lo 상태 조회
-      String checkQuery = "SELECT Lo FROM lab225.qr WHERE FmID = " + fmId + " ORDER BY id DESC LIMIT 1";
-      Serial.println("🔍 DB에서 FmID (" + fmId + ")의 이전 이력 조회 중...");
       String lastLo = "NONE";
-      if (query_executor.execute(checkQuery.c_str())) {
-        column_names *cols = query_executor.get_columns();
-        row_values *row = query_executor.get_next_row();
-        if (row != NULL && row->values[0] != NULL) {
-          lastLo = String(row->values[0]);
-          lastLo.trim();
+      if (scannedGrade.length() > 0) {
+        // [방식 2] 유색 QR(A/B/C) 스캔 시: 해당 등급 패키지의 A13~A16 진행 이력을 우선 조회
+        String pkgCheckQuery =
+          "SELECT Lo FROM lab225.qr WHERE FmID = " + fmId +
+          " AND Lo IN ('A13','A14','A15','A16') AND COALESCE(pkg_grade, 'A') = '" + scannedGrade +
+          "' ORDER BY id DESC LIMIT 1";
+        Serial.println("🔍 DB에서 등급 패키지 (" + displayPkgId + ")의 이전 이력 조회 중...");
+        if (query_executor.execute(pkgCheckQuery.c_str())) {
+          query_executor.get_columns();
+          row_values *row = query_executor.get_next_row();
+          if (row != NULL && row->values[0] != NULL) {
+            lastLo = String(row->values[0]);
+            lastLo.trim();
+          }
+          while (row != NULL) { row = query_executor.get_next_row(); }
+          query_executor.close();
         }
-        while (row != NULL) { row = query_executor.get_next_row(); }
-        query_executor.close();
+        // 해당 등급이 아직 A13에 진입하지 않았다면 원물(A00~A12) 이력을 확인하여 A13으로 시작
+        if (lastLo == "NONE") {
+          String baseCheckQuery =
+            "SELECT Lo FROM lab225.qr WHERE FmID = " + fmId +
+            " AND Lo IN ('A00','A10','A11','A12') ORDER BY id DESC LIMIT 1";
+          if (query_executor.execute(baseCheckQuery.c_str())) {
+            query_executor.get_columns();
+            row_values *row = query_executor.get_next_row();
+            if (row != NULL && row->values[0] != NULL) {
+              lastLo = String(row->values[0]);
+              lastLo.trim();
+            }
+            while (row != NULL) { row = query_executor.get_next_row(); }
+            query_executor.close();
+          }
+        }
+      } else {
+        // 무색 농가 QR 스캔 시: 기존과 동일하게 FmID 기준 최신 이력 조회
+        String checkQuery = "SELECT Lo FROM lab225.qr WHERE FmID = " + fmId + " ORDER BY id DESC LIMIT 1";
+        Serial.println("🔍 DB에서 FmID (" + fmId + ")의 이전 이력 조회 중...");
+        if (query_executor.execute(checkQuery.c_str())) {
+          query_executor.get_columns();
+          row_values *row = query_executor.get_next_row();
+          if (row != NULL && row->values[0] != NULL) {
+            lastLo = String(row->values[0]);
+            lastLo.trim();
+          }
+          while (row != NULL) { row = query_executor.get_next_row(); }
+          query_executor.close();
+        }
       }
 
-      Serial.println("💡 DB 이전 최신 이력(Lo): " + lastLo);
+      Serial.println("💡 DB 이전 최신 이력(Lo): " + lastLo + " (Target: " + displayPkgId + ")");
       if (lastLo == "NONE" || lastLo == "A00") targetMode = "A10";
       else if (lastLo == "A10") targetMode = "A11";
       else if (lastLo == "A11" || lastLo == "A12") targetMode = "A13";
@@ -402,16 +467,16 @@ void processScan(String rawData) {
       else if (lastLo == "A14") targetMode = "A15";
       else if (lastLo == "A15") targetMode = "A16";
       else if (lastLo == "A16") {
-        Serial.println("⚠️ 이미 판매처 도착(A16)까지 모든 유통이 완료된 상자입니다.");
-        updateOLED("Already Completed!", fmId, "A16");
+        Serial.println("⚠️ 이미 판매처 도착(A16)까지 모든 유통이 완료된 등급 상자입니다: " + displayPkgId);
+        updateOLED("Already Completed!", displayPkgId, "A16");
         conn.close();
         t_trigger_start = 0;
         return;
       }
-      Serial.println("🤖 [AUTO] 지능형 판단 결과 단계: " + targetMode);
+      Serial.println("🤖 [AUTO] 지능형 판단 결과 단계: " + targetMode + " (" + displayPkgId + ")");
     } else {
       targetMode = manualMode;
-      Serial.println("✋ [MANUAL] 수동 지정 단계: " + targetMode);
+      Serial.println("✋ [MANUAL] 수동 지정 단계: " + targetMode + " (" + displayPkgId + ")");
     }
 
     // 최신 환경(온습도·차량단말) + 실내 0.0 방지 유효 GPS 좌표 조회
@@ -439,6 +504,9 @@ void processScan(String rawData) {
     }
     Serial.println("📡 매칭 센서팟: " + sDev + " / GPS: (" + sLat + ", " + sLng + ")");
 
+    String effectiveGrade = (scannedGrade.length() > 0) ? scannedGrade : "A";
+    String sqlGrade = "'" + effectiveGrade + "'";
+
     String query = "";
     if (targetMode == "A10") {
       query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, Lat, lon, truck_device) ";
@@ -455,24 +523,24 @@ void processScan(String rawData) {
       query += "FROM lab225.qr Q WHERE Q.Lo = 'A11' AND Q.FmID = " + fmId + " ORDER BY Q.id DESC LIMIT 1";
     }
     else if (targetMode == "A13") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device) ";
-      query += "SELECT 'A13', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, NOW(), " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + ") ";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
+      query += "SELECT 'A13', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, NOW(), " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + "), " + sqlGrade + " ";
       query += "FROM lab225.qr Q WHERE Q.Lo IN ('A12', 'A11') AND Q.FmID = " + fmId + " ORDER BY Q.id DESC LIMIT 1";
     }
     else if (targetMode == "A14") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device) ";
-      query += "SELECT 'A14', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + ") ";
-      query += "FROM lab225.qr Q WHERE Q.Lo = 'A13' AND Q.FmID = " + fmId + " ORDER BY Q.id DESC LIMIT 1";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
+      query += "SELECT 'A14', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + "), " + sqlGrade + " ";
+      query += "FROM lab225.qr Q WHERE Q.Lo = 'A13' AND Q.FmID = " + fmId + " AND COALESCE(Q.pkg_grade, 'A') = " + sqlGrade + " ORDER BY Q.id DESC LIMIT 1";
     }
     else if (targetMode == "A15") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device) ";
-      query += "SELECT 'A15', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, Q.APC_StD, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(" + sDev + ", Q.truck_device) ";
-      query += "FROM lab225.qr Q WHERE Q.Lo = 'A14' AND Q.FmID = " + fmId + " ORDER BY Q.id DESC LIMIT 1";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
+      query += "SELECT 'A15', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, Q.APC_StD, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(" + sDev + ", Q.truck_device), " + sqlGrade + " ";
+      query += "FROM lab225.qr Q WHERE Q.Lo = 'A14' AND Q.FmID = " + fmId + " AND COALESCE(Q.pkg_grade, 'A') = " + sqlGrade + " ORDER BY Q.id DESC LIMIT 1";
     }
     else if (targetMode == "A16") {
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Retail_AD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device) ";
-      query += "SELECT 'A16', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, Q.APC_StD, Q.APC_OP, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + ") ";
-      query += "FROM lab225.qr Q WHERE Q.Lo = 'A15' AND Q.FmID = " + fmId + " ORDER BY Q.id DESC LIMIT 1";
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Retail_AD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
+      query += "SELECT 'A16', Q.AC, Q.FmID, Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.StD, Q.Rp, Q.APC_AD, Q.APC_WD, Q.APC_RT, Q.APC_PT, Q.APC_StD, Q.APC_OP, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + "), " + sqlGrade + " ";
+      query += "FROM lab225.qr Q WHERE Q.Lo = 'A15' AND Q.FmID = " + fmId + " AND COALESCE(Q.pkg_grade, 'A') = " + sqlGrade + " ORDER BY Q.id DESC LIMIT 1";
     }
 
     bool isSuccess = query_executor.execute(query.c_str());
@@ -490,12 +558,13 @@ void processScan(String rawData) {
     last_total_latency = total_latency;
     scan_counter++;
 
+    String labelId = (targetMode == "A13" || targetMode == "A14" || targetMode == "A15" || targetMode == "A16") ? displayPkgId : fmId;
     if (isSuccess) {
-      Serial.println("✅ DB 저장 성공! (단계: " + targetMode + ")");
-      updateOLED("DB Save OK!", fmId, targetMode, decode_latency, total_latency);
+      Serial.println("✅ DB 저장 성공! (대상: " + labelId + " / 단계: " + targetMode + ")");
+      updateOLED("DB Save OK!", labelId, targetMode, decode_latency, total_latency);
     } else {
       Serial.println("❌ DB 저장 실패: 쿼리 오류 또는 이전 단계 데이터 없음");
-      updateOLED("DB Save FAIL!", fmId, targetMode, decode_latency, total_latency);
+      updateOLED("DB Save FAIL!", labelId, targetMode, decode_latency, total_latency);
     }
 
     // ==========================================
@@ -503,14 +572,14 @@ void processScan(String rawData) {
     // ==========================================
     Serial.println("==================================================");
     Serial.printf("⏱️ [스캔 #%lu Latency 리포트]\n", scan_counter);
-    Serial.printf(" - 박스 ID (FmID)       : %s\n", fmId.c_str());
+    Serial.printf(" - 박스/등급 ID         : %s\n", labelId.c_str());
     Serial.printf(" - 진행 단계 (Mode)     : %s\n", targetMode.c_str());
     Serial.printf(" - 디코드 지연 (Decode) : %lu ms\n", decode_latency);
     Serial.printf(" - 클라우드 DB 지연     : %lu ms\n", db_latency);
     Serial.printf(" - 전체 처리 시간 (Total): %lu ms\n", total_latency);
     Serial.println("--------------------------------------------------");
     // 엑셀/파이썬 데이터 분석용 CSV 포맷 출력
-    Serial.printf("CSV_ROW,%lu,%s,%s,%lu,%lu,%lu\n", scan_counter, fmId.c_str(), targetMode.c_str(), decode_latency, db_latency, total_latency);
+    Serial.printf("CSV_ROW,%lu,%s,%s,%lu,%lu,%lu\n", scan_counter, labelId.c_str(), targetMode.c_str(), decode_latency, db_latency, total_latency);
     Serial.println("==================================================\n");
 
     conn.close();
@@ -523,7 +592,7 @@ void processScan(String rawData) {
   t_trigger_start = 0;
 }
 
-// 시리얼에서 0x00(NUL) 및 제어 바이너리를 걸러내고 9600bps 속도에 맞춰 전체 URL(최대 1.5초)을 완전하게 수신하는 함수
+// 시리얼에서 0x00(NUL) 및 제어 바이너리를 걸러내고 9600bps 속도에 맞춰 전체 URL(최대 1.5초, UTF-8 한글 포함)을 완전하게 수신하는 함수
 String readCleanScannerData() {
   String result = "";
   unsigned long start = millis();
@@ -532,11 +601,12 @@ String readCleanScannerData() {
   while (millis() - start < 1500) {
     if (ScannerSerial.available()) {
       char c = (char)ScannerSerial.read();
+      uint8_t uc = (uint8_t)c;
       lastCharTime = millis();
       
       if (c == '\r' || c == '\n') {
         if (result.length() > 0) break;
-      } else if (c >= 32 && c <= 126) {
+      } else if (uc >= 32 && uc != 127 && uc != 255) {
         result += c;
       }
     } else {

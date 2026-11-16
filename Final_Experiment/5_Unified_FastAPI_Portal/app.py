@@ -370,12 +370,7 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
             cur.execute(f"SELECT * FROM `{DB_NAME}`.`sorted_lots` WHERE lot_id = %s", (fmid,))
             sorted_map = {r["grade_code"]: r for r in cur.fetchall()}
 
-            target_pkg = f"{fmid}-{g_code}"
-            cur.execute(
-                f"SELECT COUNT(*) AS cnt FROM `{DB_NAME}`.`stage_events` WHERE lot_id = %s AND pkg_id = %s",
-                (fmid, target_pkg),
-            )
-            effective_pkg = target_pkg if cur.fetchone()["cnt"] > 0 else f"{fmid}-A"
+            effective_pkg = f"{fmid}-{g_code}"
 
             # 10단계 타임라인(A00·A01·A02 + A10~A16) 조회
             cur.execute(
@@ -843,7 +838,7 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
             ("중", "B", req.BGrade),
             ("하", "C", req.CGrade),
         ]):
-            q_url = f"{base_url}/?FmID={lot_id}&grade={g_kr}&AC={ac}&FrT={fruit}"
+            q_url = f"{base_url}/?FmID={lot_id}&grade={g_kr}&pkg_grade={g_en}&AC={ac}&FrT={fruit}"
             qr_filename = f"{lot_id}_{g_en}_QR.png"
             q_b64 = make_qr_base64(q_url, overlay_filename=grade_icons[idx], rounded=False, save_filename=qr_filename)
             saved_files.append(qr_filename)

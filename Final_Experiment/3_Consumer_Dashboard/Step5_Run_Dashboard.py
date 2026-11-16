@@ -1015,7 +1015,7 @@ if not fm_id:
                             g_icons = GRADE_ICONS.get(frt_name, GRADE_ICONS["Apples"])
                             gen_list = []
                             for idx_g, (g_kr, g_en, g_cnt) in enumerate([("상", "A", a_v), ("중", "B", b_v), ("하", "C", c_v)]):
-                                g_url = f"{STREAMLIT_BASE_URL}?FmID={target_fmid}&grade={g_kr}&AC={ac_val}&FrT={frt_name}"
+                                g_url = f"{STREAMLIT_BASE_URL}?FmID={target_fmid}&grade={g_kr}&pkg_grade={g_en}&AC={ac_val}&FrT={frt_name}"
                                 g_fn = f"{target_fmid}_{g_en}_QR.png"
                                 gen_list.append({
                                     "grade_en": g_en,
@@ -1162,13 +1162,7 @@ try:
 
         norm_g = normalize_grade(url_grade)
         target_g_code = "B" if norm_g == "중" else ("C" if norm_g == "하" else "A")
-        target_pkg_id = f"{fm_id}-{target_g_code}"
-        # 만약 B/C 패키지 별도 스캔이 아직 없으면 공통 대표 패키지(A) 이력 폴백 허용
-        cursor.execute(
-            f"SELECT COUNT(*) AS cnt FROM `{DB_NAME}`.`stage_events` WHERE lot_id = %s AND pkg_id = %s",
-            (fm_id, target_pkg_id),
-        )
-        effective_pkg_id = target_pkg_id if cursor.fetchone()["cnt"] > 0 else f"{fm_id}-A"
+        effective_pkg_id = f"{fm_id}-{target_g_code}"
 
         # (3) 10단계 통합 공정 타임라인(A00·A01·A02 + A10~A16) 조회 및 UI 호환 포맷 매핑
         cursor.execute(f"""

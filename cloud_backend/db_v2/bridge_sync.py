@@ -53,7 +53,9 @@ def make_sha256(payload: dict) -> str:
 def parse_sensor_codes(status_str: str, lat: float, lng: float, g_force: float):
     s = status_str or ""
     gps_valid = (lat != 0.0 and lng != 0.0 and abs(lat) > 1.0)
-    if "[터널]" in s:
+    if "[실내]" in s or "[대기]" in s:
+        gps_state = "INDOOR"
+    elif "[터널]" in s:
         gps_state = "TUNNEL"
     elif gps_valid:
         gps_state = "FIX"
@@ -73,7 +75,141 @@ def parse_sensor_codes(status_str: str, lat: float, lng: float, g_force: float):
     return gps_state, event_type
 
 
-def upsert_sensor_packet_v2(cur, record: dict, dst_db: str = "lab225_v2"):
+def normalize_pkg_grade(val) -> tuple[str, str]:
+    """스캔된 등급 문자열(A/B/C 또는 상/중/하)을 정규화 코드('A','B','C')와 한글 라벨('상','중','하')로 변환"""
+    s = unquote_plus(str(val or "A")).strip().upper()
+    if s in ("B", "중", "M", "MEDIUM"):
+        return "B", "중"
+    if s in ("C", "하", "L", "LOW"):
+        return "C", "하"
+    return "A", "상"
+
+
+def refresh_run_stats_v2(cur, run_id: str, dst_db: str = "lab225_v2"):
+    """`sensor_telemetry` 실제 적재 행 기준으로 `transport_runs` 집계 통계를 오차 없이 재계산(중복 카운트 원천 방지)"""
+    if not run_id:
+        return
+    cur.execute(
+        f"""
+        UPDATE `{dst_db}`.`transport_runs` tr
+        JOIN (
+            SELECT run_id,
+                   MIN(measured_at) AS min_m,
+                   MAX(measured_at) AS max_m,
+                   COUNT(*) AS pkt_cnt,
+                   SUM(CASE WHEN gps_state IN ('FIX', 'TUNNEL') AND lat != 0 AND lng != 0 THEN 1 ELSE 0 END) AS v_gps_cnt,
+                   ROUND(MIN(temperature), 2) AS min_t,
+                   ROUND(MAX(temperature), 2) AS max_t,
+                   ROUND(AVG(temperature), 2) AS avg_t,
+                   ROUND(MAX(g_force), 2) AS max_g,
+                   ROUND(MAX(speed), 1) AS max_spd,
+                   SUM(CASE WHEN event_type = 'SHOCK' OR g_force >= 1.8 THEN 1 ELSE 0 END) AS shk_cnt
+            FROM `{dst_db}`.`sensor_telemetry`
+            WHERE run_id = %s
+            GROUP BY run_id
+        ) agg ON tr.run_id = agg.run_id
+        SET tr.started_at = agg.min_m,
+            tr.ended_at = agg.max_m,
+            tr.packet_cnt = agg.pkt_cnt,
+            tr.valid_gps_cnt = agg.v_gps_cnt,
+            tr.min_temp = agg.min_t,
+            tr.max_temp = agg.max_t,
+            tr.avg_temp = agg.avg_t,
+            tr.max_g_force = agg.max_g,
+            tr.max_speed = agg.max_spd,
+            tr.shock_cnt = agg.shk_cnt,
+            tr.run_type = IF(tr.run_type = 'NOISE' AND (agg.v_gps_cnt > 0 OR agg.pkt_cnt >= 4), 'FIELD_DRIVE', tr.run_type)
+        """,
+        (run_id,),
+    )
+
+
+def refresh_shipment_stats_v2(cur, dst_db: str = "lab225_v2", lot_id: str = None):
+    """
+    센서 패킷과 QR 스캔의 도착 순서가 엇갈려도 `shipments`의 1·2구간 요약 통계
+    (run_id, device_id, gps_points_cnt, avg_temp, max_g_force)를 정확히 동기화합니다.
+    """
+    where_clause = "WHERE lot_id = %s" if lot_id else "WHERE status = 'IN_TRANSIT' OR gps_points_cnt = 0 OR run_id IS NULL OR departed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
+    params = (lot_id,) if lot_id else ()
+    cur.execute(f"SELECT * FROM `{dst_db}`.`shipments` {where_clause}", params)
+    sh_rows = cur.fetchall()
+    for sh in sh_rows:
+        sh_id = sh["shipment_id"]
+        leg_no = int(sh["leg_no"])
+        dev = sh.get("device_id")
+        dep_dt = parse_dt_safe(sh.get("departed_at"))
+        arr_dt = parse_dt_safe(sh.get("arrived_at"))
+        if not dep_dt:
+            continue
+
+        if leg_no == 1 and arr_dt:
+            win_s = (arr_dt - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+            win_e = arr_dt.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            win_s = dep_dt.strftime("%Y-%m-%d %H:%M:%S")
+            win_e = (arr_dt if arr_dt else (dep_dt + timedelta(hours=12))).strftime("%Y-%m-%d %H:%M:%S")
+
+        order_clause = "MAX(measured_at) DESC, cnt DESC" if leg_no == 1 else "cnt DESC, MAX(measured_at) DESC"
+        match = None
+        if dev:
+            cur.execute(
+                f"""
+                SELECT run_id, device_id, MIN(measured_at) AS min_t, COUNT(*) AS cnt,
+                       AVG(temperature) AS avg_t, MAX(g_force) AS max_g
+                FROM `{dst_db}`.`sensor_telemetry`
+                WHERE device_id = %s AND gps_state != 'INDOOR' AND lat != 0 AND lng != 0
+                  AND measured_at >= %s AND measured_at <= %s
+                GROUP BY run_id, device_id ORDER BY {order_clause} LIMIT 1
+                """,
+                (dev, win_s, win_e),
+            )
+            match = cur.fetchone()
+        if not match:
+            order_clause_st = "MAX(st.measured_at) DESC, cnt DESC" if leg_no == 1 else "cnt DESC, MAX(st.measured_at) DESC"
+            cur.execute(
+                f"""
+                SELECT st.run_id, st.device_id, MIN(st.measured_at) AS min_t, COUNT(*) AS cnt,
+                       AVG(st.temperature) AS avg_t, MAX(st.g_force) AS max_g
+                FROM `{dst_db}`.`sensor_telemetry` st
+                JOIN `{dst_db}`.`transport_runs` tr ON st.run_id = tr.run_id
+                WHERE tr.run_type = 'FIELD_DRIVE' AND st.gps_state != 'INDOOR' AND st.lat != 0 AND st.lng != 0
+                  AND st.measured_at >= %s AND st.measured_at <= %s
+                GROUP BY st.run_id, st.device_id ORDER BY {order_clause_st} LIMIT 1
+                """,
+                (win_s, win_e),
+            )
+            match = cur.fetchone()
+
+        if match and int(match["cnt"] or 0) > 0:
+            new_dep = (
+                match["min_t"].strftime("%Y-%m-%d %H:%M:%S")
+                if (leg_no == 1 and match.get("min_t"))
+                else dep_dt.strftime("%Y-%m-%d %H:%M:%S")
+            )
+            cur.execute(
+                f"""
+                UPDATE `{dst_db}`.`shipments`
+                SET device_id = COALESCE(%s, device_id),
+                    run_id = %s,
+                    departed_at = %s,
+                    gps_points_cnt = %s,
+                    avg_temp = %s,
+                    max_g_force = %s
+                WHERE shipment_id = %s
+                """,
+                (
+                    match["device_id"],
+                    match["run_id"],
+                    new_dep,
+                    int(match["cnt"]),
+                    round(float(match["avg_t"]), 2) if match["avg_t"] is not None else None,
+                    round(float(match["max_g"]), 2) if match["max_g"] is not None else None,
+                    sh_id,
+                ),
+            )
+
+
+def upsert_sensor_packet_v2(cur, record: dict, dst_db: str = "lab225_v2", refresh_stats: bool = True):
     """단일 센서 패킷을 정규화 테이블(`transport_runs` + `sensor_telemetry`)에 멱등 적재"""
     raw_dev = str(record.get("device") or "carrier-c6-01").strip()
     norm_dev = "carrier-c6-01" if raw_dev == "truck01" else raw_dev
@@ -122,17 +258,9 @@ def upsert_sensor_packet_v2(cur, record: dict, dst_db: str = "lab225_v2"):
              min_temp, max_temp, avg_temp, max_g_force, max_speed, shock_cnt)
         VALUES (%s, %s, %s, %s, %s, 1, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
-            run_type = IF(run_type = 'NOISE' AND (VALUES(valid_gps_cnt) > 0 OR packet_cnt >= 3), 'FIELD_DRIVE', run_type),
+            run_type = IF(run_type = 'NOISE' AND VALUES(valid_gps_cnt) > 0, 'FIELD_DRIVE', run_type),
             started_at = LEAST(IFNULL(started_at, VALUES(started_at)), VALUES(started_at)),
-            ended_at = GREATEST(IFNULL(ended_at, VALUES(ended_at)), VALUES(ended_at)),
-            avg_temp = ROUND(((IFNULL(avg_temp, 0) * packet_cnt) + VALUES(avg_temp)) / (packet_cnt + 1), 2),
-            packet_cnt = packet_cnt + 1,
-            valid_gps_cnt = valid_gps_cnt + VALUES(valid_gps_cnt),
-            min_temp = LEAST(IFNULL(min_temp, VALUES(min_temp)), VALUES(min_temp)),
-            max_temp = GREATEST(IFNULL(max_temp, VALUES(max_temp)), VALUES(max_temp)),
-            max_g_force = GREATEST(IFNULL(max_g_force, 1.0), VALUES(max_g_force)),
-            max_speed = GREATEST(IFNULL(max_speed, 0), VALUES(max_speed)),
-            shock_cnt = shock_cnt + VALUES(shock_cnt)
+            ended_at = GREATEST(IFNULL(ended_at, VALUES(ended_at)), VALUES(ended_at))
         """,
         (run_id, norm_dev, init_type, meas_str, meas_str, is_valid_gps, temp, temp, temp, g_force, speed, is_shock),
     )
@@ -145,10 +273,15 @@ def upsert_sensor_packet_v2(cur, record: dict, dst_db: str = "lab225_v2"):
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         ON DUPLICATE KEY UPDATE
             g_force = GREATEST(g_force, VALUES(g_force)),
+            gps_state = VALUES(gps_state),
+            event_type = VALUES(event_type),
             raw_status = VALUES(raw_status)
         """,
         (run_id, norm_dev, meas_str, temp, humi, lux, g_force, speed, lat, lng, gps_state, event_type, raw_status),
     )
+
+    if refresh_stats:
+        refresh_run_stats_v2(cur, run_id, dst_db=dst_db)
 
 
 def parse_sensor_status_safe(raw_status, lat, lng, g_force):
@@ -365,14 +498,21 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
         )
 
     elif stage in ("A13", "A14", "A15", "A16"):
-        pkg_id = f"{lot_id}-A"
+        g_code, g_ko = normalize_pkg_grade(row.get("pkg_grade"))
+        pkg_id = f"{lot_id}-{g_code}"
+        grade_col_map = {"A": "AGrade", "B": "BGrade", "C": "CGrade"}
+        try:
+            g_qty_val = int(float(str(row.get(grade_col_map[g_code]) or qt or 0).strip()))
+        except Exception:
+            g_qty_val = qt
+
         cur.execute(
             f"""
             INSERT IGNORE INTO `{dst_db}`.`sorted_lots`
                 (pkg_id, lot_id, grade_code, grade_label_ko, grade_qty, is_shippable, current_stage, sorted_at)
-            VALUES (%s, %s, 'A', '상', %s, 1, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, 1, %s, %s)
             """,
-            (pkg_id, lot_id, qt, stage, now_kst.strftime("%Y-%m-%d %H:%M:%S")),
+            (pkg_id, lot_id, g_code, g_ko, g_qty_val, stage, now_kst.strftime("%Y-%m-%d %H:%M:%S")),
         )
         cur.execute(f"UPDATE `{dst_db}`.`sorted_lots` SET current_stage = %s WHERE pkg_id = %s", (stage, pkg_id))
 
@@ -431,7 +571,7 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
                     f"""
                     SELECT run_id, device_id, COUNT(*) AS cnt, AVG(temperature) AS avg_t, MAX(g_force) AS max_g
                     FROM `{dst_db}`.`sensor_telemetry`
-                    WHERE device_id = %s AND gps_state != 'INDOOR'
+                    WHERE device_id = %s AND gps_state != 'INDOOR' AND lat != 0 AND lng != 0
                       AND measured_at >= %s AND measured_at <= %s
                     GROUP BY run_id, device_id ORDER BY cnt DESC LIMIT 1
                     """,
@@ -444,7 +584,7 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
                     SELECT st.run_id, st.device_id, COUNT(*) AS cnt, AVG(st.temperature) AS avg_t, MAX(st.g_force) AS max_g
                     FROM `{dst_db}`.`sensor_telemetry` st
                     JOIN `{dst_db}`.`transport_runs` tr ON st.run_id = tr.run_id
-                    WHERE tr.run_type = 'FIELD_DRIVE' AND st.gps_state != 'INDOOR'
+                    WHERE tr.run_type = 'FIELD_DRIVE' AND st.gps_state != 'INDOOR' AND st.lat != 0 AND st.lng != 0
                       AND st.measured_at >= %s AND st.measured_at <= %s
                     GROUP BY st.run_id, st.device_id ORDER BY cnt DESC LIMIT 1
                     """,
@@ -462,9 +602,9 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
                     run_id = COALESCE(VALUES(run_id), run_id),
                     arrived_at = VALUES(arrived_at),
                     status = 'ARRIVED',
-                    gps_points_cnt = VALUES(gps_points_cnt),
-                    avg_temp = VALUES(avg_temp),
-                    max_g_force = VALUES(max_g_force)
+                    gps_points_cnt = IF(VALUES(gps_points_cnt) > 0, VALUES(gps_points_cnt), gps_points_cnt),
+                    avg_temp = COALESCE(VALUES(avg_temp), avg_temp),
+                    max_g_force = COALESCE(VALUES(max_g_force), max_g_force)
                 """,
                 (
                     lot_id, pkg_id,
@@ -485,6 +625,7 @@ def sync_v1_delta_to_v2(conn, src_db: str = "lab225", dst_db: str = "lab225_v2")
     """
     synced_sensors = 0
     synced_qr = 0
+    touched_runs = set()
     with conn.cursor() as cur:
         cur.execute("SET SESSION sql_mode = ''")
         cur.execute(f"SELECT source_table, last_id FROM `{dst_db}`.`_sync_watermark`")
@@ -500,7 +641,11 @@ def sync_v1_delta_to_v2(conn, src_db: str = "lab225", dst_db: str = "lab225_v2")
         new_sd_rows = cur.fetchall()
         if new_sd_rows:
             for s_row in new_sd_rows:
-                upsert_sensor_packet_v2(cur, s_row, dst_db=dst_db)
+                upsert_sensor_packet_v2(cur, s_row, dst_db=dst_db, refresh_stats=False)
+                r_id = str(s_row.get("run_id") or "default_run").strip() or "default_run"
+                touched_runs.add(r_id)
+            for r_id in touched_runs:
+                refresh_run_stats_v2(cur, r_id, dst_db=dst_db)
             new_max_sd = int(new_sd_rows[-1]["id"])
             cur.execute(
                 f"""
@@ -531,6 +676,10 @@ def sync_v1_delta_to_v2(conn, src_db: str = "lab225", dst_db: str = "lab225_v2")
                 (new_max_qr,),
             )
             synced_qr = len(new_qr_rows)
+
+        # 3) 센서 패킷과 QR 스캔 도착 순서가 엇갈린 경우에도 shipments 통계 자동 보정
+        if synced_sensors or synced_qr:
+            refresh_shipment_stats_v2(cur, dst_db=dst_db)
 
     if synced_sensors or synced_qr:
         conn.commit()

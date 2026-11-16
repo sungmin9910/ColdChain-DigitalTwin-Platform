@@ -135,6 +135,23 @@ def get_fmid(url):
         pass
     return "NULL"
 
+def extract_grade_code(url):
+    raw_g = get_query_param(url, "grade")
+    if raw_g in ("NULL", "''"):
+        raw_g = get_query_param(url, "pkg_grade")
+    if raw_g in ("NULL", "''"):
+        return ""
+    g_clean = raw_g.strip("'").strip()
+    g_up = g_clean.upper()
+    if g_up in ("B", "M", "MEDIUM") or "중" in g_clean:
+        return "B"
+    if g_up in ("C", "L", "LOW") or "하" in g_clean:
+        return "C"
+    if g_up in ("A", "H", "HIGH") or "상" in g_clean:
+        return "A"
+    return ""
+
+
 def process_scan(scanned_data):
     global current_mode
     
@@ -160,8 +177,12 @@ def process_scan(scanned_data):
         print(f"스캔된 원본: {scanned_data}\n")
         return
 
+    scanned_grade = extract_grade_code(scanned_data)
+    clean_fmid = fmid.strip("'")
+    display_pkg_id = f"'{clean_fmid}-{scanned_grade}'" if scanned_grade else fmid
+
     print(f"\n[*] QR 코드 스캔 감지: {COLOR_GREEN}{scanned_data}{COLOR_RESET}")
-    print(f"[*] 추출된 농가 ID (FmID): {COLOR_YELLOW}{fmid}{COLOR_RESET}")
+    print(f"[*] 추출된 대상 ID: {COLOR_YELLOW}{display_pkg_id}{COLOR_RESET}")
 
     ac = get_query_param(scanned_data, "AC")
     frt = get_query_param(scanned_data, "FrT")
@@ -180,26 +201,44 @@ def process_scan(scanned_data):
     lat, lon, tp, hm, dev = get_latest_sensor_data()
     print(f"[+] 최근 센서 데이터 -> Device: {dev}, Lat: {lat}, Lng: {lon}, Temp: {tp}, Hum: {hm}")
 
-    # 타겟 단계 결정 (AUTO 지능형 자동 판단 vs 수동 지정)
+    # 타겟 단계 결정 (AUTO 지능형 자동 판단 vs 수동 지정 - A/B/C 등급별 독립 상태 머신)
     target_mode = current_mode
     if current_mode == "AUTO":
-        print(f"[*] 🤖 [AUTO] DB에서 상자(FmID: {fmid})의 최근 이력 조회 중...")
+        print(f"[*] 🤖 [AUTO] DB에서 상자({display_pkg_id})의 최근 이력 조회 중...")
         last_lo = "NONE"
         conn_chk = None
         try:
             conn_chk = get_db_connection()
             with conn_chk.cursor() as cur:
-                cur.execute(f"SELECT Lo FROM lab225.qr WHERE FmID = {fmid} ORDER BY id DESC LIMIT 1")
-                row = cur.fetchone()
-                if row and row[0]:
-                    last_lo = str(row[0]).strip().upper()
+                if scanned_grade:
+                    cur.execute(
+                        f"SELECT Lo FROM lab225.qr WHERE FmID = {fmid} "
+                        f"AND Lo IN ('A13','A14','A15','A16') AND COALESCE(pkg_grade, 'A') = '{scanned_grade}' "
+                        f"ORDER BY id DESC LIMIT 1"
+                    )
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        last_lo = str(row[0]).strip().upper()
+                    if last_lo == "NONE":
+                        cur.execute(
+                            f"SELECT Lo FROM lab225.qr WHERE FmID = {fmid} "
+                            f"AND Lo IN ('A00','A10','A11','A12') ORDER BY id DESC LIMIT 1"
+                        )
+                        row2 = cur.fetchone()
+                        if row2 and row2[0]:
+                            last_lo = str(row2[0]).strip().upper()
+                else:
+                    cur.execute(f"SELECT Lo FROM lab225.qr WHERE FmID = {fmid} ORDER BY id DESC LIMIT 1")
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        last_lo = str(row[0]).strip().upper()
         except Exception as e:
             print(f"{COLOR_RED}[-] 이전 이력 조회 실패: {e}{COLOR_RESET}")
         finally:
             if conn_chk:
                 conn_chk.close()
         
-        print(f"[*] 최근 기록된 단계(Lo): {COLOR_BLUE}{last_lo}{COLOR_RESET}")
+        print(f"[*] 최근 기록된 단계(Lo): {COLOR_BLUE}{last_lo}{COLOR_RESET} (대상: {display_pkg_id})")
         if last_lo in ["NONE", "A00"]:
             target_mode = "A10"
         elif last_lo == "A10":
@@ -213,9 +252,12 @@ def process_scan(scanned_data):
         elif last_lo == "A15":
             target_mode = "A16"
         elif last_lo == "A16":
-            print(f"{COLOR_YELLOW}[!] 이미 판매처 도착(A16)까지 모든 단계가 완료된 상자입니다.{COLOR_RESET}\n")
+            print(f"{COLOR_YELLOW}[!] 이미 판매처 도착(A16)까지 모든 단계가 완료된 등급 상자입니다 ({display_pkg_id}).{COLOR_RESET}\n")
             return
-        print(f"[*] 🎯 [AUTO 판단 결과] 다음 진행 단계: {COLOR_GREEN}★ {target_mode} ★{COLOR_RESET}")
+        print(f"[*] 🎯 [AUTO 판단 결과] 다음 진행 단계: {COLOR_GREEN}★ {target_mode} ({display_pkg_id}) ★{COLOR_RESET}")
+
+    eff_grade = scanned_grade if scanned_grade else "A"
+    sql_grade = f"'{eff_grade}'"
 
     # 모드에 맞게 쿼리 생성
     query = ""
@@ -238,27 +280,27 @@ def process_scan(scanned_data):
         """
     elif target_mode == "A13":
         query = f"""
-        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device)
-        SELECT 'A13', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, NOW(), {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE(truck_device, {dev})
+        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade)
+        SELECT 'A13', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, NOW(), {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE(truck_device, {dev}), {sql_grade}
         FROM lab225.qr WHERE Lo IN ('A12', 'A11') AND FmID = {fmid} ORDER BY id DESC LIMIT 1
         """
     elif target_mode == "A14":
         query = f"""
-        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device)
-        SELECT 'A14', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, NOW(), {tp}, {hm}, {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE(truck_device, {dev})
-        FROM lab225.qr WHERE Lo = 'A13' AND FmID = {fmid} ORDER BY id DESC LIMIT 1
+        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade)
+        SELECT 'A14', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, NOW(), {tp}, {hm}, {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE(truck_device, {dev}), {sql_grade}
+        FROM lab225.qr WHERE Lo = 'A13' AND FmID = {fmid} AND COALESCE(pkg_grade, 'A') = {sql_grade} ORDER BY id DESC LIMIT 1
         """
     elif target_mode == "A15":
         query = f"""
-        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device)
-        SELECT 'A15', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, NOW(), Tp, Hm, {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE({dev}, truck_device)
-        FROM lab225.qr WHERE Lo = 'A14' AND FmID = {fmid} ORDER BY id DESC LIMIT 1
+        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade)
+        SELECT 'A15', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, NOW(), Tp, Hm, {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE({dev}, truck_device), {sql_grade}
+        FROM lab225.qr WHERE Lo = 'A14' AND FmID = {fmid} AND COALESCE(pkg_grade, 'A') = {sql_grade} ORDER BY id DESC LIMIT 1
         """
     elif target_mode == "A16":
         query = f"""
-        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Retail_AD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device)
-        SELECT 'A16', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, NOW(), Tp, Hm, {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE(truck_device, {dev})
-        FROM lab225.qr WHERE Lo = 'A15' AND FmID = {fmid} ORDER BY id DESC LIMIT 1
+        INSERT INTO lab225.qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, Retail_AD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade)
+        SELECT 'A16', AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp, APC_AD, APC_WD, APC_RT, APC_PT, APC_StD, APC_OP, NOW(), Tp, Hm, {lat}, {lon}, AGrade, BGrade, CGrade, DefectRate, COALESCE(truck_device, {dev}), {sql_grade}
+        FROM lab225.qr WHERE Lo = 'A15' AND FmID = {fmid} AND COALESCE(pkg_grade, 'A') = {sql_grade} ORDER BY id DESC LIMIT 1
         """
 
     conn = None

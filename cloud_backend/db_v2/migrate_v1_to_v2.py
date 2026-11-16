@@ -155,7 +155,9 @@ def classify_run_type(run_id: str, raw_device: str, pkt_cnt: int, valid_gps_cnt:
 def parse_sensor_status(status_str: str, lat: float, lng: float, g_force: float):
     s = status_str or ""
     gps_valid = (lat != 0.0 and lng != 0.0 and abs(lat) > 1.0)
-    if "[터널]" in s:
+    if "[실내]" in s or "[대기]" in s:
+        gps_state = "INDOOR"
+    elif "[터널]" in s:
         gps_state = "TUNNEL"
     elif gps_valid:
         gps_state = "FIX"

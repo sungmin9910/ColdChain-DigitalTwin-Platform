@@ -276,8 +276,8 @@ def save_and_generate():
             [a_text_label, b_text_label, c_text_label],
             ['상', '중', '하'], ['A', 'B', 'C'])):
 
-            # ESP32 호환성 및 안전한 데이터 전달을 위해 파라미터 구성 유지
-            qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app//?FmID={prev_data['FmID']}&grade={grade_name_kr}&AC={prev_data.get('AC','')}&FrT={prev_data.get('FrT','')}"
+            # ESP32 호환성(ASCII 등급 코드 병기) 및 안전한 데이터 전달을 위해 파라미터 구성 유지
+            qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/?FmID={prev_data['FmID']}&grade={grade_name_kr}&pkg_grade={grade_name_en}&AC={prev_data.get('AC','')}&FrT={prev_data.get('FrT','')}"
             img = generate_qr_with_image(qr_url, prev_data["FrT"], i)
             qr_filename = f"{prev_data['FmID']}_{grade_name_en}_QR.png"
             img.save(qr_filename)
