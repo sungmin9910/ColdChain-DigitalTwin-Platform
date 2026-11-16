@@ -676,6 +676,22 @@ def main():
             conn.commit()
             print(f"[3/4] 원물·선별·타임라인·운송 이관 완료: 총 {len(lots_group)}개 원물 Lot 정규화 완료")
 
+            # 증분 동기화 워터마크 초기화 (현재까지 이관된 lab225 원본 MAX(id) 기록)
+            cur.execute(f"SELECT COALESCE(MAX(id), 0) AS mid FROM `{SRC_DB}`.`qr`")
+            max_qr_id = int(cur.fetchone()["mid"] or 0)
+            cur.execute(f"SELECT COALESCE(MAX(id), 0) AS mid FROM `{SRC_DB}`.`sensor_data`")
+            max_sd_id = int(cur.fetchone()["mid"] or 0)
+            cur.execute(
+                f"""
+                INSERT INTO `{DST_DB}`.`_sync_watermark` (source_table, last_id)
+                VALUES ('qr', %s), ('sensor_data', %s)
+                ON DUPLICATE KEY UPDATE last_id = VALUES(last_id)
+                """,
+                (max_qr_id, max_sd_id),
+            )
+            conn.commit()
+            print(f"      -> 증분 브릿지 워터마크 기록 완료: qr.last_id={max_qr_id}, sensor_data.last_id={max_sd_id}")
+
             # 4) 사후 무결성 & JOIN 검증 리포트 출력
             print("\n============================================================")
             print(f" [4/4] `{DST_DB}` 마이그레이션 무결성 및 JOIN 사전 검증 리포트")

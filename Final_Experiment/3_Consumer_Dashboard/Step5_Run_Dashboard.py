@@ -9,8 +9,14 @@ import io
 from PIL import Image
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+import sys
 
 load_dotenv()
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+from cloud_backend.db_v2.bridge_sync import sync_v1_delta_to_v2, make_sha256
 
 # --- 다국어 설정 (Localization) ---
 LANG_DICT = {
@@ -73,6 +79,10 @@ LANG_DICT = {
         'origin_default': "대한민국",
         'stage_A00_title': "🌱 농장 수확",
         'stage_A00_desc': "정성껏 재배한 과일을 정직하게 수확했습니다.",
+        'stage_A01_title': "🏡 농가 저온저장",
+        'stage_A01_desc': "수확 직후 산지 저온저장고에서 예냉 및 신선 보관을 거쳤습니다.",
+        'stage_A02_title': "🚜 산지 출하",
+        'stage_A02_desc': "산지유통센터(APC)를 향해 안전하게 운송을 시작했습니다.",
         'stage_A10_title': "🏢 입고",
         'stage_A10_desc': "생산지에서 신선한 상태로 센터에 도착했습니다.",
         'stage_A11_title': "💦 세척",
@@ -157,6 +167,10 @@ LANG_DICT = {
         'origin_default': "Republic of Korea",
         'stage_A00_title': "🌱 Harvest",
         'stage_A00_desc': "Carefully cultivated fruit has been honestly harvested.",
+        'stage_A01_title': "🏡 Farm Cold Storage",
+        'stage_A01_desc': "Pre-cooled and stored fresh at the farm's cold storage facility.",
+        'stage_A02_title': "🚜 Farm Dispatch",
+        'stage_A02_desc': "Departed safely from the farm toward the APC sorting center.",
         'stage_A10_title': "🏢 Receiving",
         'stage_A10_desc': "Arrived at the APC center in a fresh state from the farm.",
         'stage_A11_title': "💦 Washing",
@@ -440,25 +454,27 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- DB 설정 ---
+# --- DB 설정 (v2 정규화 DB 메인 + v1 스캐너 호환 브릿지) ---
 DB_HOST = os.getenv("DB_HOST", "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com")
 DB_FALLBACK_HOST = "15.165.68.30"
 DB_USER = "admin"
 DB_PASSWORD = os.getenv("DB_PASSWORD", "12345678")
-DB_NAME = "lab225"
+DB_NAME = os.getenv("MYSQL_V2_DATABASE", "lab225_v2")
+DB_V1_NAME = os.getenv("MYSQL_DATABASE", "lab225")
 DB_PORT = 3306
 
-def get_db_connection():
+def get_db_connection(db_name=None):
+    target_db = db_name or DB_NAME
     try:
         return pymysql.connect(
             host=DB_HOST, user=DB_USER, password=DB_PASSWORD,
-            database=DB_NAME, port=DB_PORT, charset="utf8mb4",
+            database=target_db, port=DB_PORT, charset="utf8mb4",
             connect_timeout=8, cursorclass=pymysql.cursors.DictCursor
         )
     except Exception:
         return pymysql.connect(
             host=DB_FALLBACK_HOST, user=DB_USER, password=DB_PASSWORD,
-            database=DB_NAME, port=DB_PORT, charset="utf8mb4",
+            database=target_db, port=DB_PORT, charset="utf8mb4",
             connect_timeout=8, cursorclass=pymysql.cursors.DictCursor
         )
 
@@ -754,38 +770,89 @@ if not fm_id:
                 f_qt = st.number_input("총 수확 수량 (Quantity, Qt)", min_value=1, max_value=99999, value=100)
                 f_std = st.date_input("저온 저장일 (Storage Date, StD)", value=datetime.now(timezone(timedelta(hours=9))).date())
 
-            if st.button("🛡️ DB 저장 (A00) + 무색 농가 QR 생성", use_container_width=True, type="primary"):
+            if st.button("🛡️ DB 저장 (A00~A02 정규화) + 무색 농가 QR 생성", use_container_width=True, type="primary"):
                 try:
                     conn_p = get_db_connection()
+                    sync_v1_delta_to_v2(conn_p, src_db=DB_V1_NAME, dst_db=DB_NAME)
                     cur_p = conn_p.cursor()
                     cur_p.execute("SET time_zone = '+09:00'")
-                    cur_p.execute("SELECT DATE_FORMAT(NOW(), '%H:%i:%s') as srv_t")
-                    srv_t = cur_p.fetchone()["srv_t"]
-                    hd_full_str = f"{f_hd.strftime('%Y-%m-%d')} {srv_t}"
+                    cur_p.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_dt, DATE_FORMAT(NOW(), '%H:%i:%s') as srv_t")
+                    srv_info = cur_p.fetchone()
+                    srv_now_str = srv_info["srv_dt"]
+                    srv_now_dt = datetime.strptime(srv_now_str, "%Y-%m-%d %H:%M:%S")
+                    hd_full_str = f"{f_hd.strftime('%Y-%m-%d')} {srv_info['srv_t']}"
+                    dt_a00 = datetime.strptime(hd_full_str, "%Y-%m-%d %H:%M:%S")
+                    if dt_a00 > srv_now_dt:
+                        dt_a00 = srv_now_dt - timedelta(seconds=2)
+                        hd_full_str = dt_a00.strftime("%Y-%m-%d %H:%M:%S")
+                    dt_a01 = datetime(f_std.year, f_std.month, f_std.day, 9, 0, 0) if f_std > dt_a00.date() else (dt_a00 + timedelta(seconds=1))
+                    dt_a02 = max(srv_now_dt, dt_a01 + timedelta(seconds=1))
+
                     std_str = f_std.strftime("%Y-%m-%d")
                     dd_str = f_dd.strftime("%Y-%m-%d")
+                    lot_id_val = str(f_fmid).strip()
 
-                    cur_p.execute("""
-                        INSERT INTO qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp)
+                    # 1) 물리 ESP32 스캐너 호환을 위해 기존 lab225.qr에도 A00 기록 후 워터마크 동기화
+                    cur_p.execute(f"""
+                        INSERT INTO `{DB_V1_NAME}`.`qr` (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
-                        "A00", f_ac, str(f_fmid).strip(), f_frt, f_vt, f_ct.strip(),
+                        "A00", f_ac, lot_id_val, f_frt, f_vt, f_ct.strip(),
                         hd_full_str, dd_str, str(f_qt), f_mt, str(f_hn), std_str, None
                     ))
+                    v1_qr_id = cur_p.lastrowid
+
+                    # 2) lab225_v2 정규화 저장: harvest_lots + stage_events(A00·A01·A02) + shipments(leg=1 오픈)
+                    cur_p.execute(f"""
+                        INSERT INTO `{DB_NAME}`.`harvest_lots`
+                        (lot_id, origin_zip, fruit_type, variety, farmer_phone, cultivation,
+                         harvest_no, total_qty, harvest_date, storage_date, deliver_date,
+                         ag_practice, current_stage, is_test, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, 'A02', 0, %s)
+                        ON DUPLICATE KEY UPDATE
+                            origin_zip=VALUES(origin_zip), fruit_type=VALUES(fruit_type), variety=VALUES(variety),
+                            farmer_phone=VALUES(farmer_phone), cultivation=VALUES(cultivation), harvest_no=VALUES(harvest_no),
+                            total_qty=VALUES(total_qty), harvest_date=VALUES(harvest_date), storage_date=VALUES(storage_date),
+                            deliver_date=VALUES(deliver_date), current_stage='A02', is_test=0
+                    """, (
+                        lot_id_val, f_ac, f_frt, f_vt, f_ct.strip(), f_mt,
+                        int(f_hn), int(f_qt), f_hd.strftime("%Y-%m-%d"), std_str, dd_str, hd_full_str
+                    ))
+
+                    a00_hash = make_sha256({"lot_id": lot_id_val, "stage": "A00", "ac": f_ac, "qt": int(f_qt), "hd": hd_full_str})
+                    for s_cd, s_dt, s_h in [("A00", dt_a00, a00_hash), ("A01", dt_a01, None), ("A02", dt_a02, None)]:
+                        cur_p.execute(f"""
+                            INSERT INTO `{DB_NAME}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, tx_hash)
+                            VALUES (%s, NULL, %s, %s, %s)
+                            ON DUPLICATE KEY UPDATE event_at=VALUES(event_at), tx_hash=COALESCE(VALUES(tx_hash), tx_hash)
+                        """, (lot_id_val, s_cd, s_dt.strftime("%Y-%m-%d %H:%M:%S"), s_h))
+
+                    cur_p.execute(f"""
+                        INSERT INTO `{DB_NAME}`.`shipments` (leg_no, lot_id, pkg_id, departed_at, status)
+                        VALUES (1, %s, NULL, %s, 'IN_TRANSIT')
+                        ON DUPLICATE KEY UPDATE departed_at=VALUES(departed_at), status='IN_TRANSIT'
+                    """, (lot_id_val, dt_a02.strftime("%Y-%m-%d %H:%M:%S")))
+
+                    if v1_qr_id:
+                        cur_p.execute(f"""
+                            INSERT INTO `{DB_NAME}`.`_sync_watermark` (source_table, last_id)
+                            VALUES ('qr', %s) ON DUPLICATE KEY UPDATE last_id=GREATEST(last_id, VALUES(last_id))
+                        """, (v1_qr_id,))
+
                     conn_p.commit()
                     conn_p.close()
 
                     q_params = {
-                        "AC": f_ac, "FmID": str(f_fmid).strip(), "Ct": f_ct.strip(), "FrT": f_frt,
+                        "AC": f_ac, "FmID": lot_id_val, "Ct": f_ct.strip(), "FrT": f_frt,
                         "Vt": f_vt, "HD": hd_full_str, "DD": dd_str, "StD": std_str,
                         "Mt": f_mt, "HN": str(f_hn), "Qt": str(f_qt),
                     }
                     farm_qr_url = f"{STREAMLIT_BASE_URL}?{urlencode(q_params)}"
-                    farm_fn = f"{f_ac}{str(f_fmid).strip()}{f_hd.strftime('%y%m%d')}_QR.png"
+                    farm_fn = f"{f_ac}{lot_id_val}{f_hd.strftime('%y%m%d')}_QR.png"
                     st.session_state["last_farm_qr"] = {
                         "bytes": _make_portal_qr_bytes(farm_qr_url, FARM_ICONS.get(f_frt, "apple.png"), rounded=True),
                         "filename": farm_fn,
-                        "fmid": str(f_fmid).strip(),
+                        "fmid": lot_id_val,
                         "hd_full": hd_full_str,
                     }
                 except Exception as ex_f:
@@ -808,18 +875,23 @@ if not fm_id:
             st.subheader("🏭 A12 선별 및 등급 판정 (무색 QR 스캔 / FmID 입력 ➔ 난수 배분 ➔ 유색 QR 자동 생성)")
             st.caption("기존 APC GUI(Step 3)와 100% 동일하게 DB에서 A11(세척 완료) 데이터를 확인한 뒤 난수로 A/B/C 등급을 나누고 즉시 유색 QR 3종을 생성합니다.")
 
-            # A11 완료 후보 조회
+            # A11 완료 후보 조회 (방금 스캐너로 찍은 내역까지 증분 동기화 후 lab225_v2에서 조회)
             a11_candidates = []
             try:
                 conn_c = get_db_connection()
+                sync_v1_delta_to_v2(conn_c, src_db=DB_V1_NAME, dst_db=DB_NAME)
                 cur_c = conn_c.cursor()
-                cur_c.execute("SELECT FmID, FrT, Vt, Qt, APC_WD FROM qr WHERE Lo = 'A11' AND FmID IS NOT NULL ORDER BY APC_WD DESC, id DESC LIMIT 20")
-                seen_f = set()
-                for rc in cur_c.fetchall():
-                    fid = str(rc["FmID"])
-                    if fid not in seen_f:
-                        seen_f.add(fid)
-                        a11_candidates.append(rc)
+                cur_c.execute(f"""
+                    SELECT hl.lot_id AS FmID, hl.fruit_type AS FrT, hl.variety AS Vt,
+                           hl.total_qty AS Qt, se.event_at AS APC_WD
+                    FROM `{DB_NAME}`.`harvest_lots` hl
+                    JOIN `{DB_NAME}`.`stage_events` se
+                      ON hl.lot_id = se.lot_id AND se.stage_code = 'A11'
+                    WHERE hl.current_stage = 'A11'
+                    ORDER BY se.event_at DESC
+                    LIMIT 20
+                """)
+                a11_candidates = list(cur_c.fetchall())
                 conn_c.close()
             except Exception:
                 pass
@@ -848,16 +920,25 @@ if not fm_id:
                 else:
                     try:
                         conn_a = get_db_connection()
+                        sync_v1_delta_to_v2(conn_a, src_db=DB_V1_NAME, dst_db=DB_NAME)
                         cur_a = conn_a.cursor()
                         cur_a.execute("SET time_zone = '+09:00'")
-                        cur_a.execute("SELECT * FROM qr WHERE FmID = %s AND Lo = 'A11' ORDER BY APC_WD DESC, id DESC LIMIT 1", (target_fmid,))
-                        a11_row = cur_a.fetchone()
-                        if not a11_row:
+                        # harvest_lots 원물 마스터 참조 + A11 세척 완료 여부 검증
+                        cur_a.execute(f"""
+                            SELECT hl.*, se.lat AS a11_lat, se.lng AS a11_lng, se.event_at AS apc_wd_at
+                            FROM `{DB_NAME}`.`harvest_lots` hl
+                            JOIN `{DB_NAME}`.`stage_events` se
+                              ON hl.lot_id = se.lot_id AND se.stage_code = 'A11'
+                            WHERE hl.lot_id = %s
+                            LIMIT 1
+                        """, (target_fmid,))
+                        lot_row = cur_a.fetchone()
+                        if not lot_row:
                             conn_a.close()
                             st.session_state.pop("last_apc_qrs", None)
                             st.error(f"❌ DB에서 A11(세척 완료) 데이터를 찾을 수 없음! (FmID={target_fmid}: 이전 단계 A10 입고 및 A11 세척을 먼저 스캔해 주세요)")
                         else:
-                            tot_qt = int(a11_row.get("Qt") or 0)
+                            tot_qt = int(lot_row.get("total_qty") or 0)
                             if tot_qt > 0:
                                 def_v = random.randint(1, min(3, tot_qt))
                                 rem_d = tot_qt - def_v
@@ -877,26 +958,60 @@ if not fm_id:
                             cur_a.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_now")
                             srv_now = cur_a.fetchone()["srv_now"]
 
-                            ins_dict = dict(a11_row)
-                            ins_dict.update({
-                                "Lo": "A12",
-                                "AGrade": str(a_v),
-                                "BGrade": str(b_v),
-                                "CGrade": str(c_v),
-                                "DefectRate": str(def_v),
-                                "APC_RT": srv_now,
-                            })
-                            cur_a.execute("SHOW COLUMNS FROM qr")
-                            db_cols = {c["Field"] for c in cur_a.fetchall()}
-                            data_ins = {k: v for k, v in ins_dict.items() if k in db_cols and k != "id"}
-                            cols_s = ", ".join(data_ins.keys())
-                            ph_s = ", ".join([f"%({k})s" for k in data_ins.keys()])
-                            cur_a.execute(f"INSERT INTO qr ({cols_s}) VALUES ({ph_s})", data_ins)
+                            # 1) 방법 A 정규화 저장: sorted_lots에 A / B / C / DEFECT 4행 생성 + stage_events(A12)
+                            for p_id, g_cd, g_ko, g_cnt, ship, p_st in [
+                                (f"{target_fmid}-A", "A", "상", a_v, 1, "A12"),
+                                (f"{target_fmid}-B", "B", "중", b_v, 1, "A12"),
+                                (f"{target_fmid}-C", "C", "하", c_v, 1, "A12"),
+                                (f"{target_fmid}-DEF", "DEFECT", "결점과", def_v, 0, "REJECTED"),
+                            ]:
+                                cur_a.execute(f"""
+                                    INSERT INTO `{DB_NAME}`.`sorted_lots`
+                                    (pkg_id, lot_id, grade_code, grade_label_ko, grade_qty, is_shippable, current_stage, sorted_at)
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                    ON DUPLICATE KEY UPDATE grade_qty=VALUES(grade_qty), sorted_at=VALUES(sorted_at)
+                                """, (p_id, target_fmid, g_cd, g_ko, g_cnt, ship, p_st, srv_now))
+
+                            a12_hash = make_sha256({"lot_id": target_fmid, "stage": "A12", "A": a_v, "B": b_v, "C": c_v, "DEFECT": def_v, "rt": srv_now})
+                            cur_a.execute(f"""
+                                INSERT INTO `{DB_NAME}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, lat, lng, tx_hash)
+                                VALUES (%s, NULL, 'A12', %s, %s, %s, %s)
+                                ON DUPLICATE KEY UPDATE event_at=VALUES(event_at), tx_hash=VALUES(tx_hash)
+                            """, (target_fmid, srv_now, lot_row.get("a11_lat"), lot_row.get("a11_lng"), a12_hash))
+
+                            cur_a.execute(f"UPDATE `{DB_NAME}`.`harvest_lots` SET current_stage='A12' WHERE lot_id=%s", (target_fmid,))
+
+                            # 2) 물리 ESP32 스캐너가 A13으로 자동 전이할 수 있도록 기존 lab225.qr에도 A12 동기화 기록
+                            cur_a.execute(f"SELECT * FROM `{DB_V1_NAME}`.`qr` WHERE FmID=%s AND Lo='A11' ORDER BY id DESC LIMIT 1", (target_fmid,))
+                            v1_a11 = cur_a.fetchone()
+                            if v1_a11:
+                                ins_dict = dict(v1_a11)
+                                ins_dict.update({
+                                    "Lo": "A12",
+                                    "AGrade": str(a_v),
+                                    "BGrade": str(b_v),
+                                    "CGrade": str(c_v),
+                                    "DefectRate": str(def_v),
+                                    "APC_RT": srv_now,
+                                })
+                                cur_a.execute(f"SHOW COLUMNS FROM `{DB_V1_NAME}`.`qr`")
+                                db_cols = {c["Field"] for c in cur_a.fetchall()}
+                                data_ins = {k: v for k, v in ins_dict.items() if k in db_cols and k != "id"}
+                                cols_s = ", ".join(data_ins.keys())
+                                ph_s = ", ".join([f"%({k})s" for k in data_ins.keys()])
+                                cur_a.execute(f"INSERT INTO `{DB_V1_NAME}`.`qr` ({cols_s}) VALUES ({ph_s})", data_ins)
+                                v1_ins_id = cur_a.lastrowid
+                                if v1_ins_id:
+                                    cur_a.execute(f"""
+                                        INSERT INTO `{DB_NAME}`.`_sync_watermark` (source_table, last_id)
+                                        VALUES ('qr', %s) ON DUPLICATE KEY UPDATE last_id=GREATEST(last_id, VALUES(last_id))
+                                    """, (v1_ins_id,))
+
                             conn_a.commit()
                             conn_a.close()
 
-                            frt_name = str(a11_row.get("FrT") or "Apples")
-                            ac_val = str(a11_row.get("AC") or "")
+                            frt_name = str(lot_row.get("fruit_type") or "Apples")
+                            ac_val = str(lot_row.get("origin_zip") or "")
                             g_icons = GRADE_ICONS.get(frt_name, GRADE_ICONS["Apples"])
                             gen_list = []
                             for idx_g, (g_kr, g_en, g_cnt) in enumerate([("상", "A", a_v), ("중", "B", b_v), ("하", "C", c_v)]):
@@ -912,7 +1027,7 @@ if not fm_id:
                             st.session_state["last_apc_qrs"] = {
                                 "fmid": target_fmid,
                                 "apc_rt": srv_now,
-                                "row": a11_row,
+                                "row": lot_row,
                                 "grades": (a_v, b_v, c_v, def_v, tot_qt),
                                 "qrs": gen_list,
                             }
@@ -965,79 +1080,157 @@ def parse_kst_dt(val):
     except Exception:
         return None
 
-def fetch_sensor_segment(cursor, start_dt, end_dt, truck_dev=None):
-    if not start_dt or not end_dt or end_dt < start_dt:
+def fetch_shipment_telemetry(cursor, shipment_row):
+    """정규화 `shipments` 레코드(run_id + departed_at ~ arrived_at)로 `sensor_telemetry` 정밀 JOIN 조회"""
+    if not shipment_row:
         return []
-    start_s = start_dt.strftime("%Y-%m-%d %H:%M:%S")
-    end_s = end_dt.strftime("%Y-%m-%d %H:%M:%S")
-    params = [start_s, end_s]
-    dev_clause = ""
-    if truck_dev:
-        dev_clause = " AND device = %s"
-        params.append(truck_dev)
-    sql = f"""
-        SELECT timestamp_str, lat, lng, temperature, humidity, g_force, speed, device, run_id
-        FROM sensor_data
-        WHERE lat != 0 AND lng != 0 AND ABS(lat) > 1.0
-          AND timestamp_str >= %s AND timestamp_str <= %s
-          {dev_clause}
-        ORDER BY timestamp_str ASC, id ASC
-    """
-    cursor.execute(sql, tuple(params))
-    rows = list(cursor.fetchall())
-    # 만약 지정 truck_device로 조회된 궤적이 없으면 전체 차량에서 동일 시간대 폴백 조회
-    if not rows and truck_dev:
-        sql_fallback = """
-            SELECT timestamp_str, lat, lng, temperature, humidity, g_force, speed, device, run_id
-            FROM sensor_data
-            WHERE lat != 0 AND lng != 0 AND ABS(lat) > 1.0
-              AND timestamp_str >= %s AND timestamp_str <= %s
-            ORDER BY timestamp_str ASC, id ASC
-        """
-        cursor.execute(sql_fallback, (start_s, end_s))
-        rows = list(cursor.fetchall())
-    return rows
+    dep_dt = shipment_row.get("departed_at")
+    arr_dt = shipment_row.get("arrived_at")
+    run_id = shipment_row.get("run_id")
+    dev_id = shipment_row.get("device_id")
+    if not dep_dt:
+        return []
 
-# 2. 데이터 조회 (QR 체크포인트 + 구간별 차량 주행 궤적 연동)
+    s_str = dep_dt.strftime("%Y-%m-%d %H:%M:%S") if hasattr(dep_dt, "strftime") else str(dep_dt)[:19]
+    e_dt = arr_dt if arr_dt else (parse_kst_dt(dep_dt) + timedelta(hours=12))
+    e_str = e_dt.strftime("%Y-%m-%d %H:%M:%S") if hasattr(e_dt, "strftime") else str(e_dt)[:19]
+
+    if run_id:
+        cursor.execute(f"""
+            SELECT DATE_FORMAT(measured_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS timestamp_str,
+                   lat, lng, temperature, humidity, g_force, speed, device_id AS device, run_id
+            FROM `{DB_NAME}`.`sensor_telemetry`
+            WHERE run_id = %s
+              AND gps_state != 'INDOOR' AND lat != 0 AND lng != 0
+              AND measured_at >= %s AND measured_at <= %s
+            ORDER BY measured_at ASC, telemetry_id ASC
+        """, (run_id, s_str, e_str))
+        pts = list(cursor.fetchall())
+        if pts:
+            return pts
+
+    # 실시간 배송 중(IN_TRANSIT)이어서 아직 run_id가 미확정일 때: 담당 차량 또는 활성 FIELD_DRIVE 세션 조회
+    if dev_id:
+        cursor.execute(f"""
+            SELECT DATE_FORMAT(measured_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS timestamp_str,
+                   lat, lng, temperature, humidity, g_force, speed, device_id AS device, run_id
+            FROM `{DB_NAME}`.`sensor_telemetry`
+            WHERE device_id = %s
+              AND gps_state != 'INDOOR' AND lat != 0 AND lng != 0
+              AND measured_at >= %s AND measured_at <= %s
+            ORDER BY measured_at ASC, telemetry_id ASC
+        """, (dev_id, s_str, e_str))
+        pts = list(cursor.fetchall())
+        if pts:
+            return pts
+
+    cursor.execute(f"""
+        SELECT DATE_FORMAT(st.measured_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS timestamp_str,
+               st.lat, st.lng, st.temperature, st.humidity, st.g_force, st.speed,
+               st.device_id AS device, st.run_id
+        FROM `{DB_NAME}`.`sensor_telemetry` st
+        JOIN `{DB_NAME}`.`transport_runs` tr ON st.run_id = tr.run_id
+        WHERE tr.run_type = 'FIELD_DRIVE'
+          AND st.gps_state != 'INDOOR' AND st.lat != 0 AND st.lng != 0
+          AND st.measured_at >= %s AND st.measured_at <= %s
+        ORDER BY st.measured_at ASC, st.telemetry_id ASC
+    """, (s_str, e_str))
+    return list(cursor.fetchall())
+
+# 2. 데이터 조회 (lab225_v2 정규화 7개 테이블 JOIN 구조)
 leg1_sensor_pts = []
 leg2_sensor_pts = []
+records = []
+lot_master = None
+sorted_map = {}
+
 try:
     conn = get_db_connection()
+    # 방금 물리 스캐너로 찍은 내역이 있으면 즉시 증분 반영
+    sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
     cursor = conn.cursor()
-    query = "SELECT * FROM qr WHERE FmID = %s ORDER BY Lo ASC, id ASC"
-    cursor.execute(query, (fm_id,))
-    records = cursor.fetchall()
 
-    if records:
-        stage_lookup = {r.get("Lo"): r for r in records}
-        r_a00 = stage_lookup.get("A00")
-        r_a10 = stage_lookup.get("A10")
-        r_a15 = stage_lookup.get("A15")
-        r_a16 = stage_lookup.get("A16")
+    # (1) 농가 원물 마스터 조회
+    cursor.execute(f"SELECT * FROM `{DB_NAME}`.`harvest_lots` WHERE lot_id = %s LIMIT 1", (fm_id,))
+    lot_master = cursor.fetchone()
 
-        # (1) 1차 산지 -> APC 운송 구간 (A00 ~ A10 입고 시각)
-        if r_a10 and r_a10.get("APC_AD"):
-            dt_apc_ad = parse_kst_dt(r_a10.get("APC_AD"))
-            dt_a00 = parse_kst_dt(r_a00.get("HD")) if r_a00 else None
-            if dt_apc_ad:
-                if dt_a00 and timedelta(0) <= (dt_apc_ad - dt_a00) <= timedelta(hours=24):
-                    dt_leg1_start = dt_a00
-                else:
-                    dt_leg1_start = dt_apc_ad - timedelta(hours=6)
-                leg1_sensor_pts = fetch_sensor_segment(
-                    cursor, dt_leg1_start, dt_apc_ad, r_a10.get("truck_device")
-                )
+    if lot_master:
+        # (2) APC 선별 결과(방법 A: A / B / C / DEFECT) JOIN 조회
+        cursor.execute(f"SELECT * FROM `{DB_NAME}`.`sorted_lots` WHERE lot_id = %s", (fm_id,))
+        for sl in cursor.fetchall():
+            sorted_map[sl["grade_code"]] = sl
 
-        # (2) 2차 APC 출하(A15) -> 판매처 도착(A16) 또는 실시간 배송 중 구간
-        if r_a15 and r_a15.get("APC_OP"):
-            dt_apc_op = parse_kst_dt(r_a15.get("APC_OP"))
-            dt_retail_ad = parse_kst_dt(r_a16.get("Retail_AD")) if (r_a16 and r_a16.get("Retail_AD")) else None
-            truck_dev_2 = (r_a16.get("truck_device") if r_a16 else None) or r_a15.get("truck_device")
-            if dt_apc_op:
-                dt_leg2_end = dt_retail_ad if dt_retail_ad else (dt_apc_op + timedelta(hours=12))
-                leg2_sensor_pts = fetch_sensor_segment(
-                    cursor, dt_apc_op, dt_leg2_end, truck_dev_2
-                )
+        norm_g = normalize_grade(url_grade)
+        target_g_code = "B" if norm_g == "중" else ("C" if norm_g == "하" else "A")
+        target_pkg_id = f"{fm_id}-{target_g_code}"
+        # 만약 B/C 패키지 별도 스캔이 아직 없으면 공통 대표 패키지(A) 이력 폴백 허용
+        cursor.execute(
+            f"SELECT COUNT(*) AS cnt FROM `{DB_NAME}`.`stage_events` WHERE lot_id = %s AND pkg_id = %s",
+            (fm_id, target_pkg_id),
+        )
+        effective_pkg_id = target_pkg_id if cursor.fetchone()["cnt"] > 0 else f"{fm_id}-A"
+
+        # (3) 10단계 통합 공정 타임라인(A00·A01·A02 + A10~A16) 조회 및 UI 호환 포맷 매핑
+        cursor.execute(f"""
+            SELECT stage_code, pkg_id, event_at, lat, lng, temp, humi, tx_hash
+            FROM `{DB_NAME}`.`stage_events`
+            WHERE lot_id = %s AND (pkg_id IS NULL OR pkg_id = %s)
+            ORDER BY event_at ASC, event_id ASC
+        """, (fm_id, effective_pkg_id))
+        ev_rows = cursor.fetchall()
+
+        a_qty = sorted_map.get("A", {}).get("grade_qty")
+        b_qty = sorted_map.get("B", {}).get("grade_qty")
+        c_qty = sorted_map.get("C", {}).get("grade_qty")
+        def_qty = sorted_map.get("DEFECT", {}).get("grade_qty")
+
+        for ev in ev_rows:
+            st_cd = ev["stage_code"]
+            ev_time_str = ev["event_at"].strftime("%Y-%m-%d %H:%M:%S") if hasattr(ev["event_at"], "strftime") else str(ev["event_at"])
+            rec_item = {
+                "Lo": st_cd,
+                "FmID": lot_master["lot_id"],
+                "AC": lot_master["origin_zip"],
+                "FrT": lot_master["fruit_type"],
+                "Vt": lot_master["variety"],
+                "Ct": lot_master["farmer_phone"],
+                "Mt": lot_master["cultivation"],
+                "HN": lot_master["harvest_no"],
+                "Qt": lot_master["total_qty"],
+                "HD": str(lot_master["harvest_date"] or ev_time_str[:10]),
+                "StD": str(lot_master["storage_date"] or ""),
+                "DD": str(lot_master["deliver_date"] or ""),
+                "event_at": ev_time_str,
+                "Lat": ev["lat"],
+                "lon": ev["lng"],
+                "Tp": ev["temp"],
+                "Hm": ev["humi"],
+                "tx_hash": ev["tx_hash"],
+                "AGrade": a_qty,
+                "BGrade": b_qty,
+                "CGrade": c_qty,
+                "DefectRate": def_qty,
+            }
+            records.append(rec_item)
+
+        # (4) 1구간(leg_no=1: A02~A10) 및 2구간(leg_no=2: A15~A16) 운송 궤적 정밀 JOIN 조회
+        cursor.execute(f"""
+            SELECT * FROM `{DB_NAME}`.`shipments`
+            WHERE lot_id = %s AND leg_no = 1
+            LIMIT 1
+        """, (fm_id,))
+        sh_leg1 = cursor.fetchone()
+        if sh_leg1 and (sh_leg1.get("status") == "ARRIVED" or sh_leg1.get("run_id")):
+            leg1_sensor_pts = fetch_shipment_telemetry(cursor, sh_leg1)
+
+        cursor.execute(f"""
+            SELECT * FROM `{DB_NAME}`.`shipments`
+            WHERE lot_id = %s AND leg_no = 2 AND pkg_id = %s
+            LIMIT 1
+        """, (fm_id, effective_pkg_id))
+        sh_leg2 = cursor.fetchone()
+        if sh_leg2:
+            leg2_sensor_pts = fetch_shipment_telemetry(cursor, sh_leg2)
 
     conn.close()
 except Exception as e:
@@ -1257,21 +1450,23 @@ with tab1:
 with tab2:
     st.markdown(f"<h3 style='font-size:1.3rem; font-weight:700; margin-bottom:15px;'>{LANG_DICT[st.session_state.lang]['timeline_title']}</h3>", unsafe_allow_html=True)
     
-    # 단계 설정 (A00 농장 ~ A16 판매처 도착)
+    # 단계 설정 (농가 A00·A01·A02 ~ APC A10~A15 ~ 판매처 도착 A16 총 10단계 정규화 타임라인)
     stage_names = {
-        "A00": (LANG_DICT[st.session_state.lang]["stage_A00_title"], LANG_DICT[st.session_state.lang]["stage_A00_desc"], "HD"),
-        "A10": (LANG_DICT[st.session_state.lang]["stage_A10_title"], LANG_DICT[st.session_state.lang]["stage_A10_desc"], "APC_AD"),
-        "A11": (LANG_DICT[st.session_state.lang]["stage_A11_title"], LANG_DICT[st.session_state.lang]["stage_A11_desc"], "APC_WD"),
-        "A12": (LANG_DICT[st.session_state.lang]["stage_A12_title"], LANG_DICT[st.session_state.lang]["stage_A12_desc"], "APC_RT"),
-        "A13": (LANG_DICT[st.session_state.lang]["stage_A13_title"], LANG_DICT[st.session_state.lang]["stage_A13_desc"], "APC_PT"),
-        "A14": (LANG_DICT[st.session_state.lang]["stage_A14_title"], LANG_DICT[st.session_state.lang]["stage_A14_desc"], "APC_StD"),
-        "A15": (LANG_DICT[st.session_state.lang]["stage_A15_title"], LANG_DICT[st.session_state.lang]["stage_A15_desc"], "APC_OP"),
-        "A16": (LANG_DICT[st.session_state.lang]["stage_A16_title"], LANG_DICT[st.session_state.lang]["stage_A16_desc"], "Retail_AD")
+        "A00": (LANG_DICT[st.session_state.lang]["stage_A00_title"], LANG_DICT[st.session_state.lang]["stage_A00_desc"], "event_at"),
+        "A01": (LANG_DICT[st.session_state.lang]["stage_A01_title"], LANG_DICT[st.session_state.lang]["stage_A01_desc"], "event_at"),
+        "A02": (LANG_DICT[st.session_state.lang]["stage_A02_title"], LANG_DICT[st.session_state.lang]["stage_A02_desc"], "event_at"),
+        "A10": (LANG_DICT[st.session_state.lang]["stage_A10_title"], LANG_DICT[st.session_state.lang]["stage_A10_desc"], "event_at"),
+        "A11": (LANG_DICT[st.session_state.lang]["stage_A11_title"], LANG_DICT[st.session_state.lang]["stage_A11_desc"], "event_at"),
+        "A12": (LANG_DICT[st.session_state.lang]["stage_A12_title"], LANG_DICT[st.session_state.lang]["stage_A12_desc"], "event_at"),
+        "A13": (LANG_DICT[st.session_state.lang]["stage_A13_title"], LANG_DICT[st.session_state.lang]["stage_A13_desc"], "event_at"),
+        "A14": (LANG_DICT[st.session_state.lang]["stage_A14_title"], LANG_DICT[st.session_state.lang]["stage_A14_desc"], "event_at"),
+        "A15": (LANG_DICT[st.session_state.lang]["stage_A15_title"], LANG_DICT[st.session_state.lang]["stage_A15_desc"], "event_at"),
+        "A16": (LANG_DICT[st.session_state.lang]["stage_A16_title"], LANG_DICT[st.session_state.lang]["stage_A16_desc"], "event_at")
     }
 
     # 완료된 단계와 미완료된 단계를 구분하여 렌더링
     completed_stages = {r.get("Lo"): r for r in records}
-    timeline_order = ["A00", "A10", "A11", "A12", "A13", "A14", "A15", "A16"]
+    timeline_order = ["A00", "A01", "A02", "A10", "A11", "A12", "A13", "A14", "A15", "A16"]
     st.markdown('<div class="timeline-container">', unsafe_allow_html=True)
     for code in timeline_order:
         title, default_desc, time_col = stage_names[code]
@@ -1280,12 +1475,17 @@ with tab2:
             stage_time = row.get(time_col)
             elapsed = format_elapsed_time(stage_time, st.session_state.lang)
             
+            tx_badge = (
+                f' &nbsp;|&nbsp; <span style="color:#27ae60; font-weight:600;">🔗 Hash: {str(row.get("tx_hash"))[:12]}...</span>'
+                if row.get("tx_hash")
+                else ""
+            )
             st.markdown(f"""
             <div class="timeline-item active-stage">
                 <span style="font-weight:700; font-size:1.1rem; color:#1d1d1f;">{title}</span>
                 <span class="elapsed-tag">{elapsed}</span>
                 <p style="color:#515154; margin-top:5px; font-size:0.9rem; font-weight:400; margin-bottom:5px;">{default_desc}</p>
-                <small style="color:#86868b; font-size:0.8rem;">⏰ {LANG_DICT[st.session_state.lang]['proc_time']}: {stage_time if stage_time else ""}</small>
+                <small style="color:#86868b; font-size:0.8rem;">⏰ {LANG_DICT[st.session_state.lang]['proc_time']}: {stage_time if stage_time else ""}{tx_badge}</small>
             </div>
             """, unsafe_allow_html=True)
             
@@ -1378,7 +1578,7 @@ with tab3:
 
     for r in records:
         stage_code = r.get("Lo")
-        if stage_code == "A00":
+        if stage_code in ("A00", "A01", "A02"):
             continue
         c_pt = _valid_coord(r.get("Lat"), r.get("lon"))
         stage_name = stage_names.get(stage_code, (stage_code, "", ""))[0]

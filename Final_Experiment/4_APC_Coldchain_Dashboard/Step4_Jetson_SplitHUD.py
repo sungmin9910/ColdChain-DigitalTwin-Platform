@@ -5,9 +5,16 @@ import altair as alt
 import paho.mqtt.client as mqtt
 import json
 import time
+import os
+import sys
 import queue
 from datetime import datetime, timezone, timedelta
 import pymysql
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+from cloud_backend.db_v2.bridge_sync import sync_v1_delta_to_v2
 
 # ----------------------------------------------------------------
 # 1. 페이지 환경설정 및 차량용 다크모드 고대비 CSS
@@ -130,79 +137,62 @@ def toggle_view(view_key):
     st.session_state.selected_views = cur
 
 # ----------------------------------------------------------------
-# 3. AWS RDS MySQL 연동 및 세션 관리 (기존 대시보드와 동일한 명칭 매핑)
+# 3. AWS RDS MySQL 연동 및 세션 관리 (lab225_v2 정규화 DB 읽기 전용 뷰어)
+#    Single Writer 원칙: DB 적재는 AWS EC2 데몬이 전담하며 HUD는 중복 INSERT하지 않음
 # ----------------------------------------------------------------
-def get_mysql_connection():
+DB_V2_NAME = os.getenv("MYSQL_V2_DATABASE", "lab225_v2")
+DB_V1_NAME = os.getenv("MYSQL_DATABASE", "lab225")
+
+def get_mysql_connection(db_name=None):
+    target_db = db_name or DB_V2_NAME
     try:
-        if "MySQL" in st.secrets:
-            return pymysql.connect(
-                host=st.secrets["MySQL"]["MYSQL_HOST"],
-                port=st.secrets["MySQL"].get("MYSQL_PORT", 3306),
-                user=st.secrets["MySQL"]["MYSQL_USER"],
-                password=st.secrets["MySQL"]["MYSQL_PASSWORD"],
-                database=st.secrets["MySQL"]["MYSQL_DATABASE"],
-                charset='utf8mb4',
-                cursorclass=pymysql.cursors.DictCursor
-            )
+        host = os.getenv("MYSQL_HOST", "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com")
+        port = int(os.getenv("MYSQL_PORT", 3306))
+        user = os.getenv("MYSQL_USER", "admin")
+        password = os.getenv("MYSQL_PASSWORD", "12345678")
+        try:
+            if "MySQL" in st.secrets:
+                host = st.secrets["MySQL"].get("MYSQL_HOST", host)
+                port = int(st.secrets["MySQL"].get("MYSQL_PORT", port))
+                user = st.secrets["MySQL"].get("MYSQL_USER", user)
+                password = st.secrets["MySQL"].get("MYSQL_PASSWORD", password)
+        except Exception:
+            pass
+        return pymysql.connect(
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            database=target_db,
+            charset='utf8mb4',
+            connect_timeout=8,
+            cursorclass=pymysql.cursors.DictCursor
+        )
     except Exception as e:
         print(f"MySQL 연결 실패: {e}")
     return None
 
-def save_to_mysql(msg_dict, run_id):
-    conn = get_mysql_connection()
-    if conn is None:
-        return
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute("SET time_zone = '+09:00'")
-            sql = """
-            INSERT INTO sensor_data 
-            (device, timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status, run_id, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-            """
-            val = (
-                msg_dict.get("device", "carrier-c6-01"),
-                msg_dict.get("timestamp", ""),
-                float(msg_dict.get("temperature", 0.0)),
-                float(msg_dict.get("humidity", 0.0)),
-                float(msg_dict.get("lux", 0.0)),
-                float(msg_dict.get("g_force", 1.0)),
-                float(msg_dict.get("speed", 0.0)),
-                float(msg_dict.get("lat", 0.0)),
-                float(msg_dict.get("lng", 0.0)),
-                msg_dict.get("status", ""),
-                run_id
-            )
-            cursor.execute(sql, val)
-        conn.commit()
-    except Exception as e:
-        print(f"MySQL 저장 에러: {e}")
-    finally:
-        conn.close()
-
-# DB에서 과거 세션 목록 및 요약 통계 로드
-@st.cache_data(ttl=60)
+# DB(lab225_v2.transport_runs)에서 실차 주행 세션 목록 및 요약 통계 로드
+@st.cache_data(ttl=30)
 def get_all_run_ids_and_meta():
     run_list = ["실시간 주행 (현재 실험)"]
     meta_dict = {}
     conn = get_mysql_connection()
     if conn:
         try:
+            sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_V2_NAME)
             with conn.cursor() as cursor:
-                # 미동기 더미 타임스탬프(2026-10-01)를 제외하여 실제 시작 시간을 정확하게 추출
-                cursor.execute("""
-                    SELECT run_id, 
-                           COUNT(*) as cnt, 
-                           MIN(CASE WHEN timestamp_str NOT LIKE '2026-10-01%' AND timestamp_str != '00:00:00' AND timestamp_str IS NOT NULL THEN timestamp_str END) as start_ts, 
-                           MAX(timestamp_str) as end_ts,
-                           MAX(speed) as max_spd,
-                           MIN(temperature) as min_temp,
-                           MAX(temperature) as max_temp
-                    FROM sensor_data 
-                    WHERE run_id IS NOT NULL 
-                    GROUP BY run_id 
-                    HAVING COUNT(*) >= 3 
-                    ORDER BY MAX(id) DESC
+                cursor.execute(f"""
+                    SELECT run_id,
+                           packet_cnt AS cnt,
+                           DATE_FORMAT(started_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS start_ts,
+                           DATE_FORMAT(ended_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS end_ts,
+                           max_speed AS max_spd,
+                           min_temp,
+                           max_temp
+                    FROM `{DB_V2_NAME}`.`transport_runs`
+                    WHERE run_type = 'FIELD_DRIVE'
+                    ORDER BY started_at DESC
                 """)
                 rows = cursor.fetchall()
                 for r in rows:
@@ -257,7 +247,7 @@ def format_session_label(session_id):
 
     return f"📂 {session_id}"
 
-# 특정 과거 세션 데이터 로드 (캐싱)
+# 특정 과거 세션 데이터 로드 (lab225_v2.sensor_telemetry 정규화 시계열 로드)
 @st.cache_data(ttl=5)
 def load_session_data(target_run_id):
     history = []
@@ -265,29 +255,16 @@ def load_session_data(target_run_id):
     if conn:
         try:
             with conn.cursor() as cursor:
-                cursor.execute("SELECT * FROM sensor_data WHERE run_id = %s ORDER BY id ASC", (target_run_id,))
-                items = cursor.fetchall()
-            for item in items:
-                ts = item.get("timestamp_str")
-                if not ts or ts == "00:00:00" or str(ts).startswith("00:00") or str(ts).startswith("2026-10-01 00:00"):
-                    created_at = item.get("created_at")
-                    if created_at:
-                        ts = (created_at + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S")
-                    else:
-                        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                history.append({
-                    "device": item.get("device", "carrier-c6-01"),
-                    "timestamp": str(ts),
-                    "temperature": float(item.get("temperature", 0.0) or 0.0),
-                    "humidity": float(item.get("humidity", 0.0) or 0.0),
-                    "lux": float(item.get("lux", 0.0) or 0.0),
-                    "g_force": float(item.get("g_force", 1.0) or 1.0),
-                    "speed": float(item.get("speed", 0.0) or 0.0),
-                    "lat": float(item.get("lat", 0.0) or 0.0),
-                    "lng": float(item.get("lng", 0.0) or 0.0),
-                    "status": item.get("status", ""),
-                    "run_id": target_run_id
-                })
+                cursor.execute(f"""
+                    SELECT device_id AS device,
+                           DATE_FORMAT(measured_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS timestamp,
+                           temperature, humidity, lux, g_force, speed, lat, lng,
+                           raw_status AS status, run_id
+                    FROM `{DB_V2_NAME}`.`sensor_telemetry`
+                    WHERE run_id = %s
+                    ORDER BY measured_at ASC, telemetry_id ASC
+                """, (target_run_id,))
+                history = list(cursor.fetchall())
         except Exception as e:
             print(f"과거 세션 로드 실패: {e}")
         finally:
@@ -563,16 +540,16 @@ else:
         conn = get_mysql_connection()
         if conn:
             try:
+                sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_V2_NAME)
                 with conn.cursor() as cursor:
                     cutoff_kst = (get_kst_now() - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
-                    cursor.execute("""
-                        SELECT run_id, MAX(id) as last_id, COUNT(*) as cnt
-                        FROM sensor_data
-                        WHERE run_id IS NOT NULL
-                          AND (timestamp_str >= %s OR created_at >= UTC_TIMESTAMP() - INTERVAL 6 HOUR)
-                        GROUP BY run_id
-                        HAVING cnt >= 2
-                        ORDER BY last_id DESC
+                    cursor.execute(f"""
+                        SELECT run_id, packet_cnt AS cnt
+                        FROM `{DB_V2_NAME}`.`transport_runs`
+                        WHERE run_type = 'FIELD_DRIVE'
+                          AND ended_at >= %s
+                          AND packet_cnt >= 2
+                        ORDER BY ended_at DESC
                         LIMIT 1
                     """, (cutoff_kst,))
                     latest_active = cursor.fetchone()
@@ -660,13 +637,7 @@ while True:
         data_history.append(msg)
         if len(data_history) > 3000:
             data_history.pop(0)
-
-        # 실시간 모드일 때만 DB 주기적 저장 (5초 간격 또는 1.8G 충격 시 즉시)
-        if is_live_mode:
-            now_t = time.time()
-            if (now_t - last_db_save_time >= 5.0) or (g_v >= 1.8):
-                save_to_mysql(msg, st.session_state.run_id)
-                last_db_save_time = now_t
+        # Single Writer 원칙: DB 저장은 AWS EC2 데몬(mqtt_to_mysql_daemon.py)이 전담하여 중복 적재를 원천 차단함
 
     # 2) 최근 실시간 센서 패킷 정보 추출
     if len(data_history) > 0:

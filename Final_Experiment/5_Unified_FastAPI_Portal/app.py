@@ -1,4 +1,5 @@
 import os
+import sys
 import io
 import json
 import time
@@ -6,9 +7,8 @@ import base64
 import hashlib
 import random
 import asyncio
-import threading
 from datetime import datetime, timezone, timedelta
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse, parse_qs
 
 import pymysql
 import qrcode
@@ -16,48 +16,71 @@ from qrcode.image.styledpil import StyledPilImage
 from qrcode.image.styles.moduledrawers import RoundedModuleDrawer
 from PIL import Image
 import paho.mqtt.client as mqtt
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+from cloud_backend.db_v2.bridge_sync import sync_v1_delta_to_v2, make_sha256, parse_dt_safe
+
 # =====================================================================
-# 1. 환경 설정 및 기존 시스템(Streamlit / AWS RDS / HiveMQ) 100% 호환 설정
+# 1. 환경 설정 (정규화 DB lab225_v2 메인 + 물리 스캐너 lab225 브릿지 호환)
 # =====================================================================
-DB_HOST = os.getenv("MYSQL_HOST", "15.165.68.30")
+DB_HOST = os.getenv("MYSQL_HOST", "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com")
+DB_FALLBACK_HOST = "15.165.68.30"
 DB_PORT = int(os.getenv("MYSQL_PORT", 3306))
 DB_USER = os.getenv("MYSQL_USER", "admin")
 DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "12345678")
-DB_NAME = os.getenv("MYSQL_DATABASE", "lab225")
+DB_NAME = os.getenv("MYSQL_V2_DATABASE", "lab225_v2")
+DB_V1_NAME = os.getenv("MYSQL_DATABASE", "lab225")
 
 MQTT_BROKER = os.getenv("MQTT_BROKER", "broker.hivemq.com")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 
 STREAMLIT_CONSUMER_URL = "https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/"
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STEP1_IMG_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "1_PC_QR_Generators"))
 PORTAL_QR_OUT_DIR = os.path.join(BASE_DIR, "generated_qr")
 os.makedirs(PORTAL_QR_OUT_DIR, exist_ok=True)
-BLOCKCHAIN_FILE = os.path.join(BASE_DIR, "blockchain_ledger.json")
 
 KST = timezone(timedelta(hours=9))
+
 
 def get_kst_now():
     return datetime.now(KST)
 
-def get_db_connection():
-    return pymysql.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        database=DB_NAME,
-        charset="utf8mb4",
-        cursorclass=pymysql.cursors.DictCursor,
-        connect_timeout=10,
-        autocommit=True,
-    )
+
+def get_db_connection(db_name: str = None):
+    target_db = db_name or DB_NAME
+    try:
+        return pymysql.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=target_db,
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=8,
+            autocommit=True,
+        )
+    except Exception:
+        return pymysql.connect(
+            host=DB_FALLBACK_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=target_db,
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            connect_timeout=8,
+            autocommit=True,
+        )
+
 
 TRUCK_OPTIONS = {
     "truck01": {"name": "1호차 (truck01 / carrier-c6-01)", "topic": "coldchain/truck01/sensor", "device_id": "carrier-c6-01"},
@@ -92,7 +115,7 @@ ROLE_PINS = {
 # =====================================================================
 # 2. FastAPI 앱 및 실시간 MQTT ➔ WebSocket 브로드캐스터
 # =====================================================================
-app = FastAPI(title="ColdChain DigitalTwin Unified Portal (FastAPI)")
+app = FastAPI(title="ColdChain DigitalTwin Unified Portal v2 (Normalized DB)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -106,6 +129,7 @@ ws_clients = set()
 latest_packets = {}
 main_event_loop = None
 
+
 def broadcast_mqtt_packet(payload: dict):
     if main_event_loop is None or not ws_clients:
         return
@@ -116,11 +140,13 @@ def broadcast_mqtt_packet(payload: dict):
         except Exception:
             ws_clients.discard(ws)
 
+
 def on_mqtt_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
         for tinfo in TRUCK_OPTIONS.values():
             client.subscribe(tinfo["topic"])
         print("[FastAPI MQTT] Connected & Subscribed to all vehicle topics", flush=True)
+
 
 def on_mqtt_message(client, userdata, msg):
     try:
@@ -144,6 +170,7 @@ def on_mqtt_message(client, userdata, msg):
     except Exception as e:
         print(f"[FastAPI MQTT Error] {e}", flush=True)
 
+
 def start_background_mqtt():
     try:
         try:
@@ -160,37 +187,17 @@ def start_background_mqtt():
         print(f"[FastAPI MQTT Init Warning] {e}", flush=True)
         return None
 
+
 @app.on_event("startup")
 async def startup_event():
     global main_event_loop
     main_event_loop = asyncio.get_running_loop()
     start_background_mqtt()
 
-# =====================================================================
-# 3. 헬퍼 함수 (블록체인 해시 & QR 이미지 Base64 생성)
-# =====================================================================
-def calculate_hash(data_dict: dict) -> str:
-    data_str = json.dumps(data_dict, sort_keys=True, default=str).encode("utf-8")
-    return hashlib.sha256(data_str).hexdigest()
 
-def save_to_blockchain(data_hash: str, metadata: dict, stage: str):
-    entry = {
-        "timestamp": get_kst_now().strftime("%Y-%m-%d %H:%M:%S"),
-        "hash": data_hash,
-        "stage": stage,
-        "metadata": metadata,
-    }
-    chain_data = []
-    if os.path.exists(BLOCKCHAIN_FILE):
-        try:
-            with open(BLOCKCHAIN_FILE, "r", encoding="utf-8") as f:
-                chain_data = json.load(f)
-        except Exception:
-            chain_data = []
-    chain_data.append(entry)
-    with open(BLOCKCHAIN_FILE, "w", encoding="utf-8") as f:
-        json.dump(chain_data, f, indent=2, ensure_ascii=False)
-
+# =====================================================================
+# 3. 헬퍼 함수 (QR 이미지 Base64 생성 & 운송 궤적 JOIN 로더)
+# =====================================================================
 def make_qr_base64(qr_url: str, overlay_filename: str = None, rounded: bool = True, save_filename: str = None) -> str:
     qr = qrcode.QRCode(
         version=4,
@@ -229,11 +236,78 @@ def make_qr_base64(qr_url: str, overlay_filename: str = None, rounded: bool = Tr
     qr_img.save(buf, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
+
+def fetch_shipment_pts(cur, sh_row: dict):
+    """`shipments` 레코드와 `sensor_telemetry`를 run_id + 시간 윈도우로 정밀 JOIN"""
+    if not sh_row or not sh_row.get("departed_at"):
+        return []
+    dep_dt = sh_row["departed_at"]
+    arr_dt = sh_row.get("arrived_at")
+    run_id = sh_row.get("run_id")
+    dev_id = sh_row.get("device_id")
+
+    s_str = dep_dt.strftime("%Y-%m-%d %H:%M:%S") if hasattr(dep_dt, "strftime") else str(dep_dt)[:19]
+    e_dt = arr_dt if arr_dt else ((parse_dt_safe(dep_dt) or datetime.now()) + timedelta(hours=12))
+    e_str = e_dt.strftime("%Y-%m-%d %H:%M:%S") if hasattr(e_dt, "strftime") else str(e_dt)[:19]
+
+    select_cols = """
+        DATE_FORMAT(st.measured_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS timestamp_str,
+        st.temperature, st.humidity, st.lux, st.g_force, st.speed,
+        st.lat, st.lng, st.raw_status AS status, st.device_id AS device, st.run_id
+    """
+    if run_id:
+        cur.execute(
+            f"""
+            SELECT {select_cols}
+            FROM `{DB_NAME}`.`sensor_telemetry` st
+            WHERE st.run_id = %s
+              AND st.gps_state != 'INDOOR' AND st.lat != 0 AND st.lng != 0
+              AND st.measured_at >= %s AND st.measured_at <= %s
+            ORDER BY st.measured_at ASC, st.telemetry_id ASC
+            """,
+            (run_id, s_str, e_str),
+        )
+        rows = list(cur.fetchall())
+        if rows:
+            return rows
+
+    if dev_id:
+        cur.execute(
+            f"""
+            SELECT {select_cols}
+            FROM `{DB_NAME}`.`sensor_telemetry` st
+            WHERE st.device_id = %s
+              AND st.gps_state != 'INDOOR' AND st.lat != 0 AND st.lng != 0
+              AND st.measured_at >= %s AND st.measured_at <= %s
+            ORDER BY st.measured_at ASC, st.telemetry_id ASC
+            """,
+            (dev_id, s_str, e_str),
+        )
+        rows = list(cur.fetchall())
+        if rows:
+            return rows
+
+    cur.execute(
+        f"""
+        SELECT {select_cols}
+        FROM `{DB_NAME}`.`sensor_telemetry` st
+        JOIN `{DB_NAME}`.`transport_runs` tr ON st.run_id = tr.run_id
+        WHERE tr.run_type = 'FIELD_DRIVE'
+          AND st.gps_state != 'INDOOR' AND st.lat != 0 AND st.lng != 0
+          AND st.measured_at >= %s AND st.measured_at <= %s
+        ORDER BY st.measured_at ASC, st.telemetry_id ASC
+        """,
+        (s_str, e_str),
+    )
+    return list(cur.fetchall())
+
+
 # =====================================================================
-# 4. REST API 엔드포인트
+# 4. REST API 엔드포인트 (lab225_v2 정규화 JOIN 기반)
 # =====================================================================
 class LoginRequest(BaseModel):
     pin: str
+
 
 @app.post("/api/auth/login")
 def api_login(req: LoginRequest):
@@ -242,36 +316,108 @@ def api_login(req: LoginRequest):
         return {"ok": True, **ROLE_PINS[pin]}
     raise HTTPException(status_code=401, detail="유효하지 않은 권한 PIN 번호입니다. (관리자: 0000, 농가: 1111, APC: 2222, 관제: 3333)")
 
+
 @app.get("/api/consumer/fmid-list")
-def api_get_fmid_list():
+def api_get_fmid_list(include_test: bool = False):
     conn = get_db_connection()
     try:
+        sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT FmID, MAX(FrT) as FrT, MAX(Vt) as Vt, MAX(Lo) as latest_step, MAX(id) as max_id
-                FROM qr
-                WHERE FmID IS NOT NULL AND FmID != ''
-                GROUP BY FmID
+            where_sql = "" if include_test else "WHERE hl.is_test = 0"
+            cur.execute(
+                f"""
+                SELECT hl.lot_id AS FmID,
+                       hl.fruit_type AS FrT,
+                       hl.variety AS Vt,
+                       COALESCE(MAX(sl.current_stage), hl.current_stage) AS latest_step,
+                       MAX(se.event_id) AS max_id
+                FROM `{DB_NAME}`.`harvest_lots` hl
+                LEFT JOIN `{DB_NAME}`.`sorted_lots` sl
+                  ON hl.lot_id = sl.lot_id AND sl.grade_code = 'A'
+                LEFT JOIN `{DB_NAME}`.`stage_events` se
+                  ON hl.lot_id = se.lot_id
+                {where_sql}
+                GROUP BY hl.lot_id, hl.fruit_type, hl.variety, hl.current_stage
                 ORDER BY max_id DESC
                 LIMIT 30
-            """)
-            rows = cur.fetchall()
-            return {"ok": True, "items": rows}
+                """
+            )
+            return {"ok": True, "items": list(cur.fetchall())}
     finally:
         conn.close()
+
 
 @app.get("/api/consumer/trace/{fmid}")
 def api_get_consumer_trace(fmid: str, grade: str = "상"):
     conn = get_db_connection()
     try:
+        sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
         with conn.cursor() as cur:
-            cur.execute("SELECT * FROM qr WHERE FmID = %s ORDER BY Lo ASC, id ASC", (fmid,))
-            qr_rows = cur.fetchall()
-            if not qr_rows:
+            cur.execute(f"SELECT * FROM `{DB_NAME}`.`harvest_lots` WHERE lot_id = %s LIMIT 1", (fmid,))
+            lot = cur.fetchone()
+            if not lot:
                 raise HTTPException(status_code=404, detail=f"FmID={fmid} 이력 데이터가 존재하지 않습니다.")
 
-            stage_time_cols = {
+            # 등급 판별 및 sorted_lots(방법 A) JOIN
+            g_upper = str(grade or "상").strip().upper()
+            if g_upper in ("중", "M", "B"):
+                g_idx, g_param, g_code = 1, "중", "B"
+            elif g_upper in ("하", "L", "C"):
+                g_idx, g_param, g_code = 2, "하", "C"
+            else:
+                g_idx, g_param, g_code = 0, "상", "A"
+
+            cur.execute(f"SELECT * FROM `{DB_NAME}`.`sorted_lots` WHERE lot_id = %s", (fmid,))
+            sorted_map = {r["grade_code"]: r for r in cur.fetchall()}
+
+            target_pkg = f"{fmid}-{g_code}"
+            cur.execute(
+                f"SELECT COUNT(*) AS cnt FROM `{DB_NAME}`.`stage_events` WHERE lot_id = %s AND pkg_id = %s",
+                (fmid, target_pkg),
+            )
+            effective_pkg = target_pkg if cur.fetchone()["cnt"] > 0 else f"{fmid}-A"
+
+            # 10단계 타임라인(A00·A01·A02 + A10~A16) 조회
+            cur.execute(
+                f"""
+                SELECT stage_code, pkg_id, event_at, lat, lng, temp, humi, tx_hash
+                FROM `{DB_NAME}`.`stage_events`
+                WHERE lot_id = %s AND (pkg_id IS NULL OR pkg_id = %s)
+                ORDER BY event_at ASC, event_id ASC
+                """,
+                (fmid, effective_pkg),
+            )
+            ev_rows = cur.fetchall()
+
+            a_qty = sorted_map.get("A", {}).get("grade_qty")
+            b_qty = sorted_map.get("B", {}).get("grade_qty")
+            c_qty = sorted_map.get("C", {}).get("grade_qty")
+            def_qty = sorted_map.get("DEFECT", {}).get("grade_qty")
+
+            merged = {
+                "FmID": lot["lot_id"],
+                "AC": lot["origin_zip"],
+                "FrT": lot["fruit_type"],
+                "Vt": lot["variety"],
+                "Ct": lot["farmer_phone"],
+                "Mt": lot["cultivation"],
+                "HN": lot["harvest_no"],
+                "Qt": lot["total_qty"],
+                "HD": str(lot["harvest_date"] or ""),
+                "StD": str(lot["storage_date"] or ""),
+                "DD": str(lot["deliver_date"] or ""),
+                "AGrade": a_qty,
+                "BGrade": b_qty,
+                "CGrade": c_qty,
+                "DefectRate": def_qty,
+            }
+
+            stage_lookup = {}
+            clean_records = []
+            legacy_time_key = {
                 "A00": "HD",
+                "A01": "Farm_StD",
+                "A02": "Farm_DD",
                 "A10": "APC_AD",
                 "A11": "APC_WD",
                 "A12": "APC_RT",
@@ -280,101 +426,56 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
                 "A15": "APC_OP",
                 "A16": "Retail_AD",
             }
-            merged = {}
-            stage_lookup = {}
-            clean_records = []
-            for r in qr_rows:
-                row_copy = {}
-                for k, v in r.items():
-                    if isinstance(v, datetime):
-                        row_copy[k] = v.strftime("%Y-%m-%d %H:%M:%S")
-                    else:
-                        row_copy[k] = v
-                    if v is not None and str(v).strip() != "" and str(v) != "None":
-                        merged[k] = row_copy[k]
-                lo = row_copy.get("Lo")
-                if lo:
-                    stage_lookup[lo] = row_copy
-                clean_records.append(row_copy)
+            for ev in ev_rows:
+                code = ev["stage_code"]
+                ev_str = ev["event_at"].strftime("%Y-%m-%d %H:%M:%S") if hasattr(ev["event_at"], "strftime") else str(ev["event_at"])
+                item = {
+                    "Lo": code,
+                    "FmID": lot["lot_id"],
+                    "event_at": ev_str,
+                    "Lat": ev["lat"],
+                    "lon": ev["lng"],
+                    "Tp": ev["temp"],
+                    "Hm": ev["humi"],
+                    "tx_hash": ev["tx_hash"],
+                    "AGrade": a_qty,
+                    "BGrade": b_qty,
+                    "CGrade": c_qty,
+                    "DefectRate": def_qty,
+                }
+                t_key = legacy_time_key.get(code)
+                if t_key:
+                    item[t_key] = ev_str
+                    merged[t_key] = ev_str
+                if ev["tp_ok"] if "tp_ok" in ev else (ev["temp"] is not None):
+                    merged["Tp"] = ev["temp"]
+                    merged["Hm"] = ev["humi"]
+                stage_lookup[code] = item
+                clean_records.append(item)
 
-            def parse_dt(val):
-                if not val:
-                    return None
-                s = str(val).strip()
-                for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
-                    try:
-                        return datetime.strptime(s[:len(fmt) + 2].strip(), fmt)
-                    except Exception:
-                        continue
-                return None
+            # 1구간(leg_no=1) 및 2구간(leg_no=2) 운송 궤적 JOIN
+            cur.execute(
+                f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 1 LIMIT 1",
+                (fmid,),
+            )
+            sh_leg1 = cur.fetchone()
+            leg1_pts = fetch_shipment_pts(cur, sh_leg1) if (sh_leg1 and (sh_leg1.get("status") == "ARRIVED" or sh_leg1.get("run_id"))) else []
 
-            def fetch_segment(start_dt, end_dt, truck_dev=None):
-                if not start_dt or not end_dt or end_dt < start_dt:
-                    return []
-                s_str = start_dt.strftime("%Y-%m-%d %H:%M:%S")
-                e_str = end_dt.strftime("%Y-%m-%d %H:%M:%S")
-                if truck_dev:
-                    cur.execute("""
-                        SELECT timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status, device, run_id
-                        FROM sensor_data
-                        WHERE lat != 0 AND lng != 0 AND ABS(lat) > 1.0
-                          AND timestamp_str >= %s AND timestamp_str <= %s
-                          AND device = %s
-                        ORDER BY timestamp_str ASC, id ASC
-                    """, (s_str, e_str, truck_dev))
-                    rows = list(cur.fetchall())
-                    if rows:
-                        return rows
-                cur.execute("""
-                    SELECT timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status, device, run_id
-                    FROM sensor_data
-                    WHERE lat != 0 AND lng != 0 AND ABS(lat) > 1.0
-                      AND timestamp_str >= %s AND timestamp_str <= %s
-                    ORDER BY timestamp_str ASC, id ASC
-                """, (s_str, e_str))
-                return list(cur.fetchall())
+            cur.execute(
+                f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 2 AND pkg_id = %s LIMIT 1",
+                (fmid, effective_pkg),
+            )
+            sh_leg2 = cur.fetchone()
+            leg2_pts = fetch_shipment_pts(cur, sh_leg2) if sh_leg2 else []
 
-            r_a00 = stage_lookup.get("A00")
-            r_a10 = stage_lookup.get("A10")
-            r_a15 = stage_lookup.get("A15")
-            r_a16 = stage_lookup.get("A16")
-
-            leg1_pts = []
-            if r_a10 and r_a10.get("APC_AD"):
-                dt_apc_ad = parse_dt(r_a10.get("APC_AD"))
-                dt_a00 = parse_dt(r_a00.get("HD")) if r_a00 else None
-                if dt_apc_ad:
-                    if dt_a00 and timedelta(0) <= (dt_apc_ad - dt_a00) <= timedelta(hours=24):
-                        dt_leg1_start = dt_a00
-                    else:
-                        dt_leg1_start = dt_apc_ad - timedelta(hours=6)
-                    leg1_pts = fetch_segment(dt_leg1_start, dt_apc_ad, r_a10.get("truck_device"))
-
-            leg2_pts = []
-            if r_a15 and r_a15.get("APC_OP"):
-                dt_apc_op = parse_dt(r_a15.get("APC_OP"))
-                dt_retail_ad = parse_dt(r_a16.get("Retail_AD")) if (r_a16 and r_a16.get("Retail_AD")) else None
-                truck_dev_2 = (r_a16.get("truck_device") if r_a16 else None) or r_a15.get("truck_device")
-                if dt_apc_op:
-                    dt_leg2_end = dt_retail_ad if dt_retail_ad else (dt_apc_op + timedelta(hours=12))
-                    leg2_pts = fetch_segment(dt_apc_op, dt_leg2_end, truck_dev_2)
-
-            # 우측 상단 정품 인증 QR 생성 (Step5_Run_Dashboard.py와 동일)
-            fruit_raw = str(merged.get("FrT") or "Apples")
+            fruit_raw = str(lot["fruit_type"] or "Apples")
             cat_key = "Apples"
             for k in FRUIT_IMAGES_GRADE.keys():
                 if k.lower() in fruit_raw.lower():
                     cat_key = k
                     break
-            g_upper = str(grade or "상").strip().upper()
-            if g_upper in ("중", "M", "B"):
-                g_idx, g_param = 1, "중"
-            elif g_upper in ("하", "L", "C"):
-                g_idx, g_param = 2, "하"
-            else:
-                g_idx, g_param = 0, "상"
 
-            auth_qr_url = f"{STREAMLIT_CONSUMER_URL}/?FmID={fmid}&grade={g_param}&AC={merged.get('AC', '')}&FrT={fruit_raw}"
+            auth_qr_url = f"{STREAMLIT_CONSUMER_URL}/?FmID={fmid}&grade={g_param}&AC={lot['origin_zip']}&FrT={fruit_raw}"
             overlay_icon = FRUIT_IMAGES_GRADE[cat_key][g_idx]
             auth_qr_b64 = make_qr_base64(auth_qr_url, overlay_filename=overlay_icon, rounded=False)
 
@@ -392,6 +493,7 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
     finally:
         conn.close()
 
+
 class FarmQRRequest(BaseModel):
     AC: str = "55632"
     FmID: str
@@ -404,33 +506,93 @@ class FarmQRRequest(BaseModel):
     Mt: str = "Organic"
     HN: str = "1"
     Qt: str = "50"
-    target_mode: str = "streamlit"  # "streamlit" (현재 메인) or "fastapi" (차기 메인 전환용)
+    target_mode: str = "streamlit"
     portal_base_url: str = ""
+
 
 @app.post("/api/farm/create-qr")
 def api_create_farm_qr(req: FarmQRRequest):
     conn = get_db_connection()
     try:
+        sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
+        lot_id = req.FmID.strip()
         with conn.cursor() as cur:
             cur.execute("SET time_zone = '+09:00'")
-            cur.execute("SELECT DATE_FORMAT(NOW(), '%H:%i:%s') as cur_time")
-            srv_time = cur.fetchone()["cur_time"]
-            hd_full = f"{req.HD_date} {srv_time}"
+            cur.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_dt, DATE_FORMAT(NOW(), '%H:%i:%s') as srv_time")
+            srv_info = cur.fetchone()
+            srv_now_dt = datetime.strptime(srv_info["srv_dt"], "%Y-%m-%d %H:%M:%S")
+            hd_full = f"{req.HD_date} {srv_info['srv_time']}"
+            dt_a00 = datetime.strptime(hd_full, "%Y-%m-%d %H:%M:%S")
+            if dt_a00 > srv_now_dt:
+                dt_a00 = srv_now_dt - timedelta(seconds=2)
+                hd_full = dt_a00.strftime("%Y-%m-%d %H:%M:%S")
 
-            # Rp(Ag Practice)는 사용자 요청에 따라 제거하고 DB에 NULL(None)로 저장
-            cur.execute("""
-                INSERT INTO qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp)
+            std_d = datetime.strptime(req.StD_date[:10], "%Y-%m-%d").date()
+            dt_a01 = datetime(std_d.year, std_d.month, std_d.day, 9, 0, 0) if std_d > dt_a00.date() else (dt_a00 + timedelta(seconds=1))
+            dt_a02 = max(srv_now_dt, dt_a01 + timedelta(seconds=1))
+
+            # 1) 물리 ESP32 스캐너 호환용 v1 기록
+            cur.execute(
+                f"""
+                INSERT INTO `{DB_V1_NAME}`.`qr` (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                "A00", req.AC, req.FmID, req.FrT, req.Vt, req.Ct,
-                hd_full, req.DD_date, req.Qt, req.Mt, req.HN, req.StD_date, None
-            ))
+                """,
+                ("A00", req.AC, lot_id, req.FrT, req.Vt, req.Ct, hd_full, req.DD_date, req.Qt, req.Mt, req.HN, req.StD_date, None),
+            )
+            v1_id = cur.lastrowid
 
-        params = {
-            "AC": req.AC, "FmID": req.FmID, "Ct": req.Ct, "FrT": req.FrT,
-            "Vt": req.Vt, "HD": hd_full, "DD": req.DD_date, "StD": req.StD_date,
-            "Mt": req.Mt, "HN": req.HN, "Qt": req.Qt,
-        }
+            # 2) v2 정규화 테이블(harvest_lots + stage_events A00·A01·A02 + shipments leg=1 오픈) 기록
+            cur.execute(
+                f"""
+                INSERT INTO `{DB_NAME}`.`harvest_lots`
+                (lot_id, origin_zip, fruit_type, variety, farmer_phone, cultivation,
+                 harvest_no, total_qty, harvest_date, storage_date, deliver_date,
+                 ag_practice, current_stage, is_test, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, 'A02', 0, %s)
+                ON DUPLICATE KEY UPDATE
+                    origin_zip=VALUES(origin_zip), fruit_type=VALUES(fruit_type), variety=VALUES(variety),
+                    farmer_phone=VALUES(farmer_phone), cultivation=VALUES(cultivation), harvest_no=VALUES(harvest_no),
+                    total_qty=VALUES(total_qty), harvest_date=VALUES(harvest_date), storage_date=VALUES(storage_date),
+                    deliver_date=VALUES(deliver_date), current_stage='A02', is_test=0
+                """,
+                (lot_id, req.AC, req.FrT, req.Vt, req.Ct, req.Mt, int(req.HN), int(req.Qt), req.HD_date[:10], req.StD_date[:10], req.DD_date[:10], hd_full),
+            )
+
+            params = {
+                "AC": req.AC, "FmID": lot_id, "Ct": req.Ct, "FrT": req.FrT,
+                "Vt": req.Vt, "HD": hd_full, "DD": req.DD_date, "StD": req.StD_date,
+                "Mt": req.Mt, "HN": req.HN, "Qt": req.Qt,
+            }
+            integrity_hash = make_sha256(params)
+
+            for s_cd, s_dt, s_h in [("A00", dt_a00, integrity_hash), ("A01", dt_a01, None), ("A02", dt_a02, None)]:
+                cur.execute(
+                    f"""
+                    INSERT INTO `{DB_NAME}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, tx_hash)
+                    VALUES (%s, NULL, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE event_at=VALUES(event_at), tx_hash=COALESCE(VALUES(tx_hash), tx_hash)
+                    """,
+                    (lot_id, s_cd, s_dt.strftime("%Y-%m-%d %H:%M:%S"), s_h),
+                )
+
+            cur.execute(
+                f"""
+                INSERT INTO `{DB_NAME}`.`shipments` (leg_no, lot_id, pkg_id, departed_at, status)
+                VALUES (1, %s, NULL, %s, 'IN_TRANSIT')
+                ON DUPLICATE KEY UPDATE departed_at=VALUES(departed_at), status='IN_TRANSIT'
+                """,
+                (lot_id, dt_a02.strftime("%Y-%m-%d %H:%M:%S")),
+            )
+
+            if v1_id:
+                cur.execute(
+                    f"""
+                    INSERT INTO `{DB_NAME}`.`_sync_watermark` (source_table, last_id)
+                    VALUES ('qr', %s) ON DUPLICATE KEY UPDATE last_id=GREATEST(last_id, VALUES(last_id))
+                    """,
+                    (v1_id,),
+                )
+
         query_string = urlencode(params)
         if req.target_mode == "fastapi" and req.portal_base_url:
             base = req.portal_base_url.rstrip("/")
@@ -438,18 +600,14 @@ def api_create_farm_qr(req: FarmQRRequest):
         else:
             qr_url = f"{STREAMLIT_CONSUMER_URL}/?{query_string}"
 
-        integrity_hash = calculate_hash(params)
-        save_to_blockchain(integrity_hash, {"FmID": req.FmID, "HD": hd_full}, "A00 (Farm Harvest)")
-
-        # 기존 Step1_Farm_QR_Creator.py와 동일한 파일명 ({AC}{FmID}{YYMMDD}_QR.png) 생성 및 디스크 자동 저장
         yymmdd = req.HD_date.replace("-", "")[2:8]
-        farm_qr_filename = f"{req.AC}{req.FmID}{yymmdd}_QR.png"
+        farm_qr_filename = f"{req.AC}{lot_id}{yymmdd}_QR.png"
         overlay_icon = FRUIT_IMAGES_FARM.get(req.FrT, "apple.png")
         qr_b64 = make_qr_base64(qr_url, overlay_filename=overlay_icon, rounded=True, save_filename=farm_qr_filename)
 
         return {
             "ok": True,
-            "fmid": req.FmID,
+            "fmid": lot_id,
             "hd_full": hd_full,
             "hash": integrity_hash,
             "qr_url": qr_url,
@@ -463,12 +621,13 @@ def api_create_farm_qr(req: FarmQRRequest):
     finally:
         conn.close()
 
+
 class ApcScanRequest(BaseModel):
     qr_data: str
 
+
 @app.post("/api/apc/scan-qr")
 def api_apc_scan_qr(req: ApcScanRequest):
-    from urllib.parse import urlparse, parse_qs
     raw = req.qr_data.strip()
     fm_id = None
     if "?" in raw or raw.startswith("http"):
@@ -485,21 +644,28 @@ def api_apc_scan_qr(req: ApcScanRequest):
 
     conn = get_db_connection()
     try:
+        sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
         with conn.cursor() as cur:
-            # 기존 Step3_Sorting_QR_Creator.py와 100% 동일: 반드시 Lo='A11'(세척 완료) 단계 데이터가 있어야만 조회 및 선별 허용!
-            cur.execute("SELECT * FROM qr WHERE FmID = %s AND Lo = 'A11' ORDER BY APC_WD DESC, id DESC LIMIT 1", (fm_id,))
+            cur.execute(
+                f"""
+                SELECT hl.lot_id AS FmID, hl.origin_zip AS AC, hl.fruit_type AS FrT, hl.variety AS Vt,
+                       hl.total_qty AS Qt, hl.current_stage,
+                       DATE_FORMAT(se.event_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS APC_WD
+                FROM `{DB_NAME}`.`harvest_lots` hl
+                JOIN `{DB_NAME}`.`stage_events` se
+                  ON hl.lot_id = se.lot_id AND se.stage_code = 'A11'
+                WHERE hl.lot_id = %s
+                LIMIT 1
+                """,
+                (fm_id,),
+            )
             row = cur.fetchone()
             if not row:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"DB에서 A11(세척 완료) 데이터를 찾을 수 없음 (FmID={fm_id}: A10 입고 및 A11 세척 단계가 먼저 완료되어야 QR 생성이 가능합니다)"
+                    detail=f"DB에서 A11(세척 완료) 데이터를 찾을 수 없음 (FmID={fm_id}: A10 입고 및 A11 세척 단계가 먼저 완료되어야 QR 생성이 가능합니다)",
                 )
 
-            for k, v in list(row.items()):
-                if isinstance(v, datetime):
-                    row[k] = v.strftime("%Y-%m-%d %H:%M:%S")
-
-            # 기존 Step3_Sorting_QR_Creator.py와 100% 동일한 난수 등급 배분 로직 (A등급 약 80%, 합계 일치 보정)
             total_qt = int(row.get("Qt") or 0)
             if total_qt > 0:
                 defect_val = random.randint(1, min(3, total_qt))
@@ -532,32 +698,30 @@ def api_apc_scan_qr(req: ApcScanRequest):
     finally:
         conn.close()
 
+
 @app.get("/api/apc/candidates")
 def api_apc_candidates():
     conn = get_db_connection()
     try:
+        sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
         with conn.cursor() as cur:
-            # 기존 GUI와 동일하게 A11(세척 완료) 데이터가 존재하는 FmID만 후보 목록에 표시
-            cur.execute("""
-                SELECT * FROM qr
-                WHERE Lo = 'A11' AND FmID IS NOT NULL
-                ORDER BY APC_WD DESC, id DESC
+            cur.execute(
+                f"""
+                SELECT hl.lot_id AS FmID, hl.origin_zip AS AC, hl.fruit_type AS FrT, hl.variety AS Vt,
+                       hl.total_qty AS Qt,
+                       DATE_FORMAT(se.event_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS APC_WD
+                FROM `{DB_NAME}`.`harvest_lots` hl
+                JOIN `{DB_NAME}`.`stage_events` se
+                  ON hl.lot_id = se.lot_id AND se.stage_code = 'A11'
+                WHERE hl.current_stage = 'A11'
+                ORDER BY se.event_at DESC
                 LIMIT 20
-            """)
-            rows = cur.fetchall()
-            seen = set()
-            items = []
-            for r in rows:
-                fmid = r.get("FmID")
-                if fmid and fmid not in seen:
-                    seen.add(fmid)
-                    for k, v in list(r.items()):
-                        if isinstance(v, datetime):
-                            r[k] = v.strftime("%Y-%m-%d %H:%M:%S")
-                    items.append(r)
-            return {"ok": True, "items": items}
+                """
+            )
+            return {"ok": True, "items": list(cur.fetchall())}
     finally:
         conn.close()
+
 
 class ApcSortingRequest(BaseModel):
     FmID: str
@@ -568,47 +732,102 @@ class ApcSortingRequest(BaseModel):
     target_mode: str = "streamlit"
     portal_base_url: str = ""
 
+
 @app.post("/api/apc/create-sorting-qr")
 def api_create_apc_sorting_qr(req: ApcSortingRequest):
     conn = get_db_connection()
     try:
+        sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
+        lot_id = req.FmID.strip()
         with conn.cursor() as cur:
             cur.execute("SET time_zone = '+09:00'")
             cur.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_now")
             srv_now = cur.fetchone()["srv_now"]
 
-            # 기존 Step3_Sorting_QR_Creator.py와 동일하게 반드시 Lo='A11' 레코드가 존재해야만 A12 생성 허용!
-            cur.execute("SELECT * FROM qr WHERE FmID = %s AND Lo = 'A11' ORDER BY APC_WD DESC, id DESC LIMIT 1", (req.FmID,))
-            prev_row = cur.fetchone()
-            if not prev_row:
+            cur.execute(
+                f"""
+                SELECT hl.*, se.lat AS a11_lat, se.lng AS a11_lng
+                FROM `{DB_NAME}`.`harvest_lots` hl
+                JOIN `{DB_NAME}`.`stage_events` se
+                  ON hl.lot_id = se.lot_id AND se.stage_code = 'A11'
+                WHERE hl.lot_id = %s
+                LIMIT 1
+                """,
+                (lot_id,),
+            )
+            lot_row = cur.fetchone()
+            if not lot_row:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"DB에서 A11(세척 완료) 데이터를 찾을 수 없습니다 (FmID={req.FmID}). 이전 단계(A10 입고·A11 세척)가 먼저 완료되어야 유색 QR 생성이 가능합니다."
+                    detail=f"DB에서 A11(세척 완료) 데이터를 찾을 수 없습니다 (FmID={lot_id}). 이전 단계(A10 입고·A11 세척)가 먼저 완료되어야 유색 QR 생성이 가능합니다.",
                 )
 
-            data_dict = dict(prev_row)
-            data_dict.update({
-                "Lo": "A12",
-                "AGrade": req.AGrade,
-                "BGrade": req.BGrade,
-                "CGrade": req.CGrade,
-                "DefectRate": req.DefectRate,
-                "APC_RT": srv_now,
-            })
+            a_cnt = int(req.AGrade or 0)
+            b_cnt = int(req.BGrade or 0)
+            c_cnt = int(req.CGrade or 0)
+            def_cnt = int(req.DefectRate or 0)
 
-            cur.execute("SHOW COLUMNS FROM qr")
-            db_cols = {c["Field"] for c in cur.fetchall()}
-            data_to_insert = {k: v for k, v in data_dict.items() if k in db_cols and k != "id"}
+            # 1) 방법 A 정규화 적재: sorted_lots 4행 (A, B, C, DEFECT) + stage_events(A12)
+            for p_id, g_cd, g_ko, g_q, ship, p_st in [
+                (f"{lot_id}-A", "A", "상", a_cnt, 1, "A12"),
+                (f"{lot_id}-B", "B", "중", b_cnt, 1, "A12"),
+                (f"{lot_id}-C", "C", "하", c_cnt, 1, "A12"),
+                (f"{lot_id}-DEF", "DEFECT", "결점과", def_cnt, 0, "REJECTED"),
+            ]:
+                cur.execute(
+                    f"""
+                    INSERT INTO `{DB_NAME}`.`sorted_lots`
+                    (pkg_id, lot_id, grade_code, grade_label_ko, grade_qty, is_shippable, current_stage, sorted_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE grade_qty=VALUES(grade_qty), sorted_at=VALUES(sorted_at)
+                    """,
+                    (p_id, lot_id, g_cd, g_ko, g_q, ship, p_st, srv_now),
+                )
 
-            cols_sql = ", ".join(data_to_insert.keys())
-            placeholders_sql = ", ".join([f"%({k})s" for k in data_to_insert.keys()])
-            cur.execute(f"INSERT INTO qr ({cols_sql}) VALUES ({placeholders_sql})", data_to_insert)
+            integrity_hash = make_sha256(
+                {"lot_id": lot_id, "stage": "A12", "A": a_cnt, "B": b_cnt, "C": c_cnt, "DEFECT": def_cnt, "rt": srv_now}
+            )
+            cur.execute(
+                f"""
+                INSERT INTO `{DB_NAME}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, lat, lng, tx_hash)
+                VALUES (%s, NULL, 'A12', %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE event_at=VALUES(event_at), tx_hash=VALUES(tx_hash)
+                """,
+                (lot_id, srv_now, lot_row.get("a11_lat"), lot_row.get("a11_lng"), integrity_hash),
+            )
+            cur.execute(f"UPDATE `{DB_NAME}`.`harvest_lots` SET current_stage='A12' WHERE lot_id=%s", (lot_id,))
 
-        integrity_hash = calculate_hash(data_to_insert)
-        save_to_blockchain(integrity_hash, {"FmID": req.FmID, "APC_RT": srv_now}, "A12 (Sorting & Grading)")
+            # 2) 물리 ESP32 스캐너 호환을 위한 lab225.qr A12 기록 및 워터마크 갱신
+            cur.execute(f"SELECT * FROM `{DB_V1_NAME}`.`qr` WHERE FmID=%s AND Lo='A11' ORDER BY id DESC LIMIT 1", (lot_id,))
+            prev_v1 = cur.fetchone()
+            if prev_v1:
+                data_dict = dict(prev_v1)
+                data_dict.update({
+                    "Lo": "A12",
+                    "AGrade": str(a_cnt),
+                    "BGrade": str(b_cnt),
+                    "CGrade": str(c_cnt),
+                    "DefectRate": str(def_cnt),
+                    "APC_RT": srv_now,
+                })
+                cur.execute(f"SHOW COLUMNS FROM `{DB_V1_NAME}`.`qr`")
+                db_cols = {c["Field"] for c in cur.fetchall()}
+                data_to_insert = {k: v for k, v in data_dict.items() if k in db_cols and k != "id"}
+                cols_sql = ", ".join(data_to_insert.keys())
+                placeholders_sql = ", ".join([f"%({k})s" for k in data_to_insert.keys()])
+                cur.execute(f"INSERT INTO `{DB_V1_NAME}`.`qr` ({cols_sql}) VALUES ({placeholders_sql})", data_to_insert)
+                v1_id = cur.lastrowid
+                if v1_id:
+                    cur.execute(
+                        f"""
+                        INSERT INTO `{DB_NAME}`.`_sync_watermark` (source_table, last_id)
+                        VALUES ('qr', %s) ON DUPLICATE KEY UPDATE last_id=GREATEST(last_id, VALUES(last_id))
+                        """,
+                        (v1_id,),
+                    )
 
-        fruit = str(prev_row.get("FrT") or "Apples")
-        ac = str(prev_row.get("AC") or "")
+        fruit = str(lot_row.get("fruit_type") or "Apples")
+        ac = str(lot_row.get("origin_zip") or "")
         grade_icons = FRUIT_IMAGES_GRADE.get(fruit, FRUIT_IMAGES_GRADE["Apples"])
 
         base_url = (
@@ -624,8 +843,8 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
             ("중", "B", req.BGrade),
             ("하", "C", req.CGrade),
         ]):
-            q_url = f"{base_url}/?FmID={req.FmID}&grade={g_kr}&AC={ac}&FrT={fruit}"
-            qr_filename = f"{req.FmID}_{g_en}_QR.png"
+            q_url = f"{base_url}/?FmID={lot_id}&grade={g_kr}&AC={ac}&FrT={fruit}"
+            qr_filename = f"{lot_id}_{g_en}_QR.png"
             q_b64 = make_qr_base64(q_url, overlay_filename=grade_icons[idx], rounded=False, save_filename=qr_filename)
             saved_files.append(qr_filename)
             qrs.append({
@@ -639,7 +858,7 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
 
         return {
             "ok": True,
-            "fmid": req.FmID,
+            "fmid": lot_id,
             "apc_rt": srv_now,
             "hash": integrity_hash,
             "qrs": qrs,
@@ -650,28 +869,36 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
     finally:
         conn.close()
 
+
 @app.get("/api/control/sessions")
-def api_control_sessions(truck_id: str = "truck02"):
+def api_control_sessions(truck_id: str = "truck02", include_lab: bool = False):
     truck = TRUCK_OPTIONS.get(truck_id, TRUCK_OPTIONS["truck02"])
     dev = truck["device_id"]
     conn = get_db_connection()
     try:
+        sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT run_id, COUNT(*) as cnt, MIN(timestamp_str) as start_ts, MAX(timestamp_str) as end_ts,
-                       MAX(speed) as max_spd, MIN(temperature) as min_temp, MAX(temperature) as max_temp
-                FROM sensor_data
-                WHERE (device = %s OR (device = 'truck01' AND %s = 'carrier-c6-01'))
-                  AND run_id IS NOT NULL
-                GROUP BY run_id
-                HAVING cnt >= 2
-                ORDER BY MAX(id) DESC
+            type_filter = "tr.run_type IN ('FIELD_DRIVE', 'BENCH', 'MOCK')" if include_lab else "tr.run_type = 'FIELD_DRIVE'"
+            cur.execute(
+                f"""
+                SELECT tr.run_id, tr.run_type, tr.packet_cnt AS cnt,
+                       DATE_FORMAT(tr.started_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS start_ts,
+                       DATE_FORMAT(tr.ended_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS end_ts,
+                       tr.max_speed AS max_spd, tr.min_temp, tr.max_temp, tr.max_g_force,
+                       GROUP_CONCAT(DISTINCT CONCAT('FmID#', sh.lot_id, '(', sh.leg_no, '구간)') SEPARATOR ', ') AS cargo_summary
+                FROM `{DB_NAME}`.`transport_runs` tr
+                LEFT JOIN `{DB_NAME}`.`shipments` sh ON tr.run_id = sh.run_id
+                WHERE tr.device_id = %s AND {type_filter}
+                GROUP BY tr.run_id
+                ORDER BY tr.started_at DESC
                 LIMIT 25
-            """, (dev, dev))
-            rows = cur.fetchall()
-            return {"ok": True, "device_id": dev, "sessions": rows}
+                """,
+                (dev,),
+            )
+            return {"ok": True, "device_id": dev, "sessions": list(cur.fetchall())}
     finally:
         conn.close()
+
 
 @app.get("/api/control/history")
 def api_control_history(truck_id: str = "truck02", run_id: str = "live"):
@@ -679,38 +906,58 @@ def api_control_history(truck_id: str = "truck02", run_id: str = "live"):
     dev = truck["device_id"]
     conn = get_db_connection()
     try:
+        sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
         with conn.cursor() as cur:
             target_run = run_id
             if run_id == "live":
                 cutoff_kst = (get_kst_now() - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
-                cur.execute("""
-                    SELECT run_id, MAX(id) as last_id, COUNT(*) as cnt
-                    FROM sensor_data
-                    WHERE (device = %s OR (device = 'truck01' AND %s = 'carrier-c6-01'))
-                      AND run_id IS NOT NULL
-                      AND (timestamp_str >= %s OR created_at >= UTC_TIMESTAMP() - INTERVAL 6 HOUR)
-                    GROUP BY run_id
-                    HAVING cnt >= 2
-                    ORDER BY last_id DESC
+                cur.execute(
+                    f"""
+                    SELECT run_id
+                    FROM `{DB_NAME}`.`transport_runs`
+                    WHERE device_id = %s
+                      AND run_type = 'FIELD_DRIVE'
+                      AND ended_at >= %s
+                    ORDER BY ended_at DESC
                     LIMIT 1
-                """, (dev, dev, cutoff_kst))
+                    """,
+                    (dev, cutoff_kst),
+                )
                 latest = cur.fetchone()
                 target_run = latest["run_id"] if latest else None
 
             if not target_run:
-                return {"ok": True, "run_id": None, "records": []}
+                return {"ok": True, "run_id": None, "cargo": [], "records": []}
 
-            cur.execute("""
-                SELECT device, timestamp_str as timestamp, temperature, humidity, lux, g_force, speed, lat, lng, status, run_id
-                FROM sensor_data
-                WHERE run_id = %s
-                  AND (device = %s OR (device = 'truck01' AND %s = 'carrier-c6-01'))
-                ORDER BY id ASC
-            """, (target_run, dev, dev))
+            cur.execute(
+                f"""
+                SELECT st.device_id AS device,
+                       DATE_FORMAT(st.measured_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS timestamp,
+                       st.temperature, st.humidity, st.lux, st.g_force, st.speed,
+                       st.lat, st.lng, st.raw_status AS status, st.gps_state, st.event_type, st.run_id
+                FROM `{DB_NAME}`.`sensor_telemetry` st
+                WHERE st.run_id = %s AND st.device_id = %s
+                ORDER BY st.measured_at ASC, st.telemetry_id ASC
+                """,
+                (target_run, dev),
+            )
             records = list(cur.fetchall())
-            return {"ok": True, "run_id": target_run, "records": records}
+
+            cur.execute(
+                f"""
+                SELECT sh.lot_id, sh.pkg_id, sh.leg_no, sh.status, hl.variety, hl.total_qty
+                FROM `{DB_NAME}`.`shipments` sh
+                JOIN `{DB_NAME}`.`harvest_lots` hl ON sh.lot_id = hl.lot_id
+                WHERE sh.run_id = %s
+                ORDER BY sh.leg_no ASC
+                """,
+                (target_run,),
+            )
+            cargo = list(cur.fetchall())
+            return {"ok": True, "run_id": target_run, "cargo": cargo, "records": records}
     finally:
         conn.close()
+
 
 @app.websocket("/ws/telemetry")
 async def ws_telemetry_endpoint(websocket: WebSocket):
@@ -726,11 +973,13 @@ async def ws_telemetry_endpoint(websocket: WebSocket):
     except Exception:
         ws_clients.discard(websocket)
 
+
 @app.get("/", response_class=HTMLResponse)
 def serve_portal_index():
     html_path = os.path.join(BASE_DIR, "templates", "index.html")
     with open(html_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
+
 
 if __name__ == "__main__":
     import uvicorn

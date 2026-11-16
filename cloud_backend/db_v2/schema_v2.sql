@@ -197,4 +197,17 @@ CREATE TABLE `sensor_telemetry` (
         REFERENCES `vehicles` (`device_id`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ----------------------------------------------------------------------------
+-- 8. 실시간 증분 브릿지 워터마크 (_sync_watermark)
+--    ESP32 스캐너(lab225.qr) 및 기존 데몬(lab225.sensor_data) 신규 행을
+--    0.01초 만에 lab225_v2로 증분 동기화하기 위한 커서 테이블
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS `_sync_watermark`;
+CREATE TABLE `_sync_watermark` (
+    `source_table` VARCHAR(40) NOT NULL,
+    `last_id`      BIGINT      NOT NULL DEFAULT 0,
+    `updated_at`   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`source_table`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

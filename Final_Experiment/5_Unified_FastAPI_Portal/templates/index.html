@@ -804,6 +804,8 @@
         },
         stages: {
           A00: ["🌱 농장 수확", "정성껏 재배한 과일을 정직하게 수확했습니다.", "HD"],
+          A01: ["🏡 농가 저온저장", "수확 직후 산지 저온저장고에서 예냉 및 신선 보관을 거쳤습니다.", "Farm_StD"],
+          A02: ["🚜 산지 출하", "산지유통센터(APC)를 향해 안전하게 운송을 시작했습니다.", "Farm_DD"],
           A10: ["🏢 입고", "생산지에서 신선한 상태로 센터에 도착했습니다.", "APC_AD"],
           A11: ["💦 세척", "깨끗하고 안전한 물로 세척 과정을 마쳤습니다.", "APC_WD"],
           A12: ["🔍 선별", "크기와 당도, 품질을 엄격하게 선별했습니다.", "APC_RT"],
@@ -867,6 +869,8 @@
         },
         stages: {
           A00: ["🌱 Harvest", "Carefully cultivated fruit has been honestly harvested.", "HD"],
+          A01: ["🏡 Farm Cold Storage", "Pre-cooled and stored fresh at the farm's cold storage facility.", "Farm_StD"],
+          A02: ["🚜 Farm Dispatch", "Departed safely from the farm toward the APC sorting center.", "Farm_DD"],
           A10: ["🏢 Receiving", "Arrived at the APC center in a fresh state from the farm.", "APC_AD"],
           A11: ["💦 Washing", "Completed the washing process with clean and safe water.", "APC_WD"],
           A12: ["🔍 Sorting", "Strictly sorted by size, sweetness, and quality.", "APC_RT"],
@@ -1199,19 +1203,22 @@
       document.getElementById("lbl-timeline-title").textContent = L.timeline_title;
       const tlContainer = document.getElementById("consumer-timeline");
       tlContainer.innerHTML = "";
-      ["A00", "A10", "A11", "A12", "A13", "A14", "A15", "A16"].forEach(code => {
+      ["A00", "A01", "A02", "A10", "A11", "A12", "A13", "A14", "A15", "A16"].forEach(code => {
         const [stTitle, stDesc, timeCol] = L.stages[code];
         const row = stageLookup[code];
         if (row) {
-          const stTime = row[timeCol] || "";
+          const stTime = row.event_at || row[timeCol] || "";
           const elapsed = formatElapsed(stTime, csLang);
+          const hashBadge = row.tx_hash
+            ? ` &nbsp;|&nbsp; <span class="text-[#27ae60] font-semibold">🔗 Hash: ${String(row.tx_hash).slice(0, 12)}...</span>`
+            : "";
           const itemDiv = document.createElement("div");
           itemDiv.className = "cs-timeline-item";
           itemDiv.innerHTML = `
             <span class="font-bold text-[1.08rem] text-[#1d1d1f]">${stTitle}</span>
             ${elapsed ? `<span class="cs-elapsed-tag">${elapsed}</span>` : ""}
             <p class="text-[#515154] mt-1 text-sm mb-1">${stDesc}</p>
-            <small class="text-[#86868b] text-xs">⏰ ${L.proc_time}: ${stTime}</small>
+            <small class="text-[#86868b] text-xs">⏰ ${L.proc_time}: ${stTime}${hashBadge}</small>
           `;
           tlContainer.appendChild(itemDiv);
 
@@ -1319,9 +1326,9 @@
 
       (data.records || []).forEach(r => {
         const code = r.Lo;
-        if (!code || code === "A00" || !L_dict.stages[code]) return;
+        if (!code || ["A00", "A01", "A02"].includes(code) || !L_dict.stages[code]) return;
         const [stName, , tCol] = L_dict.stages[code];
-        const stTime = r[tCol] || "-";
+        const stTime = r.event_at || r[tCol] || "-";
         const la = Number(r.Lat || 0);
         const lo = Number(r.lon || 0);
         const validPt = (Math.abs(la) > 1 && Math.abs(lo) > 1) ? [la, lo] : null;

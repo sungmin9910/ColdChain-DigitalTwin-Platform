@@ -3,12 +3,18 @@ import paho.mqtt.client as mqtt
 import json
 import pandas as pd
 import time
+import os
 import sys
 from datetime import datetime, timezone, timedelta
 import queue
 import pydeck as pdk
 import pymysql
 import altair as alt
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+from cloud_backend.db_v2.bridge_sync import sync_v1_delta_to_v2, upsert_sensor_packet_v2
 
 if hasattr(sys.stdout, 'reconfigure'):
     try:
@@ -196,54 +202,38 @@ def render_segmented_toggle(label, options, default, key):
         val = st.radio(label, options=options, index=options.index(default) if default in options else 0, key=key, horizontal=True, label_visibility="collapsed")
     return val or default
 
-# AWS MySQL 설정
-def get_mysql_connection():
+# AWS MySQL 설정 (정규화 DB lab225_v2 메인 연결 + lab225 증분 브릿지 호환)
+DB_V2_NAME = os.getenv("MYSQL_V2_DATABASE", "lab225_v2")
+DB_V1_NAME = os.getenv("MYSQL_DATABASE", "lab225")
+
+def get_mysql_connection(db_name=None):
+    target_db = db_name or DB_V2_NAME
     try:
-        if "MySQL" in st.secrets:
-            conn = pymysql.connect(
-                host=st.secrets["MySQL"]["MYSQL_HOST"],
-                port=st.secrets["MySQL"].get("MYSQL_PORT", 3306),
-                user=st.secrets["MySQL"]["MYSQL_USER"],
-                password=st.secrets["MySQL"]["MYSQL_PASSWORD"],
-                database=st.secrets["MySQL"]["MYSQL_DATABASE"],
-                charset='utf8mb4',
-                cursorclass=pymysql.cursors.DictCursor
-            )
-            return conn
-    except Exception as e:
-        print(f"MySQL 연결 에러 (secrets.toml 확인 필요): {e}")
-    return None
-
-# DB 초기화 (테이블 없으면 자동 생성)
-def init_mysql_table():
-    conn = get_mysql_connection()
-    if conn:
+        host = os.getenv("MYSQL_HOST", "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com")
+        port = int(os.getenv("MYSQL_PORT", 3306))
+        user = os.getenv("MYSQL_USER", "admin")
+        password = os.getenv("MYSQL_PASSWORD", "12345678")
         try:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                CREATE TABLE IF NOT EXISTS sensor_data (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    device VARCHAR(50),
-                    timestamp_str VARCHAR(50),
-                    temperature FLOAT,
-                    humidity FLOAT,
-                    lux FLOAT,
-                    g_force FLOAT,
-                    speed FLOAT,
-                    lat FLOAT,
-                    lng FLOAT,
-                    status VARCHAR(50),
-                    run_id VARCHAR(100) DEFAULT 'default_run',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-                """)
-            conn.commit()
-        except Exception as e:
-            print(f"테이블 생성 에러: {e}")
-        finally:
-            conn.close()
-
-init_mysql_table()
+            if "MySQL" in st.secrets:
+                host = st.secrets["MySQL"].get("MYSQL_HOST", host)
+                port = int(st.secrets["MySQL"].get("MYSQL_PORT", port))
+                user = st.secrets["MySQL"].get("MYSQL_USER", user)
+                password = st.secrets["MySQL"].get("MYSQL_PASSWORD", password)
+        except Exception:
+            pass
+        return pymysql.connect(
+            host=host,
+            port=port,
+            user=user,
+            password=password,
+            database=target_db,
+            charset='utf8mb4',
+            connect_timeout=8,
+            cursorclass=pymysql.cursors.DictCursor
+        )
+    except Exception as e:
+        print(f"MySQL 연결 에러: {e}")
+    return None
 
 # 데이터 공유를 위한 큐
 @st.cache_resource
@@ -263,39 +253,27 @@ def load_run_data(run_id, device=None):
         try:
             with conn.cursor() as cursor:
                 if device:
-                    cursor.execute("""
-                        SELECT * FROM sensor_data 
-                        WHERE run_id = %s 
-                          AND (device = %s OR (device = 'truck01' AND %s = 'carrier-c6-01'))
-                        ORDER BY id ASC
-                    """, (run_id, device, device))
+                    cursor.execute(f"""
+                        SELECT device_id AS device,
+                               DATE_FORMAT(measured_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS timestamp,
+                               temperature, humidity, lux, g_force, speed, lat, lng,
+                               raw_status AS status, gps_state, event_type, run_id
+                        FROM `{DB_V2_NAME}`.`sensor_telemetry`
+                        WHERE run_id = %s AND device_id = %s
+                        ORDER BY measured_at ASC, telemetry_id ASC
+                    """, (run_id, device))
                 else:
-                    cursor.execute("SELECT * FROM sensor_data WHERE run_id = %s ORDER BY id ASC", (run_id,))
-                items = cursor.fetchall()
-            
-            for item in items:
-                ts = item.get("timestamp_str")
-                if not ts or ts == "00:00:00" or str(ts).startswith("00:00") or str(ts).startswith("2026-10-01 00:00"):
-                    created_at = item.get("created_at")
-                    if created_at:
-                        ts = (created_at + timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S")
-                    else:
-                        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                parsed_item = {
-                    "device": item.get("device"),
-                    "timestamp": ts,
-                    "temperature": item.get("temperature", 0.0),
-                    "humidity": item.get("humidity", 0.0),
-                    "lux": item.get("lux", 0.0),
-                    "g_force": item.get("g_force", 0.0),
-                    "speed": item.get("speed", 0.0),
-                    "lat": item.get("lat", 0.0),
-                    "lng": item.get("lng", 0.0),
-                    "status": item.get("status"),
-                    "run_id": item.get("run_id")
-                }
-                history.append(parsed_item)
-            print(f"MySQL에서 실험 '{run_id}' (device={device})의 데이터 {len(history)}개를 불러왔습니다.")
+                    cursor.execute(f"""
+                        SELECT device_id AS device,
+                               DATE_FORMAT(measured_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS timestamp,
+                               temperature, humidity, lux, g_force, speed, lat, lng,
+                               raw_status AS status, gps_state, event_type, run_id
+                        FROM `{DB_V2_NAME}`.`sensor_telemetry`
+                        WHERE run_id = %s
+                        ORDER BY measured_at ASC, telemetry_id ASC
+                    """, (run_id,))
+                history = list(cursor.fetchall())
+            print(f"MySQL(v2)에서 실험 '{run_id}' (device={device})의 데이터 {len(history)}개를 불러왔습니다.")
         except Exception as e:
             print(f"MySQL 데이터 로드 실패: {e}")
         finally:
@@ -303,33 +281,26 @@ def load_run_data(run_id, device=None):
     return history
 
 def save_to_mysql(msg_dict, run_id):
+    """수동 직접 저장 모드 선택 시에만 동작 (멱등 Upsert + Dual-Write 호환)"""
     conn = get_mysql_connection()
     if conn is None:
         return
     try:
+        rec = {
+            "device": msg_dict.get("device", "carrier-c6-01"),
+            "timestamp_str": msg_dict.get("timestamp", ""),
+            "temperature": float(msg_dict.get("temperature", 0.0)),
+            "humidity": float(msg_dict.get("humidity", 0.0)),
+            "lux": float(msg_dict.get("lux", 0.0)),
+            "g_force": float(msg_dict.get("g_force", 1.0)),
+            "speed": float(msg_dict.get("speed", 0.0)),
+            "lat": float(msg_dict.get("lat", 0.0)),
+            "lng": float(msg_dict.get("lng", 0.0)),
+            "status": msg_dict.get("status", ""),
+            "run_id": run_id,
+        }
         with conn.cursor() as cursor:
-            # AWS RDS 시간에 +09:00 적용
-            cursor.execute("SET time_zone = '+09:00'")
-            
-            sql = """
-            INSERT INTO sensor_data 
-            (device, timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status, run_id, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-            """
-            val = (
-                msg_dict.get("device", "unknown"),
-                msg_dict.get("timestamp", ""),
-                float(msg_dict.get("temperature", 0.0)),
-                float(msg_dict.get("humidity", 0.0)),
-                float(msg_dict.get("lux", 0.0)),
-                float(msg_dict.get("g_force", 0.0)),
-                float(msg_dict.get("speed", 0.0)),
-                float(msg_dict.get("lat", 0.0)),
-                float(msg_dict.get("lng", 0.0)),
-                msg_dict.get("status", ""),
-                run_id
-            )
-            cursor.execute(sql, val)
+            upsert_sensor_packet_v2(cursor, rec, dst_db=DB_V2_NAME)
         conn.commit()
     except Exception as e:
         print(f"MySQL 저장 에러: {e}")
@@ -460,35 +431,57 @@ with st.sidebar:
     MQTT_TOPIC = active_truck['topic']
     EXPECTED_DEVICE = active_truck['device_id']
 
-    # DB에서 현재 관제 차량의 고유 run_id 목록 및 메타데이터 가져오기
+    # DB(lab225_v2.transport_runs ⋈ shipments)에서 현재 관제 차량의 세션 목록 및 적재 화물 메타데이터 로드
+    show_lab_sessions = st.checkbox(
+        "🔬 실내 벤치·모의 실험 세션 함께 보기" if st.session_state.lang == 'KO' else "🔬 Show Bench & Mock Sessions",
+        value=False,
+        help="기본 상태에서는 실제 도로 주행(FIELD_DRIVE) 세션만 깔끔하게 표시하며, 체크 시 냉장고/벤치 실험(BENCH) 및 모의 주행(MOCK)을 함께 표시합니다."
+    )
     run_ids = ["실시간 주행 (현재 실험)"]
     session_meta_dict = {}
+    in_transit_cargo = []
 
     conn = get_mysql_connection()
     if conn:
         try:
+            sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_V2_NAME)
             with conn.cursor() as cursor:
-                cursor.execute("""
-                    SELECT run_id, 
-                           COUNT(*) as cnt, 
-                           MIN(CASE WHEN LEFT(timestamp_str, 10) != '2026-10-01' AND timestamp_str != '00:00:00' AND timestamp_str IS NOT NULL THEN timestamp_str END) as start_ts, 
-                           MAX(timestamp_str) as end_ts,
-                           MAX(speed) as max_spd,
-                           MIN(temperature) as min_temp,
-                           MAX(temperature) as max_temp
-                    FROM sensor_data 
-                    WHERE run_id IS NOT NULL 
-                      AND (device = %s OR (device = 'truck01' AND %s = 'carrier-c6-01'))
-                    GROUP BY run_id 
-                    HAVING COUNT(*) >= 3 
-                    ORDER BY MAX(id) DESC
-                """, (EXPECTED_DEVICE, EXPECTED_DEVICE))
+                type_cond = "tr.run_type IN ('FIELD_DRIVE', 'BENCH', 'MOCK')" if show_lab_sessions else "tr.run_type = 'FIELD_DRIVE'"
+                cursor.execute(f"""
+                    SELECT tr.run_id,
+                           tr.run_type,
+                           tr.packet_cnt AS cnt,
+                           DATE_FORMAT(tr.started_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS start_ts,
+                           DATE_FORMAT(tr.ended_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS end_ts,
+                           tr.max_speed AS max_spd,
+                           tr.min_temp,
+                           tr.max_temp,
+                           tr.max_g_force,
+                           GROUP_CONCAT(DISTINCT CONCAT('FmID #', sh.lot_id, ' (', hl.variety, ' ', hl.total_qty, '박스 · ', sh.leg_no, '구간)') SEPARATOR ', ') AS cargo_label
+                    FROM `{DB_V2_NAME}`.`transport_runs` tr
+                    LEFT JOIN `{DB_V2_NAME}`.`shipments` sh ON tr.run_id = sh.run_id
+                    LEFT JOIN `{DB_V2_NAME}`.`harvest_lots` hl ON sh.lot_id = hl.lot_id
+                    WHERE tr.device_id = %s AND {type_cond}
+                    GROUP BY tr.run_id
+                    ORDER BY tr.started_at DESC
+                """, (EXPECTED_DEVICE,))
                 rows = cursor.fetchall()
                 for r in rows:
                     val = r["run_id"]
                     if val not in run_ids:
                         run_ids.append(val)
                     session_meta_dict[val] = r
+
+                # 현재 실시간 운송 중(IN_TRANSIT)인 화물이 있으면 조회
+                cursor.execute(f"""
+                    SELECT sh.lot_id, sh.pkg_id, sh.leg_no, hl.variety, hl.total_qty
+                    FROM `{DB_V2_NAME}`.`shipments` sh
+                    JOIN `{DB_V2_NAME}`.`harvest_lots` hl ON sh.lot_id = hl.lot_id
+                    WHERE sh.status = 'IN_TRANSIT' AND hl.is_test = 0
+                      AND (sh.device_id = %s OR sh.device_id IS NULL)
+                    ORDER BY sh.departed_at DESC LIMIT 3
+                """, (EXPECTED_DEVICE,))
+                in_transit_cargo = list(cursor.fetchall())
         except Exception as e:
             print(f"run_ids 로드 에러: {e}")
         finally:
@@ -590,6 +583,9 @@ with st.sidebar:
             st.caption("⚪ **[연구실 모드]** DB 저장이 차단된 모니터링 전용 상태입니다.")
 
         st.markdown(f"**🏷️ 현재 활성 세션 ID**  \n`{st.session_state.run_id}`")
+        if in_transit_cargo:
+            cargo_str = ", ".join([f"FmID #{c['lot_id']} ({c['variety']} · {c['leg_no']}구간)" for c in in_transit_cargo])
+            st.success(f"📦 **운송 중 화물**: {cargo_str}")
         new_run_input = st.text_input(
             "새 세션 이름 (선택사항)" if st.session_state.lang == 'KO' else "New Session Name (Optional)",
             placeholder="미입력 시 현재 시간으로 자동 생성" if st.session_state.lang == 'KO' else "Auto-generated if empty"
@@ -642,13 +638,19 @@ with st.sidebar:
     else:
         db_record_mode = "⚪ 저장 안함"
         static_history = load_run_data(selected_run, device=EXPECTED_DEVICE)
+        sel_meta = session_meta_dict.get(selected_run) or {}
+        cargo_html = (
+            f"<br>• <b>매칭 화물(JOIN):</b> <span style='color:#2ecc71;'>{sel_meta['cargo_label']}</span>"
+            if sel_meta.get("cargo_label")
+            else ""
+        )
         
         sidebar_status_box.markdown(f"""
         <div style="background-color: rgba(255, 165, 0, 0.08); border: 1px solid rgba(255, 165, 0, 0.35); border-radius: 8px; padding: 12px; margin-bottom: 5px;">
             <div style="font-size: 13.5px; font-weight: bold; color: #ffa500; margin-bottom: 6px;">📂 과거 실험 조회 모드</div>
             <div style="font-size: 12px; line-height: 1.7; color: #e0e0e0;">
                 • <b>선택 세션:</b> <code>{selected_run}</code><br>
-                • <b>기록 데이터:</b> <b style="color:#ffa500;">{len(static_history)}</b>건
+                • <b>기록 데이터:</b> <b style="color:#ffa500;">{len(static_history)}</b>건{cargo_html}
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -761,20 +763,20 @@ if selected_run == "실시간 주행 (현재 실험)":
         conn = get_mysql_connection()
         if conn:
             try:
+                sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_V2_NAME)
                 with conn.cursor() as cursor:
                     cutoff_kst = (get_kst_now() - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
-                    # 최근 6시간 이내(KST timestamp_str 또는 UTC created_at 기준) 가장 최신 주행 세션 검색
-                    cursor.execute("""
-                        SELECT run_id, MAX(id) as last_id, COUNT(*) as cnt
-                        FROM sensor_data
-                        WHERE (device = %s OR (device = 'truck01' AND %s = 'carrier-c6-01'))
-                          AND run_id IS NOT NULL
-                          AND (timestamp_str >= %s OR created_at >= UTC_TIMESTAMP() - INTERVAL 6 HOUR)
-                        GROUP BY run_id
-                        HAVING cnt >= 2
-                        ORDER BY last_id DESC
+                    # 정규화 transport_runs 테이블에서 최근 6시간 이내 해당 차량의 활성 실차 세션 검색
+                    cursor.execute(f"""
+                        SELECT run_id, packet_cnt AS cnt
+                        FROM `{DB_V2_NAME}`.`transport_runs`
+                        WHERE device_id = %s
+                          AND run_type = 'FIELD_DRIVE'
+                          AND ended_at >= %s
+                          AND packet_cnt >= 2
+                        ORDER BY ended_at DESC
                         LIMIT 1
-                    """, (EXPECTED_DEVICE, EXPECTED_DEVICE, cutoff_kst))
+                    """, (EXPECTED_DEVICE, cutoff_kst))
                     latest_active = cursor.fetchone()
                     if latest_active and latest_active['run_id']:
                         active_id = latest_active['run_id']

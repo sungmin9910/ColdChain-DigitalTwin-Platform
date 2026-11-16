@@ -8,6 +8,12 @@ import threading
 import paho.mqtt.client as mqtt
 import pymysql
 
+# db_v2 실시간 증분 브릿지 모듈 임포트
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+from db_v2.bridge_sync import upsert_sensor_packet_v2, sync_v1_delta_to_v2
+
 if hasattr(sys.stdout, 'reconfigure'):
     try:
         sys.stdout.reconfigure(encoding='utf-8')
@@ -15,13 +21,14 @@ if hasattr(sys.stdout, 'reconfigure'):
         pass
 
 # ----------------------------------------------------------------
-# 1. 설정 (환경변수 우선, secrets.toml / 기본값 폴백)
+# 1. 설정 (환경변수 우선, 기본값 폴백 - Dual-Write 지원)
 # ----------------------------------------------------------------
 MYSQL_HOST = os.environ.get("MYSQL_HOST", "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com")
 MYSQL_PORT = int(os.environ.get("MYSQL_PORT", 3306))
 MYSQL_USER = os.environ.get("MYSQL_USER", "admin")
 MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "12345678")
-MYSQL_DATABASE = os.environ.get("MYSQL_DATABASE", "lab225")
+MYSQL_DATABASE = os.environ.get("MYSQL_DATABASE", "lab225")          # 기존 v1 호환 보존용 DB
+MYSQL_V2_DATABASE = os.environ.get("MYSQL_V2_DATABASE", "lab225_v2") # 신규 v2 정규화 메인 DB
 
 MQTT_BROKER = os.environ.get("MQTT_BROKER", "broker.hivemq.com")
 MQTT_PORT = int(os.environ.get("MQTT_PORT", 1883))
@@ -68,7 +75,13 @@ class VehicleSessionTracker:
         lng = float(payload.get('lng', 0.0))
         sats = int(payload.get('sats', 0))
         status_str = str(payload.get('status', ''))
-        ts_str = str(payload.get('timestamp_str') or get_kst_now().strftime("%Y-%m-%d %H:%M:%S"))
+
+        # 미동기화 시각(00:00:00 또는 2026-10-01 00:00) 수신 시 서버 KST 현재 시각으로 즉시 보정
+        raw_ts = str(payload.get('timestamp_str') or '').strip()
+        if len(raw_ts) >= 19 and not raw_ts.startswith("00:00") and not raw_ts.startswith("2026-10-01 00:00"):
+            ts_str = raw_ts[:19]
+        else:
+            ts_str = get_kst_now().strftime("%Y-%m-%d %H:%M:%S")
 
         # 이상 이벤트 감지 (충격, 조도 급변, 온도 급변)
         lux_diff = 0.0 if self.prev_lux is None else (lux - self.prev_lux)
@@ -103,18 +116,17 @@ class VehicleSessionTracker:
         was_stopped = not self.trip_started
         if (gps_is_valid or speed > 2.0) and "대기" not in status_str and "실내" not in status_str:
             if was_stopped or self.active_run_id is None:
-                if len(ts_str) >= 16 and not ts_str.startswith("2026-10-01") and not ts_str.startswith("00:00"):
-                    dt_part = ts_str[:16].replace(" ", "_").replace(":", "시") + "분"
-                    new_run = f"{self.truck_id}_주행_{dt_part}"
-                else:
-                    new_run = f"{self.truck_id}_주행_{get_kst_now().strftime('%Y-%m-%d_%H시%M분')}"
+                dt_part = ts_str[:16].replace(" ", "_").replace(":", "시") + "분"
+                new_run = f"{self.truck_id}_주행_{dt_part}"
                 self.active_run_id = new_run
                 self.trip_started = True
                 print(f"[{self.truck_id}] [START] 새 주행 세션 자동 시작: '{new_run}' (출발시각: {ts_str})", flush=True)
 
         # 터널 보정
         is_in_tunnel = False
-        if not gps_is_valid and self.trip_started and self.last_valid_gps != (0.0, 0.0):
+        if not self.trip_started:
+            pass
+        elif not gps_is_valid and self.last_valid_gps != (0.0, 0.0):
             lat, lng = self.last_valid_gps
             is_in_tunnel = True
 
@@ -138,15 +150,11 @@ class VehicleSessionTracker:
             final_status = f"정상 {loc_tag}"[:48]
 
         # DB 저장 조건 판정 (스마트 필터링)
-        # 1) 충격 및 급변 이상치는 실내외 무관하게 100% 무조건 즉시 저장!
-        # 2) 주행 중(trip_started)에는 5초 주기 정주기 저장 (오프라인 버퍼 일괄 수신 시 패킷 측정 시각 간격도 함께 인정)!
-        # 3) 실내 단순 대기는 DB 낭비 방지를 위해 저장 생략
         pkt_epoch = None
-        if len(ts_str) >= 19 and not ts_str.startswith("2026-10-01") and not ts_str.startswith("00:00"):
-            try:
-                pkt_epoch = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S").timestamp()
-            except Exception:
-                pkt_epoch = None
+        try:
+            pkt_epoch = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S").timestamp()
+        except Exception:
+            pkt_epoch = None
 
         should_save = False
         if is_anomaly:
@@ -162,8 +170,7 @@ class VehicleSessionTracker:
             if pkt_epoch is not None:
                 self.last_db_packet_epoch = pkt_epoch
             run_id_val = self.active_run_id or f"{self.truck_id}_기록_{get_kst_now().strftime('%Y-%m-%d_%H시%M분')}"
-            
-            # UTC created_at 계산
+
             try:
                 dt_kst = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S")
                 dt_utc = dt_kst - timedelta(hours=9)
@@ -190,44 +197,44 @@ class VehicleSessionTracker:
         return None
 
 # ----------------------------------------------------------------
-# 3. 비동기 DB 작업자 (Queue Worker with Auto-Reconnect)
+# 3. 비동기 Dual-Write DB 작업자 + ESP32 QR 스캐너 증분 브릿지 워커
 # ----------------------------------------------------------------
 db_queue = queue.Queue(maxsize=10000)
 
-def db_worker_thread():
-    print("[DB Worker] MySQL 저장 백그라운드 스레드 시작", flush=True)
-    conn = None
+def get_db_conn(db_name=MYSQL_DATABASE):
+    return pymysql.connect(
+        host=MYSQL_HOST,
+        port=MYSQL_PORT,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=db_name,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor,
+        connect_timeout=10,
+        autocommit=True
+    )
 
-    def get_conn():
-        return pymysql.connect(
-            host=MYSQL_HOST,
-            port=MYSQL_PORT,
-            user=MYSQL_USER,
-            password=MYSQL_PASSWORD,
-            database=MYSQL_DATABASE,
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor,
-            connect_timeout=10,
-            autocommit=True
-        )
+def db_worker_thread():
+    print(f"[DB Worker] Dual-Write 스레드 시작 ({MYSQL_DATABASE} + {MYSQL_V2_DATABASE})", flush=True)
+    conn = None
 
     while True:
         record = db_queue.get()
         if record is None:
             break
 
-        # 연결 검증 및 자동 재연결
         retry = 0
         while retry < 3:
             try:
                 if conn is None:
-                    conn = get_conn()
+                    conn = get_db_conn(MYSQL_DATABASE)
                 else:
                     conn.ping(reconnect=True)
 
                 with conn.cursor() as cur:
-                    sql = """
-                    INSERT INTO sensor_data 
+                    # 1) 기존 v1 DB (lab225.sensor_data) 호환 적재 (무손실 롤백 안전망 유지)
+                    sql_v1 = f"""
+                    INSERT INTO `{MYSQL_DATABASE}`.`sensor_data`
                     (device, timestamp_str, temperature, humidity, lux, g_force, speed, lat, lng, status, run_id, created_at)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """
@@ -245,9 +252,22 @@ def db_worker_thread():
                         record["run_id"],
                         record["created_at"]
                     )
-                    cur.execute(sql, val)
-                
-                print(f"  [DB INSERT] [{record['device']}] run='{record['run_id']}' ts={record['timestamp_str']} spd={record['speed']:.1f} g={record['g_force']:.2f}G ({record['status']})", flush=True)
+                    cur.execute(sql_v1, val)
+                    inserted_v1_id = cur.lastrowid
+
+                    # 2) 신규 정규화 v2 DB (lab225_v2.transport_runs + sensor_telemetry) 동시 적재
+                    upsert_sensor_packet_v2(cur, record, dst_db=MYSQL_V2_DATABASE)
+                    if inserted_v1_id:
+                        cur.execute(
+                            f"""
+                            INSERT INTO `{MYSQL_V2_DATABASE}`.`_sync_watermark` (source_table, last_id)
+                            VALUES ('sensor_data', %s)
+                            ON DUPLICATE KEY UPDATE last_id = GREATEST(last_id, VALUES(last_id))
+                            """,
+                            (inserted_v1_id,),
+                        )
+
+                print(f"  [DUAL INSERT] [{record['device']}] run='{record['run_id']}' ts={record['timestamp_str']} spd={record['speed']:.1f} g={record['g_force']:.2f}G ({record['status']})", flush=True)
                 break
             except Exception as e:
                 retry += 1
@@ -262,6 +282,30 @@ def db_worker_thread():
 
         db_queue.task_done()
 
+def qr_bridge_worker_thread():
+    """물리 ESP32 스마트 스캐너가 `lab225.qr`에 INSERT한 신규 스캔 데이터를 3초 주기로 `lab225_v2`에 자동 분배 동기화"""
+    print(f"[QR Bridge] 실시간 스캐너 브릿지 워커 시작 ({MYSQL_DATABASE}.qr -> {MYSQL_V2_DATABASE})", flush=True)
+    b_conn = None
+    while True:
+        try:
+            if b_conn is None:
+                b_conn = get_db_conn(MYSQL_V2_DATABASE)
+            else:
+                b_conn.ping(reconnect=True)
+
+            res = sync_v1_delta_to_v2(b_conn, src_db=MYSQL_DATABASE, dst_db=MYSQL_V2_DATABASE)
+            if res.get("synced_qr") or res.get("synced_sensors"):
+                print(f"  [BRIDGE SYNC] 신규 스캔 {res['synced_qr']}건 / 센서 {res['synced_sensors']}건 -> `{MYSQL_V2_DATABASE}` 정규화 반영 완료", flush=True)
+        except Exception as e:
+            print(f"  [BRIDGE WARN] {e}", flush=True)
+            try:
+                if b_conn:
+                    b_conn.close()
+            except Exception:
+                pass
+            b_conn = None
+        time.sleep(3.0)
+
 # ----------------------------------------------------------------
 # 4. MQTT 클라이언트 콜백
 # ----------------------------------------------------------------
@@ -275,11 +319,10 @@ def on_connect(client, userdata, flags, rc, properties=None):
         print(f"\n=======================================================", flush=True)
         print(f" [HiveMQ Connect OK] {MQTT_BROKER}:{MQTT_PORT}", flush=True)
         print(f"=======================================================", flush=True)
-        # 1호차 ~ 4호차 토픽 일괄 구독
         for topic in TRUCK_MAPPING.keys():
             client.subscribe(topic)
             print(f"  + Subscribed: {topic}", flush=True)
-        print(f" [DAEMON READY] 24/7 실시간 자동 수신 및 DB 적재 대기 중...\n", flush=True)
+        print(f" [DAEMON READY] 24/7 Dual-Write ({MYSQL_DATABASE} + {MYSQL_V2_DATABASE}) 대기 중...\n", flush=True)
     else:
         print(f" [HiveMQ Connect FAIL] rc={rc}", flush=True)
 
@@ -288,7 +331,7 @@ def on_message(client, userdata, msg):
         topic = msg.topic
         payload_str = msg.payload.decode('utf-8', errors='replace').strip()
         data = json.loads(payload_str)
-        
+
         mapping = TRUCK_MAPPING.get(topic)
         if not mapping:
             for t, info in TRUCK_MAPPING.items():
@@ -316,15 +359,17 @@ def on_disconnect(client, userdata, rc, properties=None):
 # ----------------------------------------------------------------
 def main():
     print(f"\n=======================================================")
-    print(f" ColdChain DigitalTwin Cloud Backend Daemon v1.0 ")
-    print(f" Target MySQL: {MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE} ")
+    print(f" ColdChain DigitalTwin Cloud Backend Daemon v2.0 (Dual-Write) ")
+    print(f" Target MySQL: {MYSQL_HOST}:{MYSQL_PORT} -> [{MYSQL_DATABASE} & {MYSQL_V2_DATABASE}] ")
     print(f" Target HiveMQ: {MQTT_BROKER}:{MQTT_PORT} ")
     print(f" Monitored Fleet: 1호차 ~ 4호차 전체 (truck01 ~ truck04) ")
     print(f"=======================================================\n", flush=True)
 
-    # DB 워커 스레드 시작
-    t = threading.Thread(target=db_worker_thread, daemon=True)
-    t.start()
+    t_db = threading.Thread(target=db_worker_thread, daemon=True)
+    t_db.start()
+
+    t_br = threading.Thread(target=qr_bridge_worker_thread, daemon=True)
+    t_br.start()
 
     try:
         from paho.mqtt.client import CallbackAPIVersion
