@@ -9,7 +9,8 @@ echo ======================================================================
 powershell -NoProfile -Command ^
   "$dir = '%~dp0'.TrimEnd('\'); " ^
   "$proc = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue; " ^
-  "if (-not $proc) { Start-Process -FilePath 'C:\Users\yuyub\AppData\Local\Programs\Python\Python310\python.exe' -ArgumentList '-m uvicorn app:app --host 0.0.0.0 --port 8080 --reload' -WorkingDirectory $dir -WindowStyle Hidden }; " ^
+  "$pyExe = if (Test-Path 'C:\Users\yuyub\AppData\Local\Programs\Python\Python310\python.exe') { 'C:\Users\yuyub\AppData\Local\Programs\Python\Python310\python.exe' } else { (Get-Command python -ErrorAction Stop).Source }; " ^
+  "if (-not $proc) { Start-Process -FilePath $pyExe -ArgumentList '-m uvicorn app:app --host 0.0.0.0 --port 8080 --reload' -WorkingDirectory $dir -WindowStyle Hidden }; " ^
   "$cfExe = Join-Path $dir 'cloudflared.exe'; " ^
   "$cfLog = Join-Path $dir 'cloudflared_live.log'; " ^
   "$pubTxt = Join-Path $dir 'PUBLIC_URL.txt'; " ^
