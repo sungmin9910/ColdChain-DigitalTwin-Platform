@@ -51,3 +51,7 @@ scratch/*.jsonl
 cloudflared.exe
 cloudflared_live.log
 PUBLIC_URL.txt
+
+# Lab meeting and slide presentations
+2425/
+
