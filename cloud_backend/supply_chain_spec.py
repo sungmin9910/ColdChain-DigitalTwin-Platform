@@ -32,25 +32,39 @@ import re
 from datetime import datetime, date
 
 # ---------------------------------------------------------------------
-# 0. Area Code (5-Digit Postal Code) Master: 무진장 (장수 · 무주 · 진안)
+# 0. Area Code (5-Digit Postal Code) Master: 무진장 (장수 5 · 무주 5 · 진안 5)
 # ---------------------------------------------------------------------
 AREA_CODE_OPTIONS = [
-    {"code": "55630", "label_ko": "55630 (장수)", "label_en": "55630 (Jangsu)", "name_ko": "전북 장수군", "name_en": "Jangsu-gun, Jeonbuk", "coords": (35.647, 127.521)},
-    {"code": "55517", "label_ko": "55517 (무주)", "label_en": "55517 (Muju)", "name_ko": "전북 무주군", "name_en": "Muju-gun, Jeonbuk", "coords": (36.0068, 127.6608)},
-    {"code": "55434", "label_ko": "55434 (진안)", "label_en": "55434 (Jinan)", "name_ko": "전북 진안군", "name_en": "Jinan-gun, Jeonbuk", "coords": (35.7906, 127.4229)},
+    # 장수군 (5)
+    {"code": "55630", "region": "장수", "label_ko": "55630 (장수 장수읍)", "label_en": "55630 (Jangsu-eup, Jangsu)", "name_ko": "전북 장수군 (장수읍)", "name_en": "Jangsu-eup, Jangsu-gun, Jeonbuk", "coords": (35.6470, 127.5210)},
+    {"code": "55631", "region": "장수", "label_ko": "55631 (장수 산서면)", "label_en": "55631 (Sanseo, Jangsu)", "name_ko": "전북 장수군 (산서면)", "name_en": "Sanseo-myeon, Jangsu-gun, Jeonbuk", "coords": (35.6170, 127.4220)},
+    {"code": "55632", "region": "장수", "label_ko": "55632 (장수 번암면)", "label_en": "55632 (Beonam, Jangsu)", "name_ko": "전북 장수군 (번암면)", "name_en": "Beonam-myeon, Jangsu-gun, Jeonbuk", "coords": (35.5390, 127.5530)},
+    {"code": "55633", "region": "장수", "label_ko": "55633 (장수 장계면)", "label_en": "55633 (Janggye, Jangsu)", "name_ko": "전북 장수군 (장계면)", "name_en": "Janggye-myeon, Jangsu-gun, Jeonbuk", "coords": (35.7270, 127.5850)},
+    {"code": "55634", "region": "장수", "label_ko": "55634 (장수 천천면)", "label_en": "55634 (Cheoncheon, Jangsu)", "name_ko": "전북 장수군 (천천면)", "name_en": "Cheoncheon-myeon, Jangsu-gun, Jeonbuk", "coords": (35.7070, 127.4810)},
+    # 무주군 (5)
+    {"code": "55518", "region": "무주", "label_ko": "55518 (무주 무주읍)", "label_en": "55518 (Muju-eup, Muju)", "name_ko": "전북 무주군 (무주읍)", "name_en": "Muju-eup, Muju-gun, Jeonbuk", "coords": (36.0068, 127.6608)},
+    {"code": "55549", "region": "무주", "label_ko": "55549 (무주 설천면)", "label_en": "55549 (Seolcheon, Muju)", "name_ko": "전북 무주군 (설천면)", "name_en": "Seolcheon-myeon, Muju-gun, Jeonbuk", "coords": (36.0170, 127.7830)},
+    {"code": "55527", "region": "무주", "label_ko": "55527 (무주 적상면)", "label_en": "55527 (Jeoksang, Muju)", "name_ko": "전북 무주군 (적상면)", "name_en": "Jeoksang-myeon, Muju-gun, Jeonbuk", "coords": (35.9510, 127.6480)},
+    {"code": "55540", "region": "무주", "label_ko": "55540 (무주 안성면)", "label_en": "55540 (Anseong, Muju)", "name_ko": "전북 무주군 (안성면)", "name_en": "Anseong-myeon, Muju-gun, Jeonbuk", "coords": (35.8750, 127.6560)},
+    {"code": "55559", "region": "무주", "label_ko": "55559 (무주 무풍면)", "label_en": "55559 (Mupung, Muju)", "name_ko": "전북 무주군 (무풍면)", "name_en": "Mupung-myeon, Muju-gun, Jeonbuk", "coords": (35.9560, 127.8480)},
+    # 진안군 (5)
+    {"code": "55435", "region": "진안", "label_ko": "55435 (진안 진안읍)", "label_en": "55435 (Jinan-eup, Jinan)", "name_ko": "전북 진안군 (진안읍)", "name_en": "Jinan-eup, Jinan-gun, Jeonbuk", "coords": (35.7906, 127.4229)},
+    {"code": "55451", "region": "진안", "label_ko": "55451 (진안 마령면)", "label_en": "55451 (Maryeong, Jinan)", "name_ko": "전북 진안군 (마령면)", "name_en": "Maryeong-myeon, Jinan-gun, Jeonbuk", "coords": (35.7470, 127.3670)},
+    {"code": "55455", "region": "진안", "label_ko": "55455 (진안 백운면)", "label_en": "55455 (Baegun, Jinan)", "name_ko": "전북 진안군 (백운면)", "name_en": "Baegun-myeon, Jinan-gun, Jeonbuk", "coords": (35.6980, 127.4190)},
+    {"code": "55459", "region": "진안", "label_ko": "55459 (진안 성수면)", "label_en": "55459 (Seongsu, Jinan)", "name_ko": "전북 진안군 (성수면)", "name_en": "Seongsu-myeon, Jinan-gun, Jeonbuk", "coords": (35.6940, 127.3390)},
+    {"code": "55416", "region": "진안", "label_ko": "55416 (진안 부귀면)", "label_en": "55416 (Bugwi, Jinan)", "name_ko": "전북 진안군 (부귀면)", "name_en": "Bugwi-myeon, Jinan-gun, Jeonbuk", "coords": (35.8140, 127.3450)},
 ]
 
 AREA_CODE_INFO = {
-    "55630": {"ko": "전북 장수군", "en": "Jangsu-gun, Jeonbuk", "coords": (35.647, 127.521)},
-    "55517": {"ko": "전북 무주군", "en": "Muju-gun, Jeonbuk", "coords": (36.0068, 127.6608)},
-    "55434": {"ko": "전북 진안군", "en": "Jinan-gun, Jeonbuk", "coords": (35.7906, 127.4229)},
-    # 기존 장수군 읍·면 하위 호환 유지
-    "55631": {"ko": "전북 장수군 (산서면)", "en": "Sanseo-myeon, Jangsu-gun, Jeonbuk", "coords": (35.617, 127.422)},
-    "55632": {"ko": "전북 장수군 (번암면)", "en": "Beonam-myeon, Jangsu-gun, Jeonbuk", "coords": (35.539, 127.553)},
-    "55633": {"ko": "전북 장수군 (장계면)", "en": "Janggye-myeon, Jangsu-gun, Jeonbuk", "coords": (35.727, 127.585)},
-    "55634": {"ko": "전북 장수군 (천천면)", "en": "Cheoncheon-myeon, Jangsu-gun, Jeonbuk", "coords": (35.707, 127.481)},
-    "55635": {"ko": "전북 장수군 (계남면)", "en": "Gyenam-myeon, Jangsu-gun, Jeonbuk", "coords": (35.696, 127.575)},
+    item["code"]: {"ko": item["name_ko"], "en": item["name_en"], "coords": item["coords"]}
+    for item in AREA_CODE_OPTIONS
 }
+AREA_CODE_INFO.update({
+    # 기존/군청 대표 코드 하위 호환 유지
+    "55635": {"ko": "전북 장수군 (계남면)", "en": "Gyenam-myeon, Jangsu-gun, Jeonbuk", "coords": (35.6960, 127.5750)},
+    "55517": {"ko": "전북 무주군 (무주읍)", "en": "Muju-eup, Muju-gun, Jeonbuk", "coords": (36.0068, 127.6608)},
+    "55434": {"ko": "전북 진안군 (진안읍)", "en": "Jinan-eup, Jinan-gun, Jeonbuk", "coords": (35.7906, 127.4229)},
+})
 
 # ---------------------------------------------------------------------
 # 1. aT (KAMIS) 3-Digit Crop Codes
