@@ -50,8 +50,8 @@ def get_db_connection():
         collation="utf8mb4_general_ci", port=DB_PORT
     )
 
-# 변수들
-zip_codes = ["55630", "55631", "55632", "55633", "55634", "55635"]
+# 변수들 (무진장 대표 5자리 우편번호)
+zip_codes = ["55630 (장수)", "55517 (무주)", "55434 (진안)"]
 fruit_types = ["Apples", "Pears", "Peaches", "Tangerines", "Melons"]
 farming_methods = ["Organic", "Conventional"]
 

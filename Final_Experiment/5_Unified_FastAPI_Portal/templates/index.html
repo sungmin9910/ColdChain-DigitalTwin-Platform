@@ -481,12 +481,9 @@
                 <label id="lbl-f-ac" class="text-sm font-semibold text-slate-700">Area Code (5-digit AC)</label>
                 <select id="f-ac" onchange="updateLotIdPreview()" class="form-input w-full mt-1.5 px-3 py-2 text-sm">
                   <option value="" selected></option>
-                  <option value="55630">55630</option>
-                  <option value="55631">55631</option>
-                  <option value="55632">55632</option>
-                  <option value="55633">55633</option>
-                  <option value="55634">55634</option>
-                  <option value="55635">55635</option>
+                  <option id="opt-ac-55630" value="55630">55630 (장수)</option>
+                  <option id="opt-ac-55517" value="55517">55517 (무주)</option>
+                  <option id="opt-ac-55434" value="55434">55434 (진안)</option>
                 </select>
               </div>
               <div>
@@ -938,7 +935,9 @@
         legend_temp: "온도 (°C)",
         legend_humi: "습도 (%)",
         origins: {
-          "55630": "전북 장수군 (장수읍)",
+          "55630": "전북 장수군",
+          "55517": "전북 무주군",
+          "55434": "전북 진안군",
           "55631": "전북 장수군 (산서면)",
           "55632": "전북 장수군 (번암면)",
           "55633": "전북 장수군 (장계면)",
@@ -1066,7 +1065,9 @@
         legend_temp: "Temp (°C)",
         legend_humi: "Humidity (%)",
         origins: {
-          "55630": "Jangsu-eup, Jangsu-gun, Jeonbuk",
+          "55630": "Jangsu-gun, Jeonbuk",
+          "55517": "Muju-gun, Jeonbuk",
+          "55434": "Jinan-gun, Jeonbuk",
           "55631": "Sanseo-myeon, Jangsu-gun, Jeonbuk",
           "55632": "Beonam-myeon, Jangsu-gun, Jeonbuk",
           "55633": "Janggye-myeon, Jangsu-gun, Jeonbuk",
@@ -1098,6 +1099,8 @@
 
     const ORIGIN_COORDS = {
       "55630": [35.647, 127.521],
+      "55517": [36.0068, 127.6608],
+      "55434": [35.7906, 127.4229],
       "55631": [35.617, 127.422],
       "55632": [35.539, 127.553],
       "55633": [35.727, 127.585],
@@ -1240,8 +1243,14 @@
       document.getElementById("farm-qr-placeholder").textContent = L.farm_qr_placeholder;
 
       const isKo = csLang === "KO";
-      document.getElementById("lbl-f-fmid").textContent = isKo ? "농가 고유 번호 (FmID)" : "Farmer ID (FmID)";
-      document.getElementById("lbl-f-ac").textContent = isKo ? "우편번호 (AC)" : "Area Code (AC)";
+      document.getElementById("lbl-f-fmid").textContent = isKo ? "농가 고유 번호 2자리 (FmID)" : "Farmer ID (2-digit FmID)";
+      document.getElementById("lbl-f-ac").textContent = isKo ? "지역 코드 (AC)" : "Area Code (5-digit AC)";
+      const ac55630 = document.getElementById("opt-ac-55630");
+      const ac55517 = document.getElementById("opt-ac-55517");
+      const ac55434 = document.getElementById("opt-ac-55434");
+      if (ac55630) ac55630.textContent = isKo ? "55630 (장수)" : "55630 (Jangsu)";
+      if (ac55517) ac55517.textContent = isKo ? "55517 (무주)" : "55517 (Muju)";
+      if (ac55434) ac55434.textContent = isKo ? "55434 (진안)" : "55434 (Jinan)";
       document.getElementById("lbl-f-ct").textContent = isKo ? "연락처 (Ct)" : "Contact Info (Ct)";
       document.getElementById("lbl-f-hd").textContent = isKo ? "수확일자 (HD)" : "Harvest Date (HD)";
       document.getElementById("lbl-f-std").textContent = isKo ? "보관일자 (StD)" : "Storage Date (StD)";

@@ -78,7 +78,9 @@ LANG_DICT = {
         'humi': "습도",
         'optimal_state': "🟢 최적 상태 유지 중",
         'select_lang': "🌐 언어 선택 / Language",
-        'origin_55630': "전북 장수군 (장수읍)",
+        'origin_55630': "전북 장수군",
+        'origin_55517': "전북 무주군",
+        'origin_55434': "전북 진안군",
         'origin_55631': "전북 장수군 (산서면)",
         'origin_55632': "전북 장수군 (번암면)",
         'origin_55633': "전북 장수군 (장계면)",
@@ -186,7 +188,9 @@ LANG_DICT = {
         'humi': "Humidity",
         'optimal_state': "🟢 Maintaining Optimal State",
         'select_lang': "Select Language",
-        'origin_55630': "Jangsu-eup, Jangsu-gun, Jeonbuk",
+        'origin_55630': "Jangsu-gun, Jeonbuk",
+        'origin_55517': "Muju-gun, Jeonbuk",
+        'origin_55434': "Jinan-gun, Jeonbuk",
         'origin_55631': "Sanseo-myeon, Jangsu-gun, Jeonbuk",
         'origin_55632': "Beonam-myeon, Jangsu-gun, Jeonbuk",
         'origin_55633': "Janggye-myeon, Jangsu-gun, Jeonbuk",
@@ -806,7 +810,8 @@ if not fm_id:
             st.caption("AreaCode(5자리) + FmID(2자리) + aT 작물코드(3자리) + 수확날짜(6자리) = 총 16자리 고유 코드가 자동 생성됩니다. 이후 농가창고(A01)·농가출하(A02)는 QR 스캐너로 진행합니다.")
             c1, c2 = st.columns(2)
             with c1:
-                f_ac = st.selectbox("우편번호 5자리 (Area Code, AC)", ["55632", "55630", "55631", "55633", "55634", "55635"])
+                f_ac_label = st.selectbox("지역 코드 5자리 (Area Code, AC)", ["55630 (장수)", "55517 (무주)", "55434 (진안)"])
+                f_ac = normalize_area_code(f_ac_label)
                 f_frt = st.selectbox("과일 종류 (Fruit Type, FrT)", list(VARIETY_OPTIONS.keys()))
                 f_ct = st.text_input("연락처 (Contact Info, Ct)", value="01012345678")
                 f_hn = st.number_input("수확 횟수 (Harvesting No., HN)", min_value=1, max_value=99, value=1)
@@ -1658,6 +1663,8 @@ with tab3:
     ac_code = str(latest.get("AC", ""))
     origin_coords = {
         "55630": (35.647, 127.521),
+        "55517": (36.0068, 127.6608),
+        "55434": (35.7906, 127.4229),
         "55631": (35.617, 127.422),
         "55632": (35.539, 127.553),
         "55633": (35.727, 127.585),

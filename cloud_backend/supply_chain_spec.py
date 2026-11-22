@@ -32,6 +32,27 @@ import re
 from datetime import datetime, date
 
 # ---------------------------------------------------------------------
+# 0. Area Code (5-Digit Postal Code) Master: 무진장 (장수 · 무주 · 진안)
+# ---------------------------------------------------------------------
+AREA_CODE_OPTIONS = [
+    {"code": "55630", "label_ko": "55630 (장수)", "label_en": "55630 (Jangsu)", "name_ko": "전북 장수군", "name_en": "Jangsu-gun, Jeonbuk", "coords": (35.647, 127.521)},
+    {"code": "55517", "label_ko": "55517 (무주)", "label_en": "55517 (Muju)", "name_ko": "전북 무주군", "name_en": "Muju-gun, Jeonbuk", "coords": (36.0068, 127.6608)},
+    {"code": "55434", "label_ko": "55434 (진안)", "label_en": "55434 (Jinan)", "name_ko": "전북 진안군", "name_en": "Jinan-gun, Jeonbuk", "coords": (35.7906, 127.4229)},
+]
+
+AREA_CODE_INFO = {
+    "55630": {"ko": "전북 장수군", "en": "Jangsu-gun, Jeonbuk", "coords": (35.647, 127.521)},
+    "55517": {"ko": "전북 무주군", "en": "Muju-gun, Jeonbuk", "coords": (36.0068, 127.6608)},
+    "55434": {"ko": "전북 진안군", "en": "Jinan-gun, Jeonbuk", "coords": (35.7906, 127.4229)},
+    # 기존 장수군 읍·면 하위 호환 유지
+    "55631": {"ko": "전북 장수군 (산서면)", "en": "Sanseo-myeon, Jangsu-gun, Jeonbuk", "coords": (35.617, 127.422)},
+    "55632": {"ko": "전북 장수군 (번암면)", "en": "Beonam-myeon, Jangsu-gun, Jeonbuk", "coords": (35.539, 127.553)},
+    "55633": {"ko": "전북 장수군 (장계면)", "en": "Janggye-myeon, Jangsu-gun, Jeonbuk", "coords": (35.727, 127.585)},
+    "55634": {"ko": "전북 장수군 (천천면)", "en": "Cheoncheon-myeon, Jangsu-gun, Jeonbuk", "coords": (35.707, 127.481)},
+    "55635": {"ko": "전북 장수군 (계남면)", "en": "Gyenam-myeon, Jangsu-gun, Jeonbuk", "coords": (35.696, 127.575)},
+}
+
+# ---------------------------------------------------------------------
 # 1. aT (KAMIS) 3-Digit Crop Codes
 # ---------------------------------------------------------------------
 CROP_CODE_BY_FRUIT = {
