@@ -1,0 +1,12 @@
+[
+  {
+    "source_table": "qr",
+    "last_id": 100,
+    "updated_at": "2026-11-17T02:07:08"
+  },
+  {
+    "source_table": "sensor_data",
+    "last_id": 10028,
+    "updated_at": "2026-11-22T06:17:22"
+  }
+]

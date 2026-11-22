@@ -26,6 +26,15 @@ PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 from cloud_backend.db_v2.bridge_sync import sync_v1_delta_to_v2, make_sha256, parse_dt_safe
+from cloud_backend.supply_chain_spec import (
+    get_crop_code,
+    normalize_area_code,
+    normalize_fmid_2digit,
+    build_lot_id_16,
+    is_v3_lot_id,
+    parse_lot_id_16,
+    detect_protocol_version,
+)
 
 # =====================================================================
 # 1. 환경 설정 (정규화 DB lab225_v2 메인 + 물리 스캐너 lab225 브릿지 호환)
@@ -41,7 +50,7 @@ DB_V1_NAME = os.getenv("MYSQL_DATABASE", "lab225")
 MQTT_BROKER = os.getenv("MQTT_BROKER", "broker.hivemq.com")
 MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 
-STREAMLIT_CONSUMER_URL = "https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/"
+STREAMLIT_CONSUMER_URL = "https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app"
 
 STEP1_IMG_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "1_PC_QR_Generators"))
 PORTAL_QR_OUT_DIR = os.path.join(BASE_DIR, "generated_qr")
@@ -113,9 +122,9 @@ ROLE_PINS = {
 }
 
 # =====================================================================
-# 2. FastAPI 앱 및 실시간 MQTT ➔ WebSocket 브로드캐스터
+# 2. FastAPI 앱 및 실시간 MQTT -> WebSocket 브로드캐스터
 # =====================================================================
-app = FastAPI(title="ColdChain DigitalTwin Unified Portal v2 (Normalized DB)")
+app = FastAPI(title="ColdChain DigitalTwin Unified Portal v3 (16-Digit LotID & A00~D10)")
 
 app.add_middleware(
     CORSMiddleware,
@@ -303,7 +312,7 @@ def fetch_shipment_pts(cur, sh_row: dict):
 
 
 # =====================================================================
-# 4. REST API 엔드포인트 (lab225_v2 정규화 JOIN 기반)
+# 4. REST API 엔드포인트 (lab225_v2 정규화 JOIN 기반, v3 + v2 호환)
 # =====================================================================
 class LoginRequest(BaseModel):
     pin: str
@@ -326,7 +335,11 @@ def api_get_fmid_list(include_test: bool = False):
             where_sql = "" if include_test else "WHERE hl.is_test = 0"
             cur.execute(
                 f"""
-                SELECT hl.lot_id AS FmID,
+                SELECT hl.lot_id AS LotID,
+                       hl.lot_id AS FmID,
+                       COALESCE(hl.farmer_code, hl.lot_id) AS farmer_code,
+                       hl.crop_code,
+                       hl.protocol_ver,
                        hl.fruit_type AS FrT,
                        hl.variety AS Vt,
                        COALESCE(MAX(sl.current_stage), hl.current_stage) AS latest_step,
@@ -337,9 +350,9 @@ def api_get_fmid_list(include_test: bool = False):
                 LEFT JOIN `{DB_NAME}`.`stage_events` se
                   ON hl.lot_id = se.lot_id
                 {where_sql}
-                GROUP BY hl.lot_id, hl.fruit_type, hl.variety, hl.current_stage
+                GROUP BY hl.lot_id, hl.farmer_code, hl.crop_code, hl.protocol_ver, hl.fruit_type, hl.variety, hl.current_stage
                 ORDER BY max_id DESC
-                LIMIT 30
+                LIMIT 40
                 """
             )
             return {"ok": True, "items": list(cur.fetchall())}
@@ -352,13 +365,23 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
     conn = get_db_connection()
     try:
         sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
+        target_id = fmid.strip()
         with conn.cursor() as cur:
-            cur.execute(f"SELECT * FROM `{DB_NAME}`.`harvest_lots` WHERE lot_id = %s LIMIT 1", (fmid,))
+            cur.execute(f"SELECT * FROM `{DB_NAME}`.`harvest_lots` WHERE lot_id = %s LIMIT 1", (target_id,))
             lot = cur.fetchone()
             if not lot:
-                raise HTTPException(status_code=404, detail=f"FmID={fmid} 이력 데이터가 존재하지 않습니다.")
+                cur.execute(
+                    f"SELECT * FROM `{DB_NAME}`.`harvest_lots` WHERE farmer_code = %s ORDER BY created_at DESC LIMIT 1",
+                    (target_id,),
+                )
+                lot = cur.fetchone()
+            if not lot:
+                raise HTTPException(status_code=404, detail=f"LotID/FmID={target_id} 이력 데이터가 존재하지 않습니다.")
 
-            # 등급 판별 및 sorted_lots(방법 A) JOIN
+            lot_id = lot["lot_id"]
+            farmer_code = lot.get("farmer_code") or (lot_id[5:7] if is_v3_lot_id(lot_id) else lot_id)
+            crop_code = lot.get("crop_code") or (lot_id[7:10] if is_v3_lot_id(lot_id) else get_crop_code(lot.get("fruit_type"), lot.get("variety")))
+
             g_upper = str(grade or "상").strip().upper()
             if g_upper in ("중", "M", "B"):
                 g_idx, g_param, g_code = 1, "중", "B"
@@ -367,22 +390,26 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
             else:
                 g_idx, g_param, g_code = 0, "상", "A"
 
-            cur.execute(f"SELECT * FROM `{DB_NAME}`.`sorted_lots` WHERE lot_id = %s", (fmid,))
+            cur.execute(f"SELECT * FROM `{DB_NAME}`.`sorted_lots` WHERE lot_id = %s", (lot_id,))
             sorted_map = {r["grade_code"]: r for r in cur.fetchall()}
 
-            effective_pkg = f"{fmid}-{g_code}"
+            effective_pkg = f"{lot_id}-{g_code}"
 
-            # 10단계 타임라인(A00·A01·A02 + A10~A16) 조회
             cur.execute(
                 f"""
-                SELECT stage_code, pkg_id, event_at, lat, lng, temp, humi, tx_hash
+                SELECT event_id, stage_code, pkg_id, event_at, lat, lng, temp, humi, tx_hash
                 FROM `{DB_NAME}`.`stage_events`
                 WHERE lot_id = %s AND (pkg_id IS NULL OR pkg_id = %s)
                 ORDER BY event_at ASC, event_id ASC
                 """,
-                (fmid, effective_pkg),
+                (lot_id, effective_pkg),
             )
             ev_rows = cur.fetchall()
+            proto_ver = detect_protocol_version(
+                lot_id,
+                [e["stage_code"] for e in ev_rows],
+                explicit_ver=lot.get("protocol_ver"),
+            )
 
             a_qty = sorted_map.get("A", {}).get("grade_qty")
             b_qty = sorted_map.get("B", {}).get("grade_qty")
@@ -390,7 +417,10 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
             def_qty = sorted_map.get("DEFECT", {}).get("grade_qty")
 
             merged = {
-                "FmID": lot["lot_id"],
+                "LotID": lot_id,
+                "FmID": farmer_code,
+                "CropCode": crop_code,
+                "protocol_ver": proto_ver,
                 "AC": lot["origin_zip"],
                 "FrT": lot["fruit_type"],
                 "Vt": lot["variety"],
@@ -407,12 +437,39 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
                 "DefectRate": def_qty,
             }
 
+            # 1구간, 2구간, 3구간 운송 궤적 JOIN
+            cur.execute(f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 1 LIMIT 1", (lot_id,))
+            sh_leg1 = cur.fetchone()
+            leg1_pts = fetch_shipment_pts(cur, sh_leg1) if (sh_leg1 and (sh_leg1.get("status") == "ARRIVED" or sh_leg1.get("run_id") or proto_ver == "v3")) else []
+
+            cur.execute(
+                f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 2 AND pkg_id = %s LIMIT 1",
+                (lot_id, effective_pkg),
+            )
+            sh_leg2 = cur.fetchone()
+            leg2_pts = fetch_shipment_pts(cur, sh_leg2) if sh_leg2 else []
+
+            cur.execute(
+                f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 3 AND pkg_id = %s LIMIT 1",
+                (lot_id, effective_pkg),
+            )
+            sh_leg3 = cur.fetchone()
+            leg3_pts = fetch_shipment_pts(cur, sh_leg3) if sh_leg3 else []
+
             stage_lookup = {}
             clean_records = []
-            legacy_time_key = {
+            time_key_map = {
                 "A00": "HD",
                 "A01": "Farm_StD",
                 "A02": "Farm_DD",
+                "B10": "APC_AD",
+                "B11": "APC_RT",
+                "B12_PRE": "APC_StD_Pre",
+                "B12_POST": "APC_StD",
+                "B13": "APC_OP",
+                "C10": "Dist_StD",
+                "C11": "Dist_OP",
+                "D10": "Retail_AD",
                 "A10": "APC_AD",
                 "A11": "APC_WD",
                 "A12": "APC_RT",
@@ -421,27 +478,18 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
                 "A15": "APC_OP",
                 "A16": "Retail_AD",
             }
-            # 1구간(leg_no=1) 및 2구간(leg_no=2) 운송 궤적 JOIN
-            cur.execute(
-                f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 1 LIMIT 1",
-                (fmid,),
-            )
-            sh_leg1 = cur.fetchone()
-            leg1_pts = fetch_shipment_pts(cur, sh_leg1) if (sh_leg1 and (sh_leg1.get("status") == "ARRIVED" or sh_leg1.get("run_id"))) else []
-
-            cur.execute(
-                f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 2 AND pkg_id = %s LIMIT 1",
-                (fmid, effective_pkg),
-            )
-            sh_leg2 = cur.fetchone()
-            leg2_pts = fetch_shipment_pts(cur, sh_leg2) if sh_leg2 else []
 
             for ev in ev_rows:
-                code = ev["stage_code"]
+                raw_code = ev["stage_code"]
+                if proto_ver == "v3" and raw_code == "B12":
+                    code = "B12_PRE" if not ev.get("pkg_id") else "B12_POST"
+                else:
+                    code = raw_code
+
                 raw_str = ev["event_at"].strftime("%Y-%m-%d %H:%M:%S") if hasattr(ev["event_at"], "strftime") else str(ev["event_at"])
-                if code in ("A00", "A01"):
+                if proto_ver == "v2" and code in ("A00", "A01"):
                     ev_str = raw_str[:10]
-                elif code == "A02":
+                elif proto_ver == "v2" and code == "A02":
                     if leg1_pts and leg1_pts[0].get("timestamp_str"):
                         ev_str = leg1_pts[0]["timestamp_str"]
                     elif sh_leg1 and sh_leg1.get("run_id") and sh_leg1.get("departed_at"):
@@ -452,11 +500,14 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
                     else:
                         ev_str = raw_str
                 else:
-                    ev_str = raw_str
+                    ev_str = raw_str[:10] if (code == "A00" and raw_str.endswith("00:00:00")) else raw_str
 
                 item = {
                     "Lo": code,
-                    "FmID": lot["lot_id"],
+                    "raw_stage": raw_code,
+                    "pkg_id": ev.get("pkg_id"),
+                    "LotID": lot_id,
+                    "FmID": farmer_code,
                     "event_at": ev_str,
                     "Lat": ev["lat"],
                     "lon": ev["lng"],
@@ -468,11 +519,11 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
                     "CGrade": c_qty,
                     "DefectRate": def_qty,
                 }
-                t_key = legacy_time_key.get(code)
+                t_key = time_key_map.get(code)
                 if t_key:
                     item[t_key] = ev_str
                     merged[t_key] = ev_str
-                if ev["tp_ok"] if "tp_ok" in ev else (ev["temp"] is not None):
+                if ev["temp"] is not None:
                     merged["Tp"] = ev["temp"]
                     merged["Hm"] = ev["humi"]
                 stage_lookup[code] = item
@@ -485,13 +536,19 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
                     cat_key = k
                     break
 
-            auth_qr_url = f"{STREAMLIT_CONSUMER_URL}/?FmID={fmid}&grade={g_param}&AC={lot['origin_zip']}&FrT={fruit_raw}"
+            if proto_ver == "v3":
+                auth_qr_url = f"{STREAMLIT_CONSUMER_URL}/?LotID={lot_id}&FmID={farmer_code}&CC={crop_code}&grade={g_param}&pkg_grade={g_code}&AC={lot['origin_zip']}&FrT={fruit_raw}"
+            else:
+                auth_qr_url = f"{STREAMLIT_CONSUMER_URL}/?FmID={lot_id}&grade={g_param}&AC={lot['origin_zip']}&FrT={fruit_raw}"
             overlay_icon = FRUIT_IMAGES_GRADE[cat_key][g_idx]
             auth_qr_b64 = make_qr_base64(auth_qr_url, overlay_filename=overlay_icon, rounded=False)
 
             return {
                 "ok": True,
-                "fmid": fmid,
+                "lot_id": lot_id,
+                "fmid": farmer_code,
+                "crop_code": crop_code,
+                "protocol_ver": proto_ver,
                 "grade": g_param,
                 "summary": merged,
                 "records": clean_records,
@@ -499,6 +556,7 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
                 "auth_qr_base64": auth_qr_b64,
                 "leg1_sensor_pts": leg1_pts,
                 "leg2_sensor_pts": leg2_pts,
+                "leg3_sensor_pts": leg3_pts,
             }
     finally:
         conn.close()
@@ -507,12 +565,13 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
 class FarmQRRequest(BaseModel):
     AC: str = "55632"
     FmID: str
+    CropCode: str = ""
     Ct: str = "01012345678"
     FrT: str = "Apples"
     Vt: str = "Fuji Apple"
     HD_date: str
-    StD_date: str
-    DD_date: str
+    StD_date: str = ""
+    DD_date: str = ""
     Mt: str = "Organic"
     HN: str = "1"
     Qt: str = "50"
@@ -525,73 +584,80 @@ def api_create_farm_qr(req: FarmQRRequest):
     conn = get_db_connection()
     try:
         sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
-        lot_id = req.FmID.strip()
+        ac5 = normalize_area_code(req.AC)
+        fm2 = normalize_fmid_2digit(req.FmID)
+        cc3 = req.CropCode.strip() if req.CropCode.strip() else get_crop_code(req.FrT, req.Vt)
+        hd_date_clean = req.HD_date.strip()[:10]
+        std_date_clean = req.StD_date.strip()[:10] if req.StD_date.strip() else None
+        dd_date_clean = req.DD_date.strip()[:10] if req.DD_date.strip() else None
+
+        lot_id = build_lot_id_16(ac5, fm2, req.FrT, req.Vt, hd_date_clean, crop_code=cc3)
+
         with conn.cursor() as cur:
             cur.execute("SET time_zone = '+09:00'")
             cur.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_dt")
             srv_info = cur.fetchone()
-            srv_now_dt = datetime.strptime(srv_info["srv_dt"], "%Y-%m-%d %H:%M:%S")
+            srv_now_str = srv_info["srv_dt"]
 
-            hd_date_clean = req.HD_date[:10]
-            std_date_clean = req.StD_date[:10]
-            dd_date_clean = req.DD_date[:10]
-            hd_full = hd_date_clean
-
-            dt_a00 = datetime.strptime(f"{hd_date_clean} 00:00:00", "%Y-%m-%d %H:%M:%S")
-            dt_a01 = datetime.strptime(f"{std_date_clean} 00:00:00", "%Y-%m-%d %H:%M:%S")
-            dt_a02 = datetime.strptime(f"{dd_date_clean} 00:00:00", "%Y-%m-%d %H:%M:%S")
-
-            # 1) 물리 ESP32 스캐너 호환용 v1 기록
+            # 1) 물리 ESP32 스캐너 호환용 lab225.qr A00 기록 (16자리 LotID + 2자리 FmID + 3자리 CropCode)
             cur.execute(
                 f"""
-                INSERT INTO `{DB_V1_NAME}`.`qr` (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO `{DB_V1_NAME}`.`qr` (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Rp)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                ("A00", req.AC, lot_id, req.FrT, req.Vt, req.Ct, hd_date_clean, dd_date_clean, req.Qt, req.Mt, req.HN, std_date_clean, None),
+                ("A00", ac5, fm2, lot_id, cc3, req.FrT, req.Vt, req.Ct, srv_now_str, dd_date_clean, req.Qt, req.Mt, req.HN, std_date_clean, None),
             )
             v1_id = cur.lastrowid
 
-            # 2) v2 정규화 테이블(harvest_lots + stage_events A00·A01·A02 + shipments leg=1 오픈) 기록
+            # 2) v2 정규화 테이블: harvest_lots (current_stage='A00', protocol_ver='v3') + stage_events('A00'만 기록!)
+            #    ※ A01(농가창고) 및 A02(농가출하)는 현장에서 QR 스캐너 스캔으로 기록됨!
             cur.execute(
                 f"""
                 INSERT INTO `{DB_NAME}`.`harvest_lots`
-                (lot_id, origin_zip, fruit_type, variety, farmer_phone, cultivation,
+                (lot_id, origin_zip, farmer_code, crop_code, fruit_type, variety, farmer_phone, cultivation,
                  harvest_no, total_qty, harvest_date, storage_date, deliver_date,
-                 ag_practice, current_stage, is_test, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, 'A02', 0, %s)
+                 ag_practice, current_stage, protocol_ver, is_test, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, 'A00', 'v3', 0, %s)
                 ON DUPLICATE KEY UPDATE
-                    origin_zip=VALUES(origin_zip), fruit_type=VALUES(fruit_type), variety=VALUES(variety),
-                    farmer_phone=VALUES(farmer_phone), cultivation=VALUES(cultivation), harvest_no=VALUES(harvest_no),
-                    total_qty=VALUES(total_qty), harvest_date=VALUES(harvest_date), storage_date=VALUES(storage_date),
-                    deliver_date=VALUES(deliver_date), current_stage='A02', is_test=0
+                    origin_zip=VALUES(origin_zip), farmer_code=VALUES(farmer_code), crop_code=VALUES(crop_code),
+                    fruit_type=VALUES(fruit_type), variety=VALUES(variety), farmer_phone=VALUES(farmer_phone),
+                    cultivation=VALUES(cultivation), harvest_no=VALUES(harvest_no), total_qty=VALUES(total_qty),
+                    harvest_date=VALUES(harvest_date), storage_date=VALUES(storage_date), deliver_date=VALUES(deliver_date),
+                    protocol_ver='v3', is_test=0
                 """,
-                (lot_id, req.AC, req.FrT, req.Vt, req.Ct, req.Mt, int(req.HN), int(req.Qt), hd_date_clean, std_date_clean, dd_date_clean, srv_now_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                (
+                    lot_id, ac5, fm2, cc3, req.FrT, req.Vt, req.Ct, req.Mt,
+                    int(req.HN or 1), int(req.Qt or 0), hd_date_clean, std_date_clean, dd_date_clean, srv_now_str,
+                ),
             )
 
             params = {
-                "AC": req.AC, "FmID": lot_id, "Ct": req.Ct, "FrT": req.FrT,
-                "Vt": req.Vt, "HD": hd_date_clean, "DD": dd_date_clean, "StD": std_date_clean,
-                "Mt": req.Mt, "HN": req.HN, "Qt": req.Qt,
+                "LotID": lot_id,
+                "AC": ac5,
+                "FmID": fm2,
+                "CC": cc3,
+                "Ct": req.Ct,
+                "FrT": req.FrT,
+                "Vt": req.Vt,
+                "HD": hd_date_clean,
+                "Mt": req.Mt,
+                "HN": str(req.HN),
+                "Qt": str(req.Qt),
             }
-            integrity_hash = make_sha256(params)
+            if std_date_clean:
+                params["StD"] = std_date_clean
+            if dd_date_clean:
+                params["DD"] = dd_date_clean
 
-            for s_cd, s_dt, s_h in [("A00", dt_a00, integrity_hash), ("A01", dt_a01, None), ("A02", dt_a02, None)]:
-                cur.execute(
-                    f"""
-                    INSERT INTO `{DB_NAME}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, tx_hash)
-                    VALUES (%s, NULL, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE event_at=VALUES(event_at), tx_hash=COALESCE(VALUES(tx_hash), tx_hash)
-                    """,
-                    (lot_id, s_cd, s_dt.strftime("%Y-%m-%d %H:%M:%S"), s_h),
-                )
+            integrity_hash = make_sha256(params)
 
             cur.execute(
                 f"""
-                INSERT INTO `{DB_NAME}`.`shipments` (leg_no, lot_id, pkg_id, departed_at, status)
-                VALUES (1, %s, NULL, %s, 'IN_TRANSIT')
-                ON DUPLICATE KEY UPDATE departed_at=VALUES(departed_at), status='IN_TRANSIT'
+                INSERT INTO `{DB_NAME}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, tx_hash)
+                VALUES (%s, NULL, 'A00', %s, %s)
+                ON DUPLICATE KEY UPDATE event_at=VALUES(event_at), tx_hash=COALESCE(VALUES(tx_hash), tx_hash)
                 """,
-                (lot_id, srv_now_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                (lot_id, srv_now_str, integrity_hash),
             )
 
             if v1_id:
@@ -610,15 +676,16 @@ def api_create_farm_qr(req: FarmQRRequest):
         else:
             qr_url = f"{STREAMLIT_CONSUMER_URL}/?{query_string}"
 
-        yymmdd = req.HD_date.replace("-", "")[2:8]
-        farm_qr_filename = f"{req.AC}{lot_id}{yymmdd}_QR.png"
+        farm_qr_filename = f"{lot_id}_QR.png"
         overlay_icon = FRUIT_IMAGES_FARM.get(req.FrT, "apple.png")
         qr_b64 = make_qr_base64(qr_url, overlay_filename=overlay_icon, rounded=True, save_filename=farm_qr_filename)
 
         return {
             "ok": True,
-            "fmid": lot_id,
-            "hd_full": hd_full,
+            "lot_id": lot_id,
+            "fmid": fm2,
+            "crop_code": cc3,
+            "hd_full": srv_now_str,
             "hash": integrity_hash,
             "qr_url": qr_url,
             "qr_base64": qr_b64,
@@ -636,29 +703,35 @@ class ApcScanRequest(BaseModel):
     qr_data: str
 
 
-@app.post("/api/apc/scan-qr")
-def api_apc_scan_qr(req: ApcScanRequest):
-    raw = req.qr_data.strip()
-    fm_id = None
+def _extract_lot_id_from_input(raw: str) -> str:
+    raw = str(raw or "").strip()
     if "?" in raw or raw.startswith("http"):
         parsed_url = urlparse(raw)
         q_params = parse_qs(parsed_url.query)
-        fm_id = (q_params.get("FmID") or q_params.get("fmid") or [None])[0]
-        if not fm_id:
-            fm_id = parsed_url.path.rstrip("/").split("/")[-1]
-    else:
-        fm_id = raw
+        lot_id = (q_params.get("LotID") or q_params.get("lot_id") or q_params.get("FmID") or q_params.get("fmid") or [None])[0]
+        if not lot_id:
+            lot_id = parsed_url.path.rstrip("/").split("/")[-1]
+        return str(lot_id or "").strip()
+    return raw
 
-    if not fm_id:
-        raise HTTPException(status_code=400, detail="QR에서 FmID를 찾을 수 없음")
+
+@app.post("/api/apc/scan-qr")
+def api_apc_scan_qr(req: ApcScanRequest):
+    lot_id = _extract_lot_id_from_input(req.qr_data)
+    if not lot_id:
+        raise HTTPException(status_code=400, detail="QR에서 LotID(16자리) 또는 FmID를 찾을 수 없음")
 
     conn = get_db_connection()
     try:
         sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
         with conn.cursor() as cur:
+            # v3: B10(APC 입고) 또는 B12(선별 전 APC 창고) 완료 로트 허용! (레거시 v2 A11도 호환)
             cur.execute(
                 f"""
-                SELECT hl.lot_id AS FmID,
+                SELECT hl.lot_id AS LotID,
+                       COALESCE(hl.farmer_code, hl.lot_id) AS FmID,
+                       hl.crop_code AS CropCode,
+                       hl.protocol_ver,
                        hl.origin_zip AS AC,
                        hl.farmer_phone AS Ct,
                        hl.fruit_type AS FrT,
@@ -670,23 +743,27 @@ def api_apc_scan_qr(req: ApcScanRequest):
                        DATE_FORMAT(hl.harvest_date, '%%Y-%%m-%%d') AS HD,
                        DATE_FORMAT(hl.deliver_date, '%%Y-%%m-%%d') AS DD,
                        DATE_FORMAT(hl.storage_date, '%%Y-%%m-%%d') AS StD,
-                       DATE_FORMAT(se.event_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS APC_WD
+                       se.stage_code AS ready_stage,
+                       DATE_FORMAT(se.event_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS ready_at
                 FROM `{DB_NAME}`.`harvest_lots` hl
                 JOIN `{DB_NAME}`.`stage_events` se
-                  ON hl.lot_id = se.lot_id AND se.stage_code = 'A11'
+                  ON hl.lot_id = se.lot_id
+                 AND se.pkg_id IS NULL
+                 AND se.stage_code IN ('B10', 'B12', 'A11')
                 WHERE hl.lot_id = %s
+                ORDER BY FIELD(se.stage_code, 'B12', 'B10', 'A11'), se.event_at DESC
                 LIMIT 1
                 """,
-                (fm_id,),
+                (lot_id,),
             )
             row = cur.fetchone()
             if not row:
                 raise HTTPException(
                     status_code=404,
-                    detail=f"DB에서 A11(세척 완료) 데이터를 찾을 수 없음 (FmID={fm_id}: A10 입고 및 A11 세척 단계가 먼저 완료되어야 QR 생성이 가능합니다)",
+                    detail=f"DB에서 APC 입고(B10) 또는 선별 전 창고(B12) 데이터를 찾을 수 없음 (LotID={lot_id}: 먼저 APC 입고 스캔이 완료되어야 선별 및 유색 QR 생성이 가능합니다)",
                 )
 
-            cur.execute(f"SELECT grade_code, grade_qty FROM `{DB_NAME}`.`sorted_lots` WHERE lot_id = %s", (fm_id,))
+            cur.execute(f"SELECT grade_code, grade_qty FROM `{DB_NAME}`.`sorted_lots` WHERE lot_id = %s", (lot_id,))
             existing_sorted = {r["grade_code"]: int(r["grade_qty"] or 0) for r in cur.fetchall()}
 
             total_qt = int(row.get("Qt") or 0)
@@ -716,9 +793,11 @@ def api_apc_scan_qr(req: ApcScanRequest):
             if already_sorted:
                 fruit = str(row.get("FrT") or "Apples")
                 ac = str(row.get("AC") or "")
+                fm2 = str(row.get("FmID") or "")
+                cc3 = str(row.get("CropCode") or get_crop_code(fruit, row.get("Vt") or ""))
                 grade_icons = FRUIT_IMAGES_GRADE.get(fruit, FRUIT_IMAGES_GRADE["Apples"])
                 for idx, (g_kr, g_en, cnt) in enumerate([("상", "A", a_val), ("중", "B", b_val), ("하", "C", c_val)]):
-                    q_url = f"{STREAMLIT_CONSUMER_URL}/?FmID={fm_id}&grade={g_kr}&pkg_grade={g_en}&AC={ac}&FrT={fruit}"
+                    q_url = f"{STREAMLIT_CONSUMER_URL}/?LotID={lot_id}&FmID={fm2}&CC={cc3}&grade={g_kr}&pkg_grade={g_en}&AC={ac}&FrT={fruit}"
                     q_b64 = make_qr_base64(q_url, overlay_filename=grade_icons[idx], rounded=False)
                     qrs_preview.append({
                         "grade_en": g_en,
@@ -726,12 +805,13 @@ def api_apc_scan_qr(req: ApcScanRequest):
                         "count": str(cnt),
                         "qr_url": q_url,
                         "qr_base64": q_b64,
-                        "filename": f"{fm_id}_{g_en}_QR.png",
+                        "filename": f"{lot_id}_{g_en}_QR.png",
                     })
 
             return {
                 "ok": True,
-                "fmid": str(fm_id),
+                "lot_id": str(lot_id),
+                "fmid": str(row.get("FmID") or lot_id),
                 "already_sorted": already_sorted,
                 "row": row,
                 "qrs": qrs_preview,
@@ -753,17 +833,27 @@ def api_apc_candidates():
     try:
         sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
         with conn.cursor() as cur:
+            # 선별 대기 후보: v3의 B10(입고) 또는 B12(선별 전 창고) 상태 (아직 B11 미선별), + 레거시 A11
             cur.execute(
                 f"""
-                SELECT hl.lot_id AS FmID, hl.origin_zip AS AC, hl.fruit_type AS FrT, hl.variety AS Vt,
+                SELECT hl.lot_id AS LotID,
+                       COALESCE(hl.farmer_code, hl.lot_id) AS FmID,
+                       hl.crop_code AS CropCode,
+                       hl.origin_zip AS AC,
+                       hl.fruit_type AS FrT,
+                       hl.variety AS Vt,
                        hl.total_qty AS Qt,
-                       DATE_FORMAT(se.event_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS APC_WD
+                       hl.current_stage,
+                       DATE_FORMAT(MAX(se.event_at), '%%Y-%%m-%%d %%H:%%i:%%s') AS ready_at
                 FROM `{DB_NAME}`.`harvest_lots` hl
                 JOIN `{DB_NAME}`.`stage_events` se
-                  ON hl.lot_id = se.lot_id AND se.stage_code = 'A11'
-                WHERE hl.current_stage = 'A11'
-                ORDER BY se.event_at DESC
-                LIMIT 20
+                  ON hl.lot_id = se.lot_id
+                 AND se.pkg_id IS NULL
+                 AND se.stage_code IN ('B10', 'B12', 'A11')
+                WHERE hl.current_stage IN ('B10', 'B12', 'A11')
+                GROUP BY hl.lot_id, hl.farmer_code, hl.crop_code, hl.origin_zip, hl.fruit_type, hl.variety, hl.total_qty, hl.current_stage
+                ORDER BY ready_at DESC
+                LIMIT 25
                 """
             )
             return {"ok": True, "items": list(cur.fetchall())}
@@ -772,7 +862,8 @@ def api_apc_candidates():
 
 
 class ApcSortingRequest(BaseModel):
-    FmID: str
+    LotID: str = ""
+    FmID: str = ""
     AGrade: str
     BGrade: str
     CGrade: str
@@ -786,7 +877,10 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
     conn = get_db_connection()
     try:
         sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
-        lot_id = req.FmID.strip()
+        lot_id = (req.LotID or req.FmID).strip()
+        if not lot_id:
+            raise HTTPException(status_code=400, detail="선별 대상 LotID(16자리)가 비어 있습니다.")
+
         with conn.cursor() as cur:
             cur.execute("SET time_zone = '+09:00'")
             cur.execute("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s') as srv_now")
@@ -794,11 +888,14 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
 
             cur.execute(
                 f"""
-                SELECT hl.*, se.lat AS a11_lat, se.lng AS a11_lng
+                SELECT hl.*, se.stage_code AS ready_stage, se.lat AS prev_lat, se.lng AS prev_lng
                 FROM `{DB_NAME}`.`harvest_lots` hl
                 JOIN `{DB_NAME}`.`stage_events` se
-                  ON hl.lot_id = se.lot_id AND se.stage_code = 'A11'
+                  ON hl.lot_id = se.lot_id
+                 AND se.pkg_id IS NULL
+                 AND se.stage_code IN ('B10', 'B12', 'A11')
                 WHERE hl.lot_id = %s
+                ORDER BY FIELD(se.stage_code, 'B12', 'B10', 'A11'), se.event_at DESC
                 LIMIT 1
                 """,
                 (lot_id,),
@@ -807,19 +904,22 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
             if not lot_row:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"DB에서 A11(세척 완료) 데이터를 찾을 수 없습니다 (FmID={lot_id}). 이전 단계(A10 입고·A11 세척)가 먼저 완료되어야 유색 QR 생성이 가능합니다.",
+                    detail=f"DB에서 APC 입고(B10) 또는 선별 전 창고(B12) 이력을 찾을 수 없습니다 (LotID={lot_id}).",
                 )
+
+            is_legacy_v2 = (lot_row.get("ready_stage") == "A11" and not is_v3_lot_id(lot_id))
+            sort_stage = "A12" if is_legacy_v2 else "B11"
 
             a_cnt = int(req.AGrade or 0)
             b_cnt = int(req.BGrade or 0)
             c_cnt = int(req.CGrade or 0)
             def_cnt = int(req.DefectRate or 0)
 
-            # 1) 방법 A 정규화 적재: sorted_lots 4행 (A, B, C, DEFECT) + stage_events(A12)
+            # 1) 정규화 적재: sorted_lots 4행 (A, B, C, DEFECT) + stage_events(B11 / A12)
             for p_id, g_cd, g_ko, g_q, ship, p_st in [
-                (f"{lot_id}-A", "A", "상", a_cnt, 1, "A12"),
-                (f"{lot_id}-B", "B", "중", b_cnt, 1, "A12"),
-                (f"{lot_id}-C", "C", "하", c_cnt, 1, "A12"),
+                (f"{lot_id}-A", "A", "상", a_cnt, 1, sort_stage),
+                (f"{lot_id}-B", "B", "중", b_cnt, 1, sort_stage),
+                (f"{lot_id}-C", "C", "하", c_cnt, 1, sort_stage),
                 (f"{lot_id}-DEF", "DEFECT", "결점과", def_cnt, 0, "REJECTED"),
             ]:
                 cur.execute(
@@ -833,30 +933,41 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
                 )
 
             integrity_hash = make_sha256(
-                {"lot_id": lot_id, "stage": "A12", "A": a_cnt, "B": b_cnt, "C": c_cnt, "DEFECT": def_cnt, "rt": srv_now}
+                {"lot_id": lot_id, "stage": sort_stage, "A": a_cnt, "B": b_cnt, "C": c_cnt, "DEFECT": def_cnt, "rt": srv_now}
             )
             cur.execute(
                 f"""
                 INSERT INTO `{DB_NAME}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, lat, lng, tx_hash)
-                VALUES (%s, NULL, 'A12', %s, %s, %s, %s)
+                VALUES (%s, NULL, %s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE event_at=VALUES(event_at), tx_hash=VALUES(tx_hash)
                 """,
-                (lot_id, srv_now, lot_row.get("a11_lat"), lot_row.get("a11_lng"), integrity_hash),
+                (lot_id, sort_stage, srv_now, lot_row.get("prev_lat"), lot_row.get("prev_lng"), integrity_hash),
             )
-            cur.execute(f"UPDATE `{DB_NAME}`.`harvest_lots` SET current_stage='A12' WHERE lot_id=%s", (lot_id,))
+            cur.execute(f"UPDATE `{DB_NAME}`.`harvest_lots` SET current_stage=%s WHERE lot_id=%s", (sort_stage, lot_id))
 
-            # 2) 물리 ESP32 스캐너 호환을 위한 lab225.qr A12 기록 및 워터마크 갱신
-            cur.execute(f"SELECT * FROM `{DB_V1_NAME}`.`qr` WHERE FmID=%s AND Lo='A11' ORDER BY id DESC LIMIT 1", (lot_id,))
+            # 2) 물리 ESP32 스캐너 호환을 위한 lab225.qr 기록 및 워터마크 갱신
+            cur.execute(
+                f"""
+                SELECT * FROM `{DB_V1_NAME}`.`qr`
+                WHERE (LotID = %s OR (LotID IS NULL AND FmID = %s))
+                  AND Lo IN ('B12', 'B10', 'A11')
+                  AND (pkg_grade IS NULL OR pkg_grade = '')
+                ORDER BY id DESC LIMIT 1
+                """,
+                (lot_id, lot_id),
+            )
             prev_v1 = cur.fetchone()
             if prev_v1:
                 data_dict = dict(prev_v1)
                 data_dict.update({
-                    "Lo": "A12",
+                    "Lo": sort_stage,
+                    "LotID": lot_id if is_v3_lot_id(lot_id) else data_dict.get("LotID"),
                     "AGrade": str(a_cnt),
                     "BGrade": str(b_cnt),
                     "CGrade": str(c_cnt),
                     "DefectRate": str(def_cnt),
                     "APC_RT": srv_now,
+                    "pkg_grade": None,
                 })
                 cur.execute(f"SHOW COLUMNS FROM `{DB_V1_NAME}`.`qr`")
                 db_cols = {c["Field"] for c in cur.fetchall()}
@@ -876,6 +987,8 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
 
         fruit = str(lot_row.get("fruit_type") or "Apples")
         ac = str(lot_row.get("origin_zip") or "")
+        fm2 = str(lot_row.get("farmer_code") or (lot_id[5:7] if is_v3_lot_id(lot_id) else lot_id))
+        cc3 = str(lot_row.get("crop_code") or get_crop_code(fruit, lot_row.get("variety") or ""))
         grade_icons = FRUIT_IMAGES_GRADE.get(fruit, FRUIT_IMAGES_GRADE["Apples"])
 
         base_url = (
@@ -891,7 +1004,10 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
             ("중", "B", req.BGrade),
             ("하", "C", req.CGrade),
         ]):
-            q_url = f"{base_url}/?FmID={lot_id}&grade={g_kr}&pkg_grade={g_en}&AC={ac}&FrT={fruit}"
+            if is_legacy_v2:
+                q_url = f"{base_url}/?FmID={lot_id}&grade={g_kr}&pkg_grade={g_en}&AC={ac}&FrT={fruit}"
+            else:
+                q_url = f"{base_url}/?LotID={lot_id}&FmID={fm2}&CC={cc3}&grade={g_kr}&pkg_grade={g_en}&AC={ac}&FrT={fruit}"
             qr_filename = f"{lot_id}_{g_en}_QR.png"
             q_b64 = make_qr_base64(q_url, overlay_filename=grade_icons[idx], rounded=False, save_filename=qr_filename)
             saved_files.append(qr_filename)
@@ -906,7 +1022,9 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
 
         return {
             "ok": True,
-            "fmid": lot_id,
+            "lot_id": lot_id,
+            "fmid": fm2,
+            "stage": sort_stage,
             "apc_rt": srv_now,
             "hash": integrity_hash,
             "qrs": qrs,
@@ -926,14 +1044,18 @@ def api_control_sessions(truck_id: str = "truck02", include_lab: bool = False):
     try:
         sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
         with conn.cursor() as cur:
-            type_filter = "tr.run_type IN ('FIELD_DRIVE', 'BENCH', 'MOCK')" if include_lab else "tr.run_type = 'FIELD_DRIVE'"
+            type_filter = (
+                "tr.run_type IN ('FIELD_DRIVE', 'STORAGE', 'BENCH', 'MOCK')"
+                if include_lab
+                else "tr.run_type IN ('FIELD_DRIVE', 'STORAGE')"
+            )
             cur.execute(
                 f"""
                 SELECT tr.run_id, tr.run_type, tr.packet_cnt AS cnt,
                        DATE_FORMAT(tr.started_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS start_ts,
                        DATE_FORMAT(tr.ended_at, '%%Y-%%m-%%d %%H:%%i:%%s') AS end_ts,
                        tr.max_speed AS max_spd, tr.min_temp, tr.max_temp, tr.max_g_force,
-                       GROUP_CONCAT(DISTINCT CONCAT('FmID#', sh.lot_id, '(', sh.leg_no, '구간)') SEPARATOR ', ') AS cargo_summary
+                       GROUP_CONCAT(DISTINCT CONCAT('Lot#', sh.lot_id, '(', sh.leg_no, '구간)') SEPARATOR ', ') AS cargo_summary
                 FROM `{DB_NAME}`.`transport_runs` tr
                 LEFT JOIN `{DB_NAME}`.`shipments` sh ON tr.run_id = sh.run_id
                 WHERE tr.device_id = %s AND {type_filter}
@@ -964,7 +1086,7 @@ def api_control_history(truck_id: str = "truck02", run_id: str = "live"):
                     SELECT run_id
                     FROM `{DB_NAME}`.`transport_runs`
                     WHERE device_id = %s
-                      AND run_type = 'FIELD_DRIVE'
+                      AND run_type IN ('FIELD_DRIVE', 'STORAGE')
                       AND ended_at >= %s
                     ORDER BY ended_at DESC
                     LIMIT 1

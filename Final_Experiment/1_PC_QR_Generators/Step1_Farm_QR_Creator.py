@@ -12,6 +12,17 @@ import mysql.connector
 from urllib.parse import urlencode
 import re
 import os
+import sys
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+from cloud_backend.supply_chain_spec import (
+    get_crop_code,
+    normalize_area_code,
+    normalize_fmid_2digit,
+    build_lot_id_16,
+)
 
 # --- [추가] 무결성 검증을 위한 라이브러리 ---
 import hashlib
@@ -93,28 +104,25 @@ def get_selected_harvest_date(): return harvest_date_picker.get_date()
 def get_selected_deliver_date(): return deliver_date_picker.get_date()
 def get_selected_storage_date(): return storage_date_picker.get_date()
 
-def generate_filename(area_code, farmer_id, harvest_date):
-    formatted_date = harvest_date.strftime('%y%m%d')
-    return f"{area_code}{farmer_id}{formatted_date}"
+def generate_filename(area_code, farmer_id, harvest_date, fruit_type="Apples", variety=""):
+    return build_lot_id_16(area_code, farmer_id, fruit_type, variety, harvest_date)
 
-# QR 코드 생성 함수 (기존 유지)
+# QR 코드 생성 함수 (v3 16자리 LotID + aT 3자리 작물코드 지원)
 def generate_qr_code(data, filename):
-    # 이제 하단에서 명시적인 서비스 주소를 사용합니다.
     key_map = {
-        "Area Code": "AC", "Farmer ID": "FmID", "Contact Info": "Ct", "Fruit Type": "FrT",
-        "Variety": "Vt", "Harvest Date": "HD", "Deliver Date": "DD", "Storage Date": "StD",
-        "Farming Method": "Mt", "Harvesting Number": "HN", "Quantity": "Qt", "Ag Practice": "Rp"
+        "Lot ID": "LotID", "Area Code": "AC", "Farmer ID": "FmID", "Crop Code": "CC",
+        "Contact Info": "Ct", "Fruit Type": "FrT", "Variety": "Vt", "Harvest Date": "HD",
+        "Deliver Date": "DD", "Storage Date": "StD", "Farming Method": "Mt",
+        "Harvesting Number": "HN", "Quantity": "Qt", "Ag Practice": "Rp"
     }
     params = {}
     for key, value in data.items():
         mapped_key = key_map.get(key)
-        if mapped_key:
+        if mapped_key and value not in (None, ""):
             params[mapped_key] = value
 
-    # ESP32(A10 단계)와의 호환성을 위해 모든 파라미터를 유지하되, 주소만 새로운 대시보드로 변경합니다.
-    farmer_id = params.get('FmID', '')
     query_string = urlencode(params)
-    qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app//?{query_string}"
+    qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/?{query_string}"
 
     print(f"[INFO] QR URL: {qr_url}")
 
@@ -178,43 +186,42 @@ def save_all_formats():
         status_label_main_section.config(text="Please fill all required fields!", foreground="red")
         return
 
-    # 3. 데이터 딕셔너리 생성 (DB 저장 및 QR 생성용)
+    # 3. 16자리 LotID 및 aT 3자리 작물코드 생성 (AreaCode5 + FmID2 + CropCode3 + YYMMDD6)
+    ac5 = normalize_area_code(area_code)
+    fm2 = normalize_fmid_2digit(farmer_id)
+    cc3 = get_crop_code(fruit_type, variety)
+    lot_id_16 = build_lot_id_16(ac5, fm2, fruit_type, variety, harvest_date, crop_code=cc3)
+
     now = datetime.datetime.now()
     harvest_datetime = datetime.datetime.combine(harvest_date, now.time()).strftime('%Y-%m-%d %H:%M:%S')
     
     data = {
-        "Area Code": area_code, "Farmer ID": farmer_id, "Contact Info": contact_info,
-        "Fruit Type": fruit_type, "Variety": variety, "Harvest Date": harvest_datetime,
+        "Lot ID": lot_id_16, "Area Code": ac5, "Farmer ID": fm2, "Crop Code": cc3,
+        "Contact Info": contact_info, "Fruit Type": fruit_type, "Variety": variety,
+        "Harvest Date": harvest_date.strftime('%Y-%m-%d'),
         "Deliver Date": deliver_date.strftime('%Y-%m-%d'), "Storage Date": storage_date.strftime('%Y-%m-%d'),
         "Farming Method": farming_method, "Harvesting Number": harvesting_number,
         "Quantity": quantity, "Ag Practice": ag_practice
     }
     
     # --- [핵심] 무결성 보안 처리 구간 ---
-    # 4. 입력된 데이터의 디지털 지문(Hash) 생성
     integrity_hash = calculate_hash(data)
-    
-    # 5. 생성된 해시를 '블록체인(시뮬레이션)' 파일에 영구 기록
-    save_to_blockchain(integrity_hash, {"FarmerID": farmer_id, "Date": data["Harvest Date"]})
-
-    # (검증 기능을 위해 현재 데이터를 메모리에 임시 저장)
+    save_to_blockchain(integrity_hash, {"LotID": lot_id_16, "FarmerID": fm2, "CropCode": cc3, "Date": data["Harvest Date"]})
     current_data_cache = data.copy()
-    # ----------------------------------
 
     try:
-        # 6. MariaDB 데이터베이스에 원본 데이터 저장
         db_connection = get_db_connection()
         cursor = db_connection.cursor()
         
         insert_query = """
-        INSERT INTO qr (Lo, AC, FmID, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, StD, Rp)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Rp)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         db_data = (
-            "A00", area_code, farmer_id, fruit_type, variety, contact_info,
+            "A00", ac5, fm2, lot_id_16, cc3, fruit_type, variety, contact_info,
             harvest_datetime, deliver_date.strftime('%Y-%m-%d'),
             quantity, farming_method, harvesting_number, 
-            storage_date.strftime('%Y-%m-%d'), ag_practice
+            storage_date.strftime('%Y-%m-%d'), ag_practice or None
         )
         cursor.execute(insert_query, db_data)
         db_connection.commit()
@@ -222,18 +229,13 @@ def save_all_formats():
         cursor.close()
         db_connection.close()
         
-        # 7. 성공 메시지 업데이트 (해시값 일부를 보여주어 보안 처리됨을 명시)
         status_label_main_section.config(
-            text=f"✅ 저장 및 보안처리 완료 (Hash: {integrity_hash[:10]}...)", 
+            text=f"✅ A00 저장 완료 (LotID: {lot_id_16} / CC: {cc3})", 
             foreground="green"
         )
         
-        # 8. QR 코드 이미지 생성 및 표시
-        filename = generate_filename(area_code, farmer_id, harvest_date)
-        generate_qr_code(data, filename)
-        
-        # (선택) 팝업창 띄우기
-        messagebox.showinfo("성공", "데이터가 안전하게 저장되었습니다.\n(블록체인 무결성 등록 완료)")
+        generate_qr_code(data, lot_id_16)
+        messagebox.showinfo("성공", f"A00 데이터가 저장되었습니다.\n16자리 LotID: {lot_id_16}\n작물코드: {cc3}\n(다음: QR 스캐너로 A01 창고 또는 A02 출하 스캔)")
         
     except mysql.connector.Error as err:
         status_label_main_section.config(text=f"Database error: {err}", foreground="red")

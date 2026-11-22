@@ -10,6 +10,12 @@ from urllib.parse import urlparse
 import hashlib
 import json
 import random
+import sys
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+from cloud_backend.supply_chain_spec import get_crop_code, is_v3_lot_id
 
 # --- [추가] 보안을 위한 dotenv 환경 변수 로드 ---
 from dotenv import load_dotenv
@@ -71,7 +77,7 @@ def save_to_blockchain(data_hash, metadata):
 # --- GUI 설정 ---
 root = tk.Tk()
 style = Style("flatly")
-root.title("A12 자동 분류 및 무결성 검증 (PC 관리자용)")
+root.title("B11 APC 선별 및 유색 QR 자동 발급 (16자리 LotID / PC 관리자용)")
 root.geometry("1100x1200")
 
 prev_data = {}
@@ -80,7 +86,7 @@ prev_data = {}
 for r in range(7): root.grid_rowconfigure(r, weight=1)
 for c in range(2): root.grid_columnconfigure(c, weight=1)
 
-scan_label = ttk.Label(root, text="A12 선별 및 등급 판정", font=("나눔고딕", 24, "bold"))
+scan_label = ttk.Label(root, text="B11 APC 선별 및 등급별 유색 QR 변경", font=("나눔고딕", 24, "bold"))
 scan_label.grid(row=0, column=0, columnspan=2, pady=10)
 
 # UX 개선: 스캔을 위한 명시적인 입력창 (포커스 분실 방지)
@@ -146,35 +152,41 @@ def handle_qr_data(event=None):
         parsed_url = urlparse(qr_data)
         query_params = parse_qs(parsed_url.query)
         
-        # 1. 새 Streamlit 쿼리 파라미터 방식 (?FmID=33)
-        fm_id = query_params.get('FmID', [None])[0]
-        
-        # 2. 기존 방식 (/qr/33) - 역호환성
-        if not fm_id:
-            fm_id = parsed_url.path.split('/')[-1]
+        # 1. v3 16자리 LotID 우선, 없으면 기존 FmID 폴백
+        lot_id = (query_params.get('LotID') or query_params.get('lot_id') or query_params.get('FmID') or query_params.get('fmid') or [None])[0]
+        if not lot_id:
+            lot_id = parsed_url.path.split('/')[-1] if '/' in qr_data else qr_data
 
-        if not fm_id or fm_id == "":
-            status_label.config(text="QR에서 FmID를 찾을 수 없음", foreground="red"); return
+        if not lot_id or lot_id == "":
+            status_label.config(text="QR에서 16자리 LotID/FmID를 찾을 수 없음", foreground="red"); return
 
         conn = get_db_connection()
         try:
             cursor = conn.cursor(pymysql.cursors.DictCursor)
-            # A11의 세척시간(APC_WD)을 기준으로 최신 데이터를 가져오도록 수정
-            cursor.execute(f"SELECT * FROM {TABLE_NAME} WHERE FmID=%s AND Lo='A11' ORDER BY APC_WD DESC LIMIT 1", (fm_id,))
+            # v3: B10(APC 입고) 또는 B12(선별 전 APC 창고) 허용 + 레거시 A11 호환
+            cursor.execute(
+                f"SELECT * FROM {TABLE_NAME} "
+                f"WHERE (LotID=%s OR (LotID IS NULL AND FmID=%s)) "
+                f"AND Lo IN ('B12', 'B10', 'A11') AND (pkg_grade IS NULL OR pkg_grade = '') "
+                f"ORDER BY id DESC LIMIT 1",
+                (lot_id, lot_id),
+            )
             row = cursor.fetchone()
         finally:
             conn.close()
 
         if not row:
-            status_label.config(text="DB에서 A11(세척 완료) 데이터를 찾을 수 없음", foreground="red"); return
+            status_label.config(text="DB에서 APC 입고(B10) 또는 창고(B12) 데이터를 찾을 수 없음", foreground="red"); return
 
         prev_data = dict(row)
+        display_lot = prev_data.get("LotID") or prev_data.get("FmID") or lot_id
 
         all_entries = {"FmID": fm_id_entry, "AC": ac_entry, "Ct": ct_entry, "FrT": fruit_type_entry,
                        "Vt": variety_entry, "Mt": mt_entry, "HD": hd_entry, "DD": dd_entry,
                        "HN": hn_entry, "Std": std_entry, "Qt": qt_entry}
         for key, entry in all_entries.items():
-            entry.delete(0, tk.END); entry.insert(0, str(prev_data.get(key, "") or ""))
+            val_show = display_lot if key == "FmID" else str(prev_data.get(key, "") or "")
+            entry.delete(0, tk.END); entry.insert(0, val_show)
             
         # --- [자동화 추가] 수량 랜덤 생성 로직 (A등급 80% 및 합계 일치 보정) ---
         try:
@@ -234,19 +246,24 @@ def save_and_generate():
         status_label.config(text="등급 및 결점률을 모두 입력하세요", foreground="red"); return
 
     try:
+        lot_key = str(prev_data.get("LotID") or prev_data.get("FmID") or "").strip()
+        is_legacy = (prev_data.get("Lo") == "A11" and not is_v3_lot_id(lot_key))
+        sort_stage = "A12" if is_legacy else "B11"
+
         data_dict = prev_data.copy()
         data_dict.update({
-            "Lo": "A12", 
+            "Lo": sort_stage,
             "AGrade": a, "BGrade": b, "CGrade": c, 
             "DefectRate": defect, 
-            "APC_RT": now
+            "APC_RT": now,
+            "pkg_grade": None,
         })
         
         # 무결성 해시
         integrity_hash = calculate_hash(data_dict)
-        save_to_blockchain(integrity_hash, {"FmID": prev_data['FmID'], "Type": "Grading Result"})
+        save_to_blockchain(integrity_hash, {"LotID": lot_key, "Stage": sort_stage, "Type": "Grading Result"})
 
-        # DB 저장 (pymysql 문법으로 수정, PC 시계 오차 방지를 위해 AWS RDS 서버 KST 시각 조회)
+        # DB 저장 (AWS RDS 서버 KST 시각 조회)
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
@@ -257,7 +274,6 @@ def save_and_generate():
                 data_dict["APC_RT"] = str(srv_now_row[0])
             cursor.execute(f"SHOW COLUMNS FROM {TABLE_NAME}")
             db_columns = {col[0] for col in cursor.fetchall()}
-            # 새 레코드 삽입이므로 이전 A11 레코드의 id는 제외하여 자동 증가(AUTO_INCREMENT)가 동작하도록 함
             data_to_insert = {k: v for k, v in data_dict.items() if k in db_columns and k != 'id'}
             
             columns = ", ".join(data_to_insert.keys())
@@ -269,24 +285,26 @@ def save_and_generate():
         finally:
             conn.close()
 
-        # QR 생성
-        # 이제 하단에서 명시적인 서비스 주소를 사용합니다.
+        # QR 생성 (v3 16자리 LotID + 작물코드 포함)
+        cc3 = prev_data.get("CropCode") or get_crop_code(prev_data.get("FrT", "Apples"), prev_data.get("Vt", ""))
         for i, (grade_count, qr_label, text_label, grade_name_kr, grade_name_en) in enumerate(zip(
             [a, b, c], [a_qr_label, b_qr_label, c_qr_label],
             [a_text_label, b_text_label, c_text_label],
             ['상', '중', '하'], ['A', 'B', 'C'])):
 
-            # ESP32 호환성(ASCII 등급 코드 병기) 및 안전한 데이터 전달을 위해 파라미터 구성 유지
-            qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/?FmID={prev_data['FmID']}&grade={grade_name_kr}&pkg_grade={grade_name_en}&AC={prev_data.get('AC','')}&FrT={prev_data.get('FrT','')}"
+            if is_legacy:
+                qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/?FmID={lot_key}&grade={grade_name_kr}&pkg_grade={grade_name_en}&AC={prev_data.get('AC','')}&FrT={prev_data.get('FrT','')}"
+            else:
+                qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/?LotID={lot_key}&FmID={prev_data.get('FmID','')}&CC={cc3}&grade={grade_name_kr}&pkg_grade={grade_name_en}&AC={prev_data.get('AC','')}&FrT={prev_data.get('FrT','')}"
             img = generate_qr_with_image(qr_url, prev_data["FrT"], i)
-            qr_filename = f"{prev_data['FmID']}_{grade_name_en}_QR.png"
+            qr_filename = f"{lot_key}_{grade_name_en}_QR.png"
             img.save(qr_filename)
             
             img_tk = ImageTk.PhotoImage(img.resize((220, 220)))
             qr_label.config(image=img_tk); qr_label.image = img_tk
             text_label.config(text=f"{grade_name_en}등급 QR - {grade_count}개")
 
-        status_label.config(text=f"✅ 저장 및 보안처리 완료 (Hash: {integrity_hash[:10]}...)", foreground="blue")
+        status_label.config(text=f"✅ {sort_stage} 저장 및 유색 QR 생성 완료 (LotID: {lot_key})", foreground="blue")
         
         # 다음 작업을 위해 다시 스캔 창으로 커서 이동
         qr_entry.focus()

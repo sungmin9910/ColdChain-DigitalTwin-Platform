@@ -1,0 +1,362 @@
+[
+  {
+    "pkg_id": "01-A",
+    "lot_id": "01",
+    "grade_code": "A",
+    "grade_label_ko": "상",
+    "grade_qty": 81,
+    "is_shippable": 1,
+    "current_stage": "A15",
+    "sorted_at": "2026-05-19T13:35:53"
+  },
+  {
+    "pkg_id": "01-B",
+    "lot_id": "01",
+    "grade_code": "B",
+    "grade_label_ko": "중",
+    "grade_qty": 1,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-05-19T13:35:53"
+  },
+  {
+    "pkg_id": "01-C",
+    "lot_id": "01",
+    "grade_code": "C",
+    "grade_label_ko": "하",
+    "grade_qty": 15,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-05-19T13:35:53"
+  },
+  {
+    "pkg_id": "01-DEF",
+    "lot_id": "01",
+    "grade_code": "DEFECT",
+    "grade_label_ko": "결점과",
+    "grade_qty": 3,
+    "is_shippable": 0,
+    "current_stage": "REJECTED",
+    "sorted_at": "2026-05-19T13:35:53"
+  },
+  {
+    "pkg_id": "09-A",
+    "lot_id": "09",
+    "grade_code": "A",
+    "grade_label_ko": "상",
+    "grade_qty": 803,
+    "is_shippable": 1,
+    "current_stage": "A16",
+    "sorted_at": "2026-11-16T20:55:31"
+  },
+  {
+    "pkg_id": "09-B",
+    "lot_id": "09",
+    "grade_code": "B",
+    "grade_label_ko": "중",
+    "grade_qty": 15,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-11-16T20:55:31"
+  },
+  {
+    "pkg_id": "09-C",
+    "lot_id": "09",
+    "grade_code": "C",
+    "grade_label_ko": "하",
+    "grade_qty": 180,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-11-16T20:55:31"
+  },
+  {
+    "pkg_id": "09-DEF",
+    "lot_id": "09",
+    "grade_code": "DEFECT",
+    "grade_label_ko": "결점과",
+    "grade_qty": 2,
+    "is_shippable": 0,
+    "current_stage": "REJECTED",
+    "sorted_at": "2026-11-16T20:55:31"
+  },
+  {
+    "pkg_id": "11-A",
+    "lot_id": "11",
+    "grade_code": "A",
+    "grade_label_ko": "상",
+    "grade_qty": 81,
+    "is_shippable": 1,
+    "current_stage": "A14",
+    "sorted_at": "2026-05-12T16:57:09"
+  },
+  {
+    "pkg_id": "11-B",
+    "lot_id": "11",
+    "grade_code": "B",
+    "grade_label_ko": "중",
+    "grade_qty": 18,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-05-12T16:57:09"
+  },
+  {
+    "pkg_id": "11-C",
+    "lot_id": "11",
+    "grade_code": "C",
+    "grade_label_ko": "하",
+    "grade_qty": 0,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-05-12T16:57:09"
+  },
+  {
+    "pkg_id": "11-DEF",
+    "lot_id": "11",
+    "grade_code": "DEFECT",
+    "grade_label_ko": "결점과",
+    "grade_qty": 1,
+    "is_shippable": 0,
+    "current_stage": "REJECTED",
+    "sorted_at": "2026-05-12T16:57:09"
+  },
+  {
+    "pkg_id": "13-A",
+    "lot_id": "13",
+    "grade_code": "A",
+    "grade_label_ko": "상",
+    "grade_qty": 78,
+    "is_shippable": 1,
+    "current_stage": "A16",
+    "sorted_at": "2026-11-16T07:29:13"
+  },
+  {
+    "pkg_id": "13-B",
+    "lot_id": "13",
+    "grade_code": "B",
+    "grade_label_ko": "중",
+    "grade_qty": 17,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-11-16T07:29:13"
+  },
+  {
+    "pkg_id": "13-C",
+    "lot_id": "13",
+    "grade_code": "C",
+    "grade_label_ko": "하",
+    "grade_qty": 3,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-11-16T07:29:13"
+  },
+  {
+    "pkg_id": "13-DEF",
+    "lot_id": "13",
+    "grade_code": "DEFECT",
+    "grade_label_ko": "결점과",
+    "grade_qty": 2,
+    "is_shippable": 0,
+    "current_stage": "REJECTED",
+    "sorted_at": "2026-11-16T07:29:13"
+  },
+  {
+    "pkg_id": "22-A",
+    "lot_id": "22",
+    "grade_code": "A",
+    "grade_label_ko": "상",
+    "grade_qty": 402,
+    "is_shippable": 1,
+    "current_stage": "A13",
+    "sorted_at": "2026-11-17T11:05:32"
+  },
+  {
+    "pkg_id": "22-B",
+    "lot_id": "22",
+    "grade_code": "B",
+    "grade_label_ko": "중",
+    "grade_qty": 82,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-11-17T11:05:32"
+  },
+  {
+    "pkg_id": "22-C",
+    "lot_id": "22",
+    "grade_code": "C",
+    "grade_label_ko": "하",
+    "grade_qty": 13,
+    "is_shippable": 1,
+    "current_stage": "A15",
+    "sorted_at": "2026-11-17T11:05:32"
+  },
+  {
+    "pkg_id": "22-DEF",
+    "lot_id": "22",
+    "grade_code": "DEFECT",
+    "grade_label_ko": "결점과",
+    "grade_qty": 3,
+    "is_shippable": 0,
+    "current_stage": "REJECTED",
+    "sorted_at": "2026-11-17T11:05:32"
+  },
+  {
+    "pkg_id": "33-A",
+    "lot_id": "33",
+    "grade_code": "A",
+    "grade_label_ko": "상",
+    "grade_qty": 80,
+    "is_shippable": 1,
+    "current_stage": "A15",
+    "sorted_at": "2026-11-12T18:05:02"
+  },
+  {
+    "pkg_id": "33-B",
+    "lot_id": "33",
+    "grade_code": "B",
+    "grade_label_ko": "중",
+    "grade_qty": 0,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-11-12T18:05:02"
+  },
+  {
+    "pkg_id": "33-C",
+    "lot_id": "33",
+    "grade_code": "C",
+    "grade_label_ko": "하",
+    "grade_qty": 19,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-11-12T18:05:02"
+  },
+  {
+    "pkg_id": "33-DEF",
+    "lot_id": "33",
+    "grade_code": "DEFECT",
+    "grade_label_ko": "결점과",
+    "grade_qty": 1,
+    "is_shippable": 0,
+    "current_stage": "REJECTED",
+    "sorted_at": "2026-11-12T18:05:02"
+  },
+  {
+    "pkg_id": "77-A",
+    "lot_id": "77",
+    "grade_code": "A",
+    "grade_label_ko": "상",
+    "grade_qty": 81,
+    "is_shippable": 1,
+    "current_stage": "A15",
+    "sorted_at": "2026-10-16T14:33:23"
+  },
+  {
+    "pkg_id": "77-B",
+    "lot_id": "77",
+    "grade_code": "B",
+    "grade_label_ko": "중",
+    "grade_qty": 2,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-10-16T14:33:23"
+  },
+  {
+    "pkg_id": "77-C",
+    "lot_id": "77",
+    "grade_code": "C",
+    "grade_label_ko": "하",
+    "grade_qty": 14,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-10-16T14:33:23"
+  },
+  {
+    "pkg_id": "77-DEF",
+    "lot_id": "77",
+    "grade_code": "DEFECT",
+    "grade_label_ko": "결점과",
+    "grade_qty": 3,
+    "is_shippable": 0,
+    "current_stage": "REJECTED",
+    "sorted_at": "2026-10-16T14:33:23"
+  },
+  {
+    "pkg_id": "85-A",
+    "lot_id": "85",
+    "grade_code": "A",
+    "grade_label_ko": "상",
+    "grade_qty": 797,
+    "is_shippable": 1,
+    "current_stage": "A16",
+    "sorted_at": "2026-11-15T18:01:35"
+  },
+  {
+    "pkg_id": "85-B",
+    "lot_id": "85",
+    "grade_code": "B",
+    "grade_label_ko": "중",
+    "grade_qty": 45,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-11-15T18:01:35"
+  },
+  {
+    "pkg_id": "85-C",
+    "lot_id": "85",
+    "grade_code": "C",
+    "grade_label_ko": "하",
+    "grade_qty": 156,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-11-15T18:01:35"
+  },
+  {
+    "pkg_id": "85-DEF",
+    "lot_id": "85",
+    "grade_code": "DEFECT",
+    "grade_label_ko": "결점과",
+    "grade_qty": 2,
+    "is_shippable": 0,
+    "current_stage": "REJECTED",
+    "sorted_at": "2026-11-15T18:01:35"
+  },
+  {
+    "pkg_id": "98-A",
+    "lot_id": "98",
+    "grade_code": "A",
+    "grade_label_ko": "상",
+    "grade_qty": 393,
+    "is_shippable": 1,
+    "current_stage": "A15",
+    "sorted_at": "2026-10-19T14:13:01"
+  },
+  {
+    "pkg_id": "98-B",
+    "lot_id": "98",
+    "grade_code": "B",
+    "grade_label_ko": "중",
+    "grade_qty": 40,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-10-19T14:13:01"
+  },
+  {
+    "pkg_id": "98-C",
+    "lot_id": "98",
+    "grade_code": "C",
+    "grade_label_ko": "하",
+    "grade_qty": 64,
+    "is_shippable": 1,
+    "current_stage": "A12",
+    "sorted_at": "2026-10-19T14:13:01"
+  },
+  {
+    "pkg_id": "98-DEF",
+    "lot_id": "98",
+    "grade_code": "DEFECT",
+    "grade_label_ko": "결점과",
+    "grade_qty": 3,
+    "is_shippable": 0,
+    "current_stage": "REJECTED",
+    "sorted_at": "2026-10-19T14:13:01"
+  }
+]

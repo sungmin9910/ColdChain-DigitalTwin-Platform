@@ -60,6 +60,7 @@ class VehicleSessionTracker:
         self.standby_count = 0
         self.last_valid_gps = (0.0, 0.0)
         self.last_db_save_time = 0.0
+        self.last_storage_save_time = 0.0
         self.last_db_packet_epoch = 0.0
         self.prev_lux = None
         self.prev_temp = None
@@ -145,11 +146,11 @@ class VehicleSessionTracker:
         elif is_anomaly:
             final_status = f"이상감지 {loc_tag}"[:48]
         elif loc_tag == "[대기]":
-            final_status = "대기 [실내]"
+            final_status = "보관 [실내]" if "보관" in status_str else "대기 [실내]"
         else:
             final_status = f"정상 {loc_tag}"[:48]
 
-        # DB 저장 조건 판정 (스마트 필터링)
+        # DB 저장 조건 판정 (스마트 필터링: 주행 5초 + 창고 실내 보관 30초 + 이상 이벤트 즉시)
         pkt_epoch = None
         try:
             pkt_epoch = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S").timestamp()
@@ -157,6 +158,7 @@ class VehicleSessionTracker:
             pkt_epoch = None
 
         should_save = False
+        is_storage_save = False
         if is_anomaly:
             should_save = True
         elif self.trip_started:
@@ -164,12 +166,26 @@ class VehicleSessionTracker:
                 pkt_epoch is not None and self.last_db_packet_epoch > 0 and abs(pkt_epoch - self.last_db_packet_epoch) >= 4.5
             ):
                 should_save = True
+        else:
+            # 창고(A01/B12/C10) 실내 보관 중에도 30초 주기로 온습도·조도를 DB에 적재
+            if now_ts - self.last_storage_save_time >= 30.0:
+                should_save = True
+                is_storage_save = True
 
         if should_save:
-            self.last_db_save_time = now_ts
+            if is_storage_save:
+                self.last_storage_save_time = now_ts
+                final_status = "보관 [실내]"
+            else:
+                self.last_db_save_time = now_ts
             if pkt_epoch is not None:
                 self.last_db_packet_epoch = pkt_epoch
-            run_id_val = self.active_run_id or f"{self.truck_id}_기록_{get_kst_now().strftime('%Y-%m-%d_%H시%M분')}"
+            if self.trip_started and self.active_run_id:
+                run_id_val = self.active_run_id
+            elif is_storage_save or not self.trip_started:
+                run_id_val = f"{self.truck_id}_보관_{ts_str[:10]}"
+            else:
+                run_id_val = f"{self.truck_id}_기록_{get_kst_now().strftime('%Y-%m-%d_%H시%M분')}"
 
             try:
                 dt_kst = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S")

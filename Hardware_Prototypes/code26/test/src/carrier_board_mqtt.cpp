@@ -52,10 +52,11 @@ const WiFiNetwork wifi_networks[] = {
 const int num_wifi_networks = sizeof(wifi_networks) / sizeof(wifi_networks[0]);
 
 // 타이밍 및 임계값 파라미터
-#define TX_INTERVAL_MS        5000    // 일반 텔레메트리 전송 주기 (5초)
-#define SAMPLE_INTERVAL_MS    20      // IMU 고속 가속도 샘플링 (20ms = 50Hz)
-#define SHOCK_THRESHOLD_G     1.8     // 충격 감지 임계값 (1.8G)
-#define SHOCK_DEBOUNCE_MS     3000    // 충격 재감지 방지 데드타임 (3초)
+#define TX_INTERVAL_MS          5000    // 일반 텔레메트리 전송 주기 (5초)
+#define STORAGE_FS_INTERVAL_MS  30000   // 창고(A01/B12/C10) 실내 보관 중 LittleFS 백업 주기 (30초)
+#define SAMPLE_INTERVAL_MS      20      // IMU 고속 가속도 샘플링 (20ms = 50Hz)
+#define SHOCK_THRESHOLD_G       1.8     // 충격 감지 임계값 (1.8G)
+#define SHOCK_DEBOUNCE_MS       3000    // 충격 재감지 방지 데드타임 (3초)
 
 // ==========================================
 // 2. 센서 및 네트워크 객체
@@ -100,6 +101,10 @@ float last_valid_lat = 0.0;    // 직전 유효 위도 (터널 진입 시 데드
 float last_valid_lng = 0.0;    // 직전 유효 경도
 unsigned long lastMotionTime = 0;       // 마지막 IMU 진동/움직임 감지 시각
 unsigned long lastGpsFixTime = 0;       // 마지막 GPS Fix 성공 시각
+unsigned long lastStorageFsTime = 0;    // 실내 창고 보관 중 마지막 LittleFS 백업 시각
+float lastSavedTemp = -999.0;           // 실내 급변 감지용 직전 저장 온도
+float lastSavedHumi = -999.0;           // 실내 급변 감지용 직전 저장 습도
+float lastSavedLux  = -999.0;           // 실내 급변 감지용 직전 저장 조도
 #define TRIP_AUTO_STOP_MS   300000      // 5분(300초) 무진동 & GPS 단절 시 주행 자동 종료 (신호대기/정체 오판 방지)
 
 
@@ -393,10 +398,10 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
       lng = last_valid_lng;
       full_status = base_evt + " [터널]";
     } else {
-      // 아직 출발 전 또는 주행 종료 후 실내/책상 위 대기 상태
+      // 창고(A01/B12/C10) 실내 보관 또는 주행 대기 상태
       lat = 0.0;
       lng = 0.0;
-      full_status = "대기 [실내]";
+      full_status = "보관 [실내]";
     }
   }
 
@@ -422,18 +427,33 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
   Serial.printf("  페이로드: %s\n", jsonBuffer);
   Serial.printf("  [GPS 상태] 수신바이트: %lu, 위성수: %d, Fix: %s (위도: %.6f, 경도: %.6f, 상태: %s)\n",
                 chars_rx, sats, gps_fix_ok ? "YES" : "NO", lat, lng,
-                trip_active ? "🚗주행중(터널연속기록)" : "💤실내대기(저장보류)");
+                trip_active ? "🚗주행중(5초연속기록)" : "❄️실내보관(30초주기백업)");
 
   // 4) LittleFS 블랙박스 스마트 저장 판정
-  // - 주행 중(trip_active): 터널/음영지역 통과 중이라도 100% 5초마다 연속 저장!
-  // - 비주행(실내/책상 위): 충격 이벤트(g_force >= 1.8G) 발생 시에만 긴급 저장, 평소엔 대기(메모리 보존)
-  bool should_save_fs = trip_active || (g_force_val >= SHOCK_THRESHOLD_G);
+  // - 주행 중(trip_active): 5초마다 연속 저장
+  // - 창고 실내 보관(!trip_active): 30초 주기 또는 온습도/조도 급변·충격 시 저장 (Wi-Fi 단절 창고에서도 무손실!)
+  unsigned long now_ms = millis();
+  bool indoor_env_jump = (lastSavedTemp > -900.0) && (
+    fabs(temp - lastSavedTemp) >= 1.0 ||
+    fabs(humi - lastSavedHumi) >= 5.0 ||
+    fabs(lux  - lastSavedLux)  >= 300.0
+  );
+  bool indoor_periodic = (!trip_active) && (
+    lastStorageFsTime == 0 || (now_ms - lastStorageFsTime >= STORAGE_FS_INTERVAL_MS) || indoor_env_jump
+  );
+  bool should_save_fs = trip_active || (g_force_val >= SHOCK_THRESHOLD_G) || indoor_periodic;
   bool is_connected = client.connected();
 
   if (should_save_fs) {
+    if (!trip_active) {
+      lastStorageFsTime = now_ms;
+      lastSavedTemp = temp;
+      lastSavedHumi = humi;
+      lastSavedLux  = lux;
+    }
     logToLittleFS(jsonBuffer, !is_connected);
   } else {
-    Serial.println("  💤 [실내 대기 모드] 주행 출발 전 - LittleFS 저장 보류 (메모리 보호)");
+    Serial.println("  ❄️ [창고 실내 보관] 5초 MQTT 실시간 전송 중 (LittleFS 다음 30초 백업 대기)");
   }
 
   // 5) MQTT 네트워크 전송
