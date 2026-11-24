@@ -59,7 +59,7 @@ CREATE TABLE `harvest_lots` (
     `deliver_date`  DATE         NULL     COMMENT '농가 출하일 (DD / A04)',
     `ag_practice`   VARCHAR(100) NULL     COMMENT '레거시 농법 기록 보존용 (Rp, 신규 NULL)',
     `current_stage` VARCHAR(10)  NOT NULL DEFAULT 'A01' COMMENT '원물 기준 진행 단계 (v4: A01~B02, v3: A00~B12, v2: A00~A12)',
-    `protocol_ver`  VARCHAR(10)  NOT NULL DEFAULT 'v4' COMMENT '프로토콜 버전 (v4: A01~B05·C10~D10, v3: A00~D10, v2: A00~A16)',
+    `protocol_ver`  VARCHAR(10)  NOT NULL DEFAULT 'v4' COMMENT '프로토콜 버전 (v4: A01~A04·B01~B06·C01~C02·D01, v3: A00~D10, v2: A00~A16)',
     `is_test`       TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '0: 정식 실증 데이터, 1: 연습/불완전 테스트',
     `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`lot_id`),

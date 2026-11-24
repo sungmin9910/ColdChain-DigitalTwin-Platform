@@ -110,15 +110,24 @@ LANG_DICT = {
         'v4_stage_A04_desc': "농가에서 산지유통센터(APC)로 1구간 운송을 출발했습니다.",
         'v4_stage_B01_title': "🏢 APC 입고 (B01)",
         'v4_stage_B01_desc': "산지유통센터(APC)에 신선한 상태로 입고되었습니다.",
-        'v4_stage_B02_title': "🔍 APC 선별 · 유색QR 변경 (B02)",
-        'v4_stage_B02_desc': "크기와 당도, 품질을 엄격하게 선별하고 등급별 유색 QR로 교체했습니다.",
-        'v4_stage_B03_title': "❄️ APC 저장고 입고 (B03)",
-        'v4_stage_B03_desc': "선별 완료 상품을 APC 저온저장고에 입고하여 최적 온습도로 보관합니다.",
-        'v4_stage_B04_title': "📦 APC 저장고 출고 (B04)",
-        'v4_stage_B04_desc': "APC 저온저장고 보관을 마치고 출하를 위해 출고되었습니다.",
-        'v4_stage_B05_title': "🚛 APC 출하 (B05)",
-        'v4_stage_B05_desc': "APC에서 유통 창고를 향해 2구간 냉장 운송을 출발했습니다.",
-        'route_apc_hub_v4': "🏢 APC 공정 (B01~B05)",
+        'v4_stage_B02_title': "🔍 APC 선별 · 선별 입고 (B02)",
+        'v4_stage_B02_desc': "크기와 당도, 품질을 엄격하게 선별(선별 입고)하고 등급별 유색 QR(A/B/C)을 발급했습니다.",
+        'v4_stage_B03_title': "✅ APC 선별 출고 (B03)",
+        'v4_stage_B03_desc': "등급별 유색 QR 스캔으로 선별 공정 출고를 완료했습니다.",
+        'v4_stage_B04_title': "❄️ APC 저장고 입고 (B04)",
+        'v4_stage_B04_desc': "선별 출고된 상품을 APC 저온저장고에 입고하여 최적 온습도로 보관합니다.",
+        'v4_stage_B05_title': "📦 APC 저장고 출고 (B05)",
+        'v4_stage_B05_desc': "APC 저온저장고 보관을 마치고 출하를 위해 출고되었습니다.",
+        'v4_stage_B06_title': "🚛 APC 출하 (B06)",
+        'v4_stage_B06_desc': "APC에서 유통 창고를 향해 2구간 냉장 운송을 출발했습니다.",
+        'v4_stage_C01_title': "🏬 유통 창고 저장 (C01)",
+        'v4_stage_C01_desc': "유통 물류센터 저온창고에 도착하여 신선하게 보관 중입니다.",
+        'v4_stage_C02_title': "🚚 유통 출하 · 판매처 출발 (C02)",
+        'v4_stage_C02_desc': "유통 창고에서 판매처를 향해 3구간 냉장 배송을 출발했습니다.",
+        'v4_stage_D01_title': "🏪 판매처 도착 (D01)",
+        'v4_stage_D01_desc': "전 구간 콜드체인 안전 운송을 마치고 판매처에 신선하게 도착했습니다!",
+        'route_apc_hub_v4': "🏢 APC 공정 (B01~B06)",
+        'route_dist_hub_v4': "🏬 유통 창고 (C01~C02)",
         'stage_A00_title': "🌱 농가 수확 (A00)",
         'stage_A00_desc': "산지 농가에서 수확하고 16자리 고유 코드 기반 안심 QR을 발급했습니다.",
         'stage_A01_title': "🏡 농가 창고 보관 (A01)",
@@ -249,15 +258,24 @@ LANG_DICT = {
         'v4_stage_A04_desc': "Departed from the farm toward the APC center (Leg 1 transport).",
         'v4_stage_B01_title': "🏢 APC Receiving (B01)",
         'v4_stage_B01_desc': "Arrived fresh at the APC center from the farm.",
-        'v4_stage_B02_title': "🔍 APC Sorting & Colored QR (B02)",
-        'v4_stage_B02_desc': "Strictly graded and upgraded to color-coded grade QR labels.",
-        'v4_stage_B03_title': "❄️ APC Storage In (B03)",
-        'v4_stage_B03_desc': "Entered APC cold storage under optimal temperature & humidity control.",
-        'v4_stage_B04_title': "📦 APC Storage Out (B04)",
-        'v4_stage_B04_desc': "Exited APC cold storage for distribution dispatch.",
-        'v4_stage_B05_title': "🚛 APC Dispatch (B05)",
-        'v4_stage_B05_desc': "Departed from APC toward the distribution warehouse (Leg 2 transport).",
-        'route_apc_hub_v4': "🏢 APC Center (B01~B05)",
+        'v4_stage_B02_title': "🔍 APC Sorting & Sort-In (B02)",
+        'v4_stage_B02_desc': "Strictly graded (Sort-In) and issued color-coded grade QR labels (A/B/C).",
+        'v4_stage_B03_title': "✅ APC Sort-Out (B03)",
+        'v4_stage_B03_desc': "Completed grade-level sorting exit scan with color-coded QR.",
+        'v4_stage_B04_title': "❄️ APC Storage In (B04)",
+        'v4_stage_B04_desc': "Entered APC cold storage under optimal temperature & humidity control.",
+        'v4_stage_B05_title': "📦 APC Storage Out (B05)",
+        'v4_stage_B05_desc': "Exited APC cold storage for distribution dispatch.",
+        'v4_stage_B06_title': "🚛 APC Dispatch (B06)",
+        'v4_stage_B06_desc': "Departed from APC toward the distribution warehouse (Leg 2 transport).",
+        'v4_stage_C01_title': "🏬 Distribution Storage (C01)",
+        'v4_stage_C01_desc': "Arrived and stored safely in the distribution center cold warehouse.",
+        'v4_stage_C02_title': "🚚 Distribution Dispatch (C02)",
+        'v4_stage_C02_desc': "Dispatched from distribution warehouse to the retail store (Leg 3 transport).",
+        'v4_stage_D01_title': "🏪 Retail Arrival (D01)",
+        'v4_stage_D01_desc': "Safely arrived at the retail store via verified end-to-end cold-chain!",
+        'route_apc_hub_v4': "🏢 APC Center (B01~B06)",
+        'route_dist_hub_v4': "🏬 Distribution Hub (C01~C02)",
         'stage_A00_title': "🌱 Farm Harvest (A00)",
         'stage_A00_desc': "Harvested at the farm and issued a 16-digit traceable raw QR code.",
         'stage_A01_title': "🏡 Farm Storage (A01)",
@@ -1635,13 +1653,14 @@ with tab2:
             "B03": (L_st["v4_stage_B03_title"], L_st["v4_stage_B03_desc"], "event_at"),
             "B04": (L_st["v4_stage_B04_title"], L_st["v4_stage_B04_desc"], "event_at"),
             "B05": (L_st["v4_stage_B05_title"], L_st["v4_stage_B05_desc"], "event_at"),
-            "C10": (L_st["stage_C10_title"], L_st["stage_C10_desc"], "event_at"),
-            "C11": (L_st["stage_C11_title"], L_st["stage_C11_desc"], "event_at"),
-            "D10": (L_st["stage_D10_title"], L_st["stage_D10_desc"], "event_at"),
+            "B06": (L_st["v4_stage_B06_title"], L_st["v4_stage_B06_desc"], "event_at"),
+            "C01": (L_st["v4_stage_C01_title"], L_st["v4_stage_C01_desc"], "event_at"),
+            "C02": (L_st["v4_stage_C02_title"], L_st["v4_stage_C02_desc"], "event_at"),
+            "D01": (L_st["v4_stage_D01_title"], L_st["v4_stage_D01_desc"], "event_at"),
         }
-        timeline_order = ["A01", "A02", "A03", "A04", "B01", "B02", "B03", "B04", "B05", "C10", "C11", "D10"]
-        optional_stages = {"A02", "A03", "B03", "B04"}
-        storage_stages = {"A02", "A03", "B03", "B04", "C10"}
+        timeline_order = ["A01", "A02", "A03", "A04", "B01", "B02", "B03", "B04", "B05", "B06", "C01", "C02", "D01"]
+        optional_stages = {"A02", "A03", "B04", "B05"}
+        storage_stages = {"A02", "A03", "B04", "B05", "C01"}
     else:
         stage_names = {
             "A00": (L_st["stage_A00_title"], L_st["stage_A00_desc"], "event_at"),
@@ -1816,17 +1835,17 @@ with tab3:
         if stage_code in ("A01", "A02", "A03", "A04"):
             if c_pt and not origin_pt:
                 origin_pt = c_pt
-        elif stage_code in ("B01", "B02", "B03", "B04", "B05", "B10", "B11", "B12_PRE", "B12_POST", "B13", "A10", "A11", "A12", "A13", "A14", "A15"):
+        elif stage_code in ("B01", "B02", "B03", "B04", "B05", "B06", "B10", "B11", "B12_PRE", "B12_POST", "B13", "A10", "A11", "A12", "A13", "A14", "A15"):
             if stage_time:
                 last_apc_time = stage_time
             if c_pt:
                 apc_pts.append(c_pt)
-        elif stage_code in ("C10", "C11"):
+        elif stage_code in ("C01", "C02", "C10", "C11"):
             if stage_time:
                 dist_time = stage_time
             if c_pt:
                 dist_pts.append(c_pt)
-        elif stage_code in ("D10", "A16"):
+        elif stage_code in ("D01", "D10", "A16"):
             retail_time = stage_time
             if c_pt:
                 retail_pt = c_pt
@@ -1854,7 +1873,7 @@ with tab3:
             dist_hub_pt = (float(leg3_sensor_pts[0]["lat"]), float(leg3_sensor_pts[0]["lng"]))
 
     if not retail_pt:
-        if "D10" in completed_stages and leg3_sensor_pts:
+        if ("D01" in completed_stages or "D10" in completed_stages) and leg3_sensor_pts:
             retail_pt = (float(leg3_sensor_pts[-1]["lat"]), float(leg3_sensor_pts[-1]["lng"]))
         elif "A16" in completed_stages and leg2_sensor_pts:
             retail_pt = (float(leg2_sensor_pts[-1]["lat"]), float(leg2_sensor_pts[-1]["lng"]))
@@ -1913,7 +1932,7 @@ with tab3:
         })
     if is_modern_map and dist_hub_pt:
         hub_markers.append({
-            "name": L['route_dist_hub'],
+            "name": L['route_dist_hub_v4'] if is_v4_map else L['route_dist_hub'],
             "time": dist_time or "-",
             "lat": dist_hub_pt[0],
             "lng": dist_hub_pt[1],
@@ -1921,8 +1940,9 @@ with tab3:
             "fill": [0, 122, 255, 235],
         })
     if retail_pt:
+        retail_marker_name = L['v4_stage_D01_title'] if is_v4_map else (L['stage_D10_title'] if proto_ver == "v3" else L['stage_A16_title'])
         hub_markers.append({
-            "name": L['stage_D10_title'] if is_modern_map else L['stage_A16_title'],
+            "name": retail_marker_name,
             "time": retail_time or "-",
             "lat": retail_pt[0],
             "lng": retail_pt[1],

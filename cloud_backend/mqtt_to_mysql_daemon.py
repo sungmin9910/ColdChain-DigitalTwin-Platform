@@ -167,7 +167,7 @@ class VehicleSessionTracker:
             ):
                 should_save = True
         else:
-            # 창고(A02~A03/B03~B04/C10, 레거시 A01/B12) 실내 보관 중에도 30초 주기로 온습도·조도를 DB에 적재
+            # 창고(A02~A03/B04~B05/C01, 레거시 A01/B12/C10) 실내 보관 중에도 30초 주기로 온습도·조도를 DB에 적재
             if now_ts - self.last_storage_save_time >= 30.0:
                 should_save = True
                 is_storage_save = True

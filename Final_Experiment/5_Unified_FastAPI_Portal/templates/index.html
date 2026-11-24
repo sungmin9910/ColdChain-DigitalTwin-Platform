@@ -908,10 +908,11 @@
         route_leg2: "🚛 APC → 유통창고 운송 (2구간)",
         route_leg2_legacy: "🚛 APC → 판매처 냉장운송 (2구간)",
         route_leg3: "🚚 유통창고 → 판매처 배송 (3구간)",
-        route_apc_hub: "🏢 APC 공정 (B01~B05)",
+        route_apc_hub: "🏢 APC 공정 (B01~B06)",
         route_apc_hub_v3: "🏢 APC 공정 (B10~B13)",
         route_apc_hub_legacy: "🏢 APC 품질공정 (A10~A15)",
-        route_dist_hub: "🏬 유통 창고 (C10~C11)",
+        route_dist_hub: "🏬 유통 창고 (C01~C02)",
+        route_dist_hub_v3: "🏬 유통 창고 (C10~C11)",
         route_list: "📋 지리 좌표 경로 목록",
         expand_txt: "▼ 펼치기",
         collapse_txt: "▲ 접기",
@@ -979,13 +980,14 @@
           A03: ["📤 농가 저장고 출고 (A03)", "농가 저온저장고 보관을 마치고 출하 준비를 위해 출고되었습니다.", "Farm_StOut"],
           A04: ["🚜 농가 출하 · APC 출발 (A04)", "농가에서 산지유통센터(APC)로 1구간 운송을 출발했습니다.", "Farm_DD"],
           B01: ["🏢 APC 입고 (B01)", "산지유통센터(APC)에 신선한 상태로 입고되었습니다.", "APC_AD"],
-          B02: ["🔍 APC 선별 · 유색QR 변경 (B02)", "품질·등급을 엄격하게 선별하고 등급별 유색 QR로 교체했습니다.", "APC_RT"],
-          B03: ["❄️ APC 저장고 입고 (B03)", "선별 완료 상품을 APC 저온저장고에 입고하여 최적 온습도로 보관합니다.", "APC_StD"],
-          B04: ["📦 APC 저장고 출고 (B04)", "APC 저온저장고 보관을 마치고 출하를 위해 출고되었습니다.", "APC_StOut"],
-          B05: ["🚛 APC 출하 (B05)", "APC에서 유통 창고를 향해 2구간 냉장 운송을 출발했습니다.", "APC_OP"],
-          C10: ["🏬 유통 창고 저장 (C10)", "유통 물류센터 저온창고에 도착하여 안전하게 보관 중입니다.", "Dist_StD"],
-          C11: ["🚚 유통 출하 · 판매처 출발 (C11)", "유통 창고에서 최종 판매처로 3구간 냉장 배송을 출발했습니다.", "Dist_OP"],
-          D10: ["🏪 판매처 도착 (D10)", "전 구간 콜드체인 안전 운송을 마치고 판매처에 신선하게 도착했습니다!", "Retail_AD"]
+          B02: ["🔍 APC 선별 · 선별 입고 (B02)", "품질·등급을 엄격하게 선별(선별 입고)하고 등급별 유색 QR(A/B/C)을 발급했습니다.", "APC_RT"],
+          B03: ["✅ APC 선별 출고 (B03)", "등급별 유색 QR 스캔으로 선별 공정 출고를 완료했습니다.", "APC_SortOut"],
+          B04: ["❄️ APC 저장고 입고 (B04)", "선별 출고된 상품을 APC 저온저장고에 입고하여 최적 온습도로 보관합니다.", "APC_StD"],
+          B05: ["📦 APC 저장고 출고 (B05)", "APC 저온저장고 보관을 마치고 출하를 위해 출고되었습니다.", "APC_StOut"],
+          B06: ["🚛 APC 출하 (B06)", "APC에서 유통 창고를 향해 2구간 냉장 운송을 출발했습니다.", "APC_OP"],
+          C01: ["🏬 유통 창고 저장 (C01)", "유통 물류센터 저온창고에 도착하여 안전하게 보관 중입니다.", "Dist_StD"],
+          C02: ["🚚 유통 출하 · 판매처 출발 (C02)", "유통 창고에서 최종 판매처로 3구간 냉장 배송을 출발했습니다.", "Dist_OP"],
+          D01: ["🏪 판매처 도착 (D01)", "전 구간 콜드체인 안전 운송을 마치고 판매처에 신선하게 도착했습니다!", "Retail_AD"]
         },
         stages: {
           A00: ["🌱 농가 수확 (A00)", "산지 농가에서 수확하고 16자리 고유 코드 기반 안심 QR을 발급했습니다.", "HD"],
@@ -1063,10 +1065,11 @@
         route_leg2: "🚛 APC → Dist. Warehouse (Leg 2)",
         route_leg2_legacy: "🚛 APC → Retail Cold-Chain (Leg 2)",
         route_leg3: "🚚 Dist. → Retail Store (Leg 3)",
-        route_apc_hub: "🏢 APC Center (B01~B05)",
+        route_apc_hub: "🏢 APC Center (B01~B06)",
         route_apc_hub_v3: "🏢 APC Center (B10~B13)",
         route_apc_hub_legacy: "🏢 APC Quality Hub (A10~A15)",
-        route_dist_hub: "🏬 Distribution Hub (C10~C11)",
+        route_dist_hub: "🏬 Distribution Hub (C01~C02)",
+        route_dist_hub_v3: "🏬 Distribution Hub (C10~C11)",
         route_list: "📋 Geographical Coordinate Route List",
         expand_txt: "▼ Expand",
         collapse_txt: "▲ Collapse",
@@ -1134,13 +1137,14 @@
           A03: ["📤 Farm Storage Out (A03)", "Exited farm cold storage and prepared for dispatch.", "Farm_StOut"],
           A04: ["🚜 Farm Dispatch to APC (A04)", "Departed from the farm toward the APC center (Leg 1 transport).", "Farm_DD"],
           B01: ["🏢 APC Receiving (B01)", "Arrived fresh at the Agricultural Products Processing Center (APC).", "APC_AD"],
-          B02: ["🔍 APC Sorting & Colored QR (B02)", "Strictly graded and upgraded to color-coded grade QR labels.", "APC_RT"],
-          B03: ["❄️ APC Storage In (B03)", "Entered APC cold storage under optimal temperature & humidity control.", "APC_StD"],
-          B04: ["📦 APC Storage Out (B04)", "Exited APC cold storage for distribution dispatch.", "APC_StOut"],
-          B05: ["🚛 APC Dispatch (B05)", "Departed from APC toward the distribution warehouse (Leg 2 transport).", "APC_OP"],
-          C10: ["🏬 Distribution Storage (C10)", "Arrived and stored safely in the distribution center cold warehouse.", "Dist_StD"],
-          C11: ["🚚 Distribution Dispatch (C11)", "Dispatched from distribution warehouse to the retail store (Leg 3 transport).", "Dist_OP"],
-          D10: ["🏪 Retail Arrival (D10)", "Safely arrived at the retail store with verified end-to-end cold-chain!", "Retail_AD"]
+          B02: ["🔍 APC Sorting & Sort-In (B02)", "Strictly graded (Sort-In) and issued color-coded grade QR labels (A/B/C).", "APC_RT"],
+          B03: ["✅ APC Sort-Out (B03)", "Completed grade-level sorting exit scan with color-coded QR.", "APC_SortOut"],
+          B04: ["❄️ APC Storage In (B04)", "Entered APC cold storage under optimal temperature & humidity control.", "APC_StD"],
+          B05: ["📦 APC Storage Out (B05)", "Exited APC cold storage for distribution dispatch.", "APC_StOut"],
+          B06: ["🚛 APC Dispatch (B06)", "Departed from APC toward the distribution warehouse (Leg 2 transport).", "APC_OP"],
+          C01: ["🏬 Distribution Storage (C01)", "Arrived and stored safely in the distribution center cold warehouse.", "Dist_StD"],
+          C02: ["🚚 Distribution Dispatch (C02)", "Dispatched from distribution warehouse to the retail store (Leg 3 transport).", "Dist_OP"],
+          D01: ["🏪 Retail Arrival (D01)", "Safely arrived at the retail store with verified end-to-end cold-chain!", "Retail_AD"]
         },
         stages: {
           A00: ["🌱 Farm Harvest (A00)", "Harvested at the farm and issued a 16-digit traceable raw QR code.", "HD"],
@@ -1707,14 +1711,14 @@
 
       const stageDict = isV4 ? L.stages_v4 : L.stages;
       const timelineOrder = isV4
-        ? ["A01", "A02", "A03", "A04", "B01", "B02", "B03", "B04", "B05", "C10", "C11", "D10"]
+        ? ["A01", "A02", "A03", "A04", "B01", "B02", "B03", "B04", "B05", "B06", "C01", "C02", "D01"]
         : (isV3
           ? ["A00", "A01", "A02", "B10", "B12_PRE", "B11", "B12_POST", "B13", "C10", "C11", "D10"]
           : ["A00", "A01", "A02", "A10", "A11", "A12", "A13", "A14", "A15", "A16"]);
-      const optionalV4 = new Set(["A02", "A03", "B03", "B04"]);
+      const optionalV4 = new Set(["A02", "A03", "B04", "B05"]);
       const optionalV3 = new Set(["A01", "B12_PRE", "B12_POST"]);
       const storageStages = isV4
-        ? new Set(["A02", "A03", "B03", "B04", "C10"])
+        ? new Set(["A02", "A03", "B04", "B05", "C01"])
         : new Set(["A01", "B12_PRE", "B12_POST", "C10", "A14"]);
 
       // 이미 지나간 선택 저장고 단계(생략 직행 시)는 깔끔하게 숨김
@@ -1876,13 +1880,13 @@
 
         if (["A01", "A02", "A03", "A04"].includes(code)) {
           if (validPt && !originPt) originPt = validPt;
-        } else if (["B01", "B02", "B03", "B04", "B05", "B10", "B11", "B12_PRE", "B12_POST", "B13", "A10", "A11", "A12", "A13", "A14", "A15"].includes(code)) {
+        } else if (["B01", "B02", "B03", "B04", "B05", "B06", "B10", "B11", "B12_PRE", "B12_POST", "B13", "A10", "A11", "A12", "A13", "A14", "A15"].includes(code)) {
           if (stTime && stTime !== "-") lastApcTime = stTime;
           if (validPt) apcHubPt = validPt;
-        } else if (["C10", "C11"].includes(code)) {
+        } else if (["C01", "C02", "C10", "C11"].includes(code)) {
           if (stTime && stTime !== "-") distTime = stTime;
           if (validPt) distHubPt = validPt;
-        } else if (code === "D10" || code === "A16") {
+        } else if (["D01", "D10", "A16"].includes(code)) {
           retailTime = stTime;
           if (validPt) retailPt = validPt;
         }
@@ -1900,7 +1904,7 @@
         else if (leg3Pts.length > 0) distHubPt = [Number(leg3Pts[0].lat), Number(leg3Pts[0].lng)];
       }
       if (!retailPt) {
-        if (stageLookup["D10"] && leg3Pts.length > 0) retailPt = [Number(leg3Pts[leg3Pts.length - 1].lat), Number(leg3Pts[leg3Pts.length - 1].lng)];
+        if ((stageLookup["D01"] || stageLookup["D10"]) && leg3Pts.length > 0) retailPt = [Number(leg3Pts[leg3Pts.length - 1].lat), Number(leg3Pts[leg3Pts.length - 1].lng)];
         else if (stageLookup["A16"] && leg2Pts.length > 0) retailPt = [Number(leg2Pts[leg2Pts.length - 1].lat), Number(leg2Pts[leg2Pts.length - 1].lng)];
       }
 
@@ -1956,12 +1960,13 @@
         bounds.push(apcHubPt);
       }
       if (isModern && distHubPt) {
+        const distLbl = isV4 ? L_dict.route_dist_hub : L_dict.route_dist_hub_v3;
         L.circleMarker(distHubPt, {radius: 8, color: "#fff", weight: 2, fillColor: "#007aff", fillOpacity: 0.95})
-          .bindPopup(`<b>${L_dict.route_dist_hub}</b><br>⏰ ${distTime}`).addTo(consumerLayerGroup);
+          .bindPopup(`<b>${distLbl}</b><br>⏰ ${distTime}`).addTo(consumerLayerGroup);
         bounds.push(distHubPt);
       }
       if (retailPt) {
-        const retLbl = isModern ? stageDict.D10[0] : stageDict.A16[0];
+        const retLbl = isV4 ? stageDict.D01[0] : (isV3 ? stageDict.D10[0] : stageDict.A16[0]);
         L.circleMarker(retailPt, {radius: 8, color: "#fff", weight: 2, fillColor: isModern ? "#7c3aed" : "#007aff", fillOpacity: 0.95})
           .bindPopup(`<b>${retLbl}</b><br>⏰ ${retailTime}`).addTo(consumerLayerGroup);
         bounds.push(retailPt);

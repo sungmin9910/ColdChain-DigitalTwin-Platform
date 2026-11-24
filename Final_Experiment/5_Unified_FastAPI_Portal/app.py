@@ -472,12 +472,13 @@ def api_get_consumer_trace(fmid: str, grade: str = "상"):
                     "A04": "Farm_DD",
                     "B01": "APC_AD",
                     "B02": "APC_RT",
-                    "B03": "APC_StD",
-                    "B04": "APC_StOut",
-                    "B05": "APC_OP",
-                    "C10": "Dist_StD",
-                    "C11": "Dist_OP",
-                    "D10": "Retail_AD",
+                    "B03": "APC_SortOut",
+                    "B04": "APC_StD",
+                    "B05": "APC_StOut",
+                    "B06": "APC_OP",
+                    "C01": "Dist_StD",
+                    "C02": "Dist_OP",
+                    "D01": "Retail_AD",
                 }
             else:
                 time_key_map = {

@@ -13,17 +13,18 @@ ColdChain DigitalTwin Platform - Supply Chain v4 Specification (SSOT)
    - 222: Korean Melon / Cham-oe (참외)
    - 223: Melon (멜론: net melon, baegja melon)
 
-3. v4 Cold-Chain Stage Flow (A01 ~ B05, C10 ~ D10):
+3. v4 Cold-Chain Stage Flow (A01~A04, B01~B06, C01~C02, D01 — 13 Stages):
    A01 (농가 수확·무색QR)
-     -> [A02 농가 저장고 들어감 (선택) -> A03 농가 저장고 나옴 (선택)]
-     -> A04 (농가 출하·APC로 출발, 1구간 출발)
+     -> [A02 농가 저장고 입고 (선택) -> A03 농가 저장고 출고 (선택)]
+     -> A04 (농가 출하·APC 출발, 1구간 출발)
      -> B01 (APC 입고, 1구간 도착)
-     -> B02 (APC 선별·유색QR 변경)
-     -> [B03 APC 저장고 들어감 (선택) -> B04 APC 저장고 나옴 (선택)]
-     -> B05 (APC 출하, 2구간 출발)
-     -> C10 (유통 창고 저장, 2구간 도착)
-     -> C11 (유통 출하·판매처 출발, 3구간 출발)
-     -> D10 (판매처 도착, 3구간 도착)
+     -> B02 (APC 선별·선별 입고·유색QR A/B/C 발급)
+     -> B03 (APC 선별 출고·등급별 유색QR 스캔)
+     -> [B04 APC 저장고 입고 (선택) -> B05 APC 저장고 출고 (선택)]
+     -> B06 (APC 출하, 2구간 출발)
+     -> C01 (유통 창고 저장, 2구간 도착)
+     -> C02 (유통 출하·판매처 출발, 3구간 출발)
+     -> D01 (판매처 도착, 3구간 도착)
 
    * Backward-compatible with legacy v3 (16-digit, A00~D10) and v2 (A00~A16) lots.
 """
@@ -251,18 +252,18 @@ def parse_lot_id_16(lot_id: str):
 
 # ---------------------------------------------------------------------
 # 2. Supply Chain Stage Codes
-#    - v4 (Current): A01~A04, B01~B05, C10~D10 (17-digit LotID, 3-digit FmID)
+#    - v4 (Current): A01~A04, B01~B06, C01~C02, D01 (17-digit LotID, 3-digit FmID)
 #    - v3 (Legacy) : A00~A02, B10~B13, C10~D10 (16-digit LotID, 2-digit FmID)
 #    - v2 (Legacy) : A00~A16
 # ---------------------------------------------------------------------
-V4_STAGE_ORDER = ["A01", "A02", "A03", "A04", "B01", "B02", "B03", "B04", "B05", "C10", "C11", "D10"]
+V4_STAGE_ORDER = ["A01", "A02", "A03", "A04", "B01", "B02", "B03", "B04", "B05", "B06", "C01", "C02", "D01"]
 V4_DB_STAGES = set(V4_STAGE_ORDER)
-V4_RAW_QR_STAGES = {"A01", "A02", "A03", "A04", "B01", "B02"}   # 무색 QR 대상 (농가 수확~APC 입고·선별)
-V4_COLORED_QR_STAGES = {"B03", "B04", "B05", "C10", "C11", "D10"}  # 유색 QR 대상 (선별 후 저장~판매처)
-V4_STORAGE_STAGES = {"A02", "A03", "B03", "B04", "C10"}         # 저장고 입·출고 온습도 기록 단계
-V4_OPTIONAL_STAGES = {"A02", "A03", "B03", "B04"}
-V4_SCANNER_MODES = ["AUTO", "A02", "A03", "A04", "B01", "B03", "B04", "B05", "C10", "C11", "D10"]
-V4_ONLY_STAGES = {"A03", "A04", "B01", "B02", "B03", "B04", "B05"}
+V4_RAW_QR_STAGES = {"A01", "A02", "A03", "A04", "B01", "B02"}              # 무색 QR 대상 (농가 수확~APC 입고·선별입고)
+V4_COLORED_QR_STAGES = {"B03", "B04", "B05", "B06", "C01", "C02", "D01"}   # 유색 QR 대상 (선별 출고~저장고~출하~유통~판매처)
+V4_STORAGE_STAGES = {"A02", "A03", "B04", "B05", "C01"}                    # 저장고 입·출고 온습도 기록 단계
+V4_OPTIONAL_STAGES = {"A02", "A03", "B04", "B05"}
+V4_SCANNER_MODES = ["AUTO", "A02", "A03", "A04", "B01", "B03", "B04", "B05", "B06", "C01", "C02", "D01"]
+V4_ONLY_STAGES = {"A03", "A04", "B01", "B02", "B03", "B04", "B05", "B06", "C01", "C02", "D01"}
 
 V3_STAGE_ORDER = ["A00", "A01", "A02", "B10", "B12_PRE", "B11", "B12_POST", "B13", "C10", "C11", "D10"]
 V3_DB_STAGES = {"A00", "A01", "A02", "B10", "B11", "B12", "B13", "C10", "C11", "D10"}
@@ -271,7 +272,7 @@ V3_COLORED_QR_STAGES = {"B13", "C10", "C11", "D10"}
 V3_STORAGE_STAGES = {"A01", "B12", "C10"}
 V3_OPTIONAL_STAGES = {"A01", "B12", "B12_PRE", "B12_POST"}
 V3_SCANNER_MODES = ["AUTO", "A01", "A02", "B10", "B12", "B13", "C10", "C11", "D10"]
-V3_ONLY_STAGES = {"B10", "B11", "B12", "B13"}
+V3_ONLY_STAGES = {"B10", "B11", "B12", "B13", "C10", "C11", "D10"}
 
 V2_LEGACY_STAGE_ORDER = ["A00", "A01", "A02", "A10", "A11", "A12", "A13", "A14", "A15", "A16"]
 V2_ONLY_STAGES = {"A10", "A11", "A12", "A13", "A14", "A15", "A16"}
@@ -283,13 +284,14 @@ V4_STAGE_META = {
         "A03": ("📤 농가 저장고 출고 (A03)", "농가 저온저장고 보관을 마치고 출하 준비를 위해 출고되었습니다."),
         "A04": ("🚜 농가 출하 · APC 출발 (A04)", "농가에서 산지유통센터(APC)로 1구간 운송을 출발했습니다."),
         "B01": ("🏢 APC 입고 (B01)", "산지유통센터(APC)에 신선한 상태로 입고되었습니다."),
-        "B02": ("🔍 APC 선별 · 유색QR 변경 (B02)", "품질·등급을 엄격하게 선별하고 등급별 유색 QR 코드로 교체했습니다."),
-        "B03": ("❄️ APC 저장고 입고 (B03)", "선별 완료 상품을 APC 저온저장고에 입고하여 최적 온습도로 보관합니다."),
-        "B04": ("📦 APC 저장고 출고 (B04)", "APC 저온저장고 보관을 마치고 출하를 위해 출고되었습니다."),
-        "B05": ("🚛 APC 출하 (B05)", "APC에서 유통 창고를 향해 2구간 냉장 운송을 출발했습니다."),
-        "C10": ("🏬 유통 창고 저장 (C10)", "유통 물류센터 저온창고에 도착하여 안전하게 보관 중입니다."),
-        "C11": ("🚚 유통 출하 · 판매처 출발 (C11)", "유통 창고에서 최종 판매처로 3구간 냉장 배송을 출발했습니다."),
-        "D10": ("🏪 판매처 도착 (D10)", "전 구간 콜드체인 안전 운송을 마치고 판매처에 신선하게 도착했습니다!"),
+        "B02": ("🔍 APC 선별 · 선별 입고 (B02)", "품질·등급을 엄격하게 선별(선별 입고)하고 등급별 유색 QR(A/B/C)을 발급했습니다."),
+        "B03": ("✅ APC 선별 출고 (B03)", "등급별 유색 QR 스캔으로 선별 공정 출고를 완료했습니다."),
+        "B04": ("❄️ APC 저장고 입고 (B04)", "선별 출고된 상품을 APC 저온저장고에 입고하여 최적 온습도로 보관합니다."),
+        "B05": ("📦 APC 저장고 출고 (B05)", "APC 저온저장고 보관을 마치고 출하를 위해 출고되었습니다."),
+        "B06": ("🚛 APC 출하 (B06)", "APC에서 유통 창고를 향해 2구간 냉장 운송을 출발했습니다."),
+        "C01": ("🏬 유통 창고 저장 (C01)", "유통 물류센터 저온창고에 도착하여 안전하게 보관 중입니다."),
+        "C02": ("🚚 유통 출하 · 판매처 출발 (C02)", "유통 창고에서 최종 판매처로 3구간 냉장 배송을 출발했습니다."),
+        "D01": ("🏪 판매처 도착 (D01)", "전 구간 콜드체인 안전 운송을 마치고 판매처에 신선하게 도착했습니다!"),
     },
     "EN": {
         "A01": ("🌱 Farm Harvest (A01)", "Harvested at the farm and issued a 17-digit traceable raw QR code."),
@@ -297,13 +299,14 @@ V4_STAGE_META = {
         "A03": ("📤 Farm Storage Out (A03)", "Exited farm cold storage and prepared for dispatch."),
         "A04": ("🚜 Farm Dispatch to APC (A04)", "Departed from the farm toward the APC center (Leg 1 transport)."),
         "B01": ("🏢 APC Receiving (B01)", "Arrived fresh at the Agricultural Products Processing Center (APC)."),
-        "B02": ("🔍 APC Sorting & Colored QR (B02)", "Strictly graded and upgraded to color-coded grade QR labels."),
-        "B03": ("❄️ APC Storage In (B03)", "Entered APC cold storage under optimal temperature & humidity control."),
-        "B04": ("📦 APC Storage Out (B04)", "Exited APC cold storage for distribution dispatch."),
-        "B05": ("🚛 APC Dispatch (B05)", "Departed from APC toward the distribution warehouse (Leg 2 transport)."),
-        "C10": ("🏬 Distribution Storage (C10)", "Arrived and stored safely in the distribution center cold warehouse."),
-        "C11": ("🚚 Distribution Dispatch (C11)", "Dispatched from distribution warehouse to the retail store (Leg 3 transport)."),
-        "D10": ("🏪 Retail Arrival (D10)", "Safely arrived at the retail store with verified end-to-end cold-chain!"),
+        "B02": ("🔍 APC Sorting & Sort-In (B02)", "Strictly graded (Sort-In) and issued color-coded grade QR labels (A/B/C)."),
+        "B03": ("✅ APC Sort-Out (B03)", "Completed grade-level sorting exit scan with color-coded QR."),
+        "B04": ("❄️ APC Storage In (B04)", "Entered APC cold storage under optimal temperature & humidity control."),
+        "B05": ("📦 APC Storage Out (B05)", "Exited APC cold storage for distribution dispatch."),
+        "B06": ("🚛 APC Dispatch (B06)", "Departed from APC toward the distribution warehouse (Leg 2 transport)."),
+        "C01": ("🏬 Distribution Storage (C01)", "Arrived and stored safely in the distribution center cold warehouse."),
+        "C02": ("🚚 Distribution Dispatch (C02)", "Dispatched from distribution warehouse to the retail store (Leg 3 transport)."),
+        "D01": ("🏪 Retail Arrival (D01)", "Safely arrived at the retail store with verified end-to-end cold-chain!"),
     },
 }
 

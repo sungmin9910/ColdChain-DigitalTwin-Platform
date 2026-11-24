@@ -671,8 +671,9 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
                 (lot_id, ev_dt.strftime("%Y-%m-%d %H:%M:%S"), lat_v, lng_v, h_b02),
             )
 
-        elif stage in ("B03", "B04", "B05", "C10", "C11", "D10"):
-            # 유색 QR 등급별 독립 공정 (APC 저장고 입/출고 B03/B04 -> APC 출하 B05 -> 유통 C10/C11 -> 판매처 D10)
+        elif stage in ("B03", "B04", "B05", "B06", "C01", "C02", "D01"):
+            # 유색 QR 등급별 독립 공정:
+            # B03(APC 선별 출고) -> [B04 APC 저장고 입고 -> B05 APC 저장고 출고] -> B06(APC 출하) -> C01(유통 창고) -> C02(유통 출하) -> D01(판매처 도착)
             g_code, g_ko = normalize_pkg_grade(raw_pkg_grade or "A")
             pkg_id = f"{lot_id}-{g_code}"
             grade_col_map = {"A": "AGrade", "B": "BGrade", "C": "CGrade"}
@@ -692,20 +693,21 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
             cur.execute(f"UPDATE `{dst_db}`.`sorted_lots` SET current_stage = %s WHERE pkg_id = %s", (stage, pkg_id))
 
             col_map = {
-                "B03": "APC_StD",
-                "B04": "APC_StOut",
-                "B05": "APC_OP",
-                "C10": "Dist_StD",
-                "C11": "Dist_OP",
-                "D10": "Retail_AD",
+                "B03": "APC_SortOut",
+                "B04": "APC_StD",
+                "B05": "APC_StOut",
+                "B06": "APC_OP",
+                "C01": "Dist_StD",
+                "C02": "Dist_OP",
+                "D01": "Retail_AD",
             }
             ev_dt = parse_dt_safe(row.get(col_map[stage])) or now_kst
             h_val = (
-                make_sha256({"lot_id": lot_id, "pkg_id": pkg_id, "stage": "D10", "at": ev_dt.strftime("%Y-%m-%d %H:%M:%S")})
-                if stage == "D10"
+                make_sha256({"lot_id": lot_id, "pkg_id": pkg_id, "stage": "D01", "at": ev_dt.strftime("%Y-%m-%d %H:%M:%S")})
+                if stage == "D01"
                 else None
             )
-            store_env = stage in ("B03", "B04", "C10")
+            store_env = stage in ("B04", "B05", "C01")
 
             cur.execute(
                 f"""
@@ -733,14 +735,22 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
             )
 
             if stage == "B04":
-                p_b03 = parse_dt_safe(row.get("APC_StD"))
+                p_b03 = parse_dt_safe(row.get("APC_SortOut"))
                 if p_b03:
                     cur.execute(
                         f"INSERT IGNORE INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at) VALUES (%s, %s, 'B03', %s)",
                         (lot_id, pkg_id, p_b03.strftime("%Y-%m-%d %H:%M:%S")),
                     )
             elif stage == "B05":
-                for prev_cd, prev_col in (("B03", "APC_StD"), ("B04", "APC_StOut")):
+                for prev_cd, prev_col in (("B03", "APC_SortOut"), ("B04", "APC_StD")):
+                    p_dt = parse_dt_safe(row.get(prev_col))
+                    if p_dt:
+                        cur.execute(
+                            f"INSERT IGNORE INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at) VALUES (%s, %s, %s, %s)",
+                            (lot_id, pkg_id, prev_cd, p_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                        )
+            elif stage == "B06":
+                for prev_cd, prev_col in (("B03", "APC_SortOut"), ("B04", "APC_StD"), ("B05", "APC_StOut")):
                     p_dt = parse_dt_safe(row.get(prev_col))
                     if p_dt:
                         cur.execute(
@@ -758,8 +768,8 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
                     """,
                     (lot_id, pkg_id, dev, ev_dt.strftime("%Y-%m-%d %H:%M:%S")),
                 )
-            elif stage == "C10":
-                for prev_cd, prev_col in (("B03", "APC_StD"), ("B04", "APC_StOut"), ("B05", "APC_OP")):
+            elif stage == "C01":
+                for prev_cd, prev_col in (("B03", "APC_SortOut"), ("B04", "APC_StD"), ("B05", "APC_StOut"), ("B06", "APC_OP")):
                     p_dt = parse_dt_safe(row.get(prev_col))
                     if p_dt:
                         cur.execute(
@@ -767,8 +777,8 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
                             (lot_id, pkg_id, prev_cd, p_dt.strftime("%Y-%m-%d %H:%M:%S")),
                         )
                 _close_shipment_leg(cur, dst_db, 2, lot_id, pkg_id, dev, ev_dt, dep_dt_hint=parse_dt_safe(row.get("APC_OP")))
-            elif stage == "C11":
-                for prev_cd, prev_col in (("B05", "APC_OP"), ("C10", "Dist_StD")):
+            elif stage == "C02":
+                for prev_cd, prev_col in (("B03", "APC_SortOut"), ("B06", "APC_OP"), ("C01", "Dist_StD")):
                     p_dt = parse_dt_safe(row.get(prev_col))
                     if p_dt:
                         cur.execute(
@@ -785,8 +795,8 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
                     """,
                     (lot_id, pkg_id, dev, ev_dt.strftime("%Y-%m-%d %H:%M:%S")),
                 )
-            elif stage == "D10":
-                for prev_cd, prev_col in (("B05", "APC_OP"), ("C10", "Dist_StD"), ("C11", "Dist_OP")):
+            elif stage == "D01":
+                for prev_cd, prev_col in (("B03", "APC_SortOut"), ("B06", "APC_OP"), ("C01", "Dist_StD"), ("C02", "Dist_OP")):
                     p_dt = parse_dt_safe(row.get(prev_col))
                     if p_dt:
                         cur.execute(
