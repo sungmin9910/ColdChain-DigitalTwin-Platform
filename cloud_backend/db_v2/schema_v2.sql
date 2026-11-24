@@ -44,9 +44,9 @@ INSERT INTO `vehicles` (`device_id`, `truck_id`, `truck_name`, `mqtt_topic`, `is
 -- ----------------------------------------------------------------------------
 DROP TABLE IF EXISTS `harvest_lots`;
 CREATE TABLE `harvest_lots` (
-    `lot_id`        VARCHAR(50)  NOT NULL COMMENT '16자리 통합 로트 코드 (AreaCode5+FmID2+CropCode3+YYMMDD6) 또는 레거시 FmID',
+    `lot_id`        VARCHAR(50)  NOT NULL COMMENT '17자리 통합 로트 코드 (AreaCode5+FmID3+CropCode3+YYMMDD6) 또는 레거시(v3 16자리/v2 FmID)',
     `origin_zip`    VARCHAR(20)  NOT NULL COMMENT '산지 우편번호 코드 (AC, 5자리)',
-    `farmer_code`   VARCHAR(10)  NULL     COMMENT '농가 2자리 번호 (FmID)',
+    `farmer_code`   VARCHAR(10)  NULL     COMMENT '농가 3자리 번호 (FmID, v4: 001~999)',
     `crop_code`     VARCHAR(10)  NULL     COMMENT 'aT KAMIS 공식 3자리 작물 코드 (411 사과, 412 배 등)',
     `fruit_type`    VARCHAR(50)  NOT NULL COMMENT '과실 품목 (FrT: Apples, Pears 등)',
     `variety`       VARCHAR(80)  NOT NULL COMMENT '상세 품종 (Vt: Fuji Apple 등)',
@@ -55,11 +55,11 @@ CREATE TABLE `harvest_lots` (
     `harvest_no`    INT          NOT NULL DEFAULT 1 COMMENT '수확 회차 (HN)',
     `total_qty`     INT          NOT NULL DEFAULT 0 COMMENT '원물 총 수량 (Qt)',
     `harvest_date`  DATE         NULL     COMMENT '수확일 (HD)',
-    `storage_date`  DATE         NULL     COMMENT '농가 저온저장일 (StD / A01)',
-    `deliver_date`  DATE         NULL     COMMENT '농가 출하일 (DD / A02)',
+    `storage_date`  DATE         NULL     COMMENT '농가 저온저장일 (StD / A02)',
+    `deliver_date`  DATE         NULL     COMMENT '농가 출하일 (DD / A04)',
     `ag_practice`   VARCHAR(100) NULL     COMMENT '레거시 농법 기록 보존용 (Rp, 신규 NULL)',
-    `current_stage` VARCHAR(10)  NOT NULL DEFAULT 'A00' COMMENT '원물 기준 진행 단계 (v3: A00~B12, v2: A00~A12)',
-    `protocol_ver`  VARCHAR(10)  NOT NULL DEFAULT 'v3' COMMENT '프로토콜 버전 (v2: A00~A16, v3: A00~D10)',
+    `current_stage` VARCHAR(10)  NOT NULL DEFAULT 'A01' COMMENT '원물 기준 진행 단계 (v4: A01~B02, v3: A00~B12, v2: A00~A12)',
+    `protocol_ver`  VARCHAR(10)  NOT NULL DEFAULT 'v4' COMMENT '프로토콜 버전 (v4: A01~B05·C10~D10, v3: A00~D10, v2: A00~A16)',
     `is_test`       TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '0: 정식 실증 데이터, 1: 연습/불완전 테스트',
     `created_at`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`lot_id`),

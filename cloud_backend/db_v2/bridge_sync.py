@@ -24,6 +24,9 @@ if _CB_ROOT not in sys.path:
 from supply_chain_spec import (
     get_crop_code,
     is_v3_lot_id,
+    is_v4_lot_id,
+    is_modern_lot_id,
+    parse_lot_id,
     parse_lot_id_16,
     detect_protocol_version,
     V2_ONLY_STAGES,
@@ -202,7 +205,7 @@ def refresh_shipment_stats_v2(cur, dst_db: str = "lab225_v2", lot_id: str = None
         if not dep_dt:
             continue
 
-        is_legacy_leg1 = (leg_no == 1 and not is_v3_lot_id(sh_lot_id))
+        is_legacy_leg1 = (leg_no == 1 and not is_modern_lot_id(sh_lot_id))
         if is_legacy_leg1 and arr_dt:
             win_s = (arr_dt - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
             win_e = arr_dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -346,7 +349,7 @@ def _close_shipment_leg(cur, dst_db: str, leg_no: int, lot_id: str, pkg_id, dev,
             if not dev and sh_prev.get("device_id"):
                 dev = sh_prev["device_id"]
 
-    is_legacy_leg1 = (leg_no == 1 and not is_v3_lot_id(lot_id))
+    is_legacy_leg1 = (leg_no == 1 and not is_modern_lot_id(lot_id))
     if not dep_dt:
         dep_dt = arr_dt - timedelta(hours=2 if leg_no > 1 else 1)
 
@@ -462,7 +465,15 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
     raw_pkg_grade = str(row.get("pkg_grade") or "").strip()
 
     # 원물 마스터(harvest_lots) 진행 단계 계산
-    if proto_ver == "v3":
+    if proto_ver == "v4":
+        raw_stage_set = {"A01", "A02", "A03", "A04", "B01", "B02"}
+        if stage in raw_stage_set:
+            init_lot_stage = stage
+            update_lot_stage = True
+        else:
+            init_lot_stage = "B02"
+            update_lot_stage = False
+    elif proto_ver == "v3":
         raw_stage_set = {"A00", "A01", "A02", "B10", "B11"}
         if stage in raw_stage_set or (stage == "B12" and not raw_pkg_grade):
             init_lot_stage = stage
@@ -485,7 +496,7 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
             farmer_code = COALESCE(VALUES(farmer_code), farmer_code),
             crop_code = COALESCE(VALUES(crop_code), crop_code),
             current_stage = IF(%s = 1, %s, current_stage),
-            protocol_ver = IF(VALUES(protocol_ver) = 'v3', 'v3', protocol_ver),
+            protocol_ver = IF(VALUES(protocol_ver) = 'v4', 'v4', IF(VALUES(protocol_ver) = 'v3' AND protocol_ver != 'v4', 'v3', protocol_ver)),
             is_test = 0
         """,
         (
@@ -512,7 +523,282 @@ def apply_qr_row_to_v2(cur, row: dict, dst_db: str = "lab225_v2"):
     )
 
     # =========================================================================
-    # A. v3 신규 공급망 (A00 ~ D10, 농가 QR 스캔 + APC 분기 창고 + 3구간 운송)
+    # 0. v4 최신 공급망 (17자리 LotID, 3자리 FmID, A01~A04 -> B01~B05 -> C10~D10)
+    # =========================================================================
+    if proto_ver == "v4":
+        if stage == "A01":
+            # 농가 수확 (무색 QR 최초 발급)
+            ev_dt = hd_dt or now_kst
+            h_a01 = make_sha256({"lot_id": lot_id, "stage": "A01", "ac": ac, "fm": farmer_code, "cc": crop_code, "qt": qt, "hd": ev_dt.strftime("%Y-%m-%d")})
+            cur.execute(
+                f"""
+                INSERT INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, lat, lng, tx_hash)
+                VALUES (%s, NULL, 'A01', %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE event_at = VALUES(event_at), tx_hash = COALESCE(tx_hash, VALUES(tx_hash))
+                """,
+                (lot_id, ev_dt.strftime("%Y-%m-%d %H:%M:%S"), lat_v, lng_v, h_a01),
+            )
+
+        elif stage == "A02":
+            # 농가 저장고 들어감 (선택)
+            ev_dt = parse_dt_safe(row.get("Farm_StD")) or now_kst
+            cur.execute(
+                f"""
+                INSERT INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, lat, lng, temp, humi)
+                VALUES (%s, NULL, 'A02', %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    event_at = VALUES(event_at),
+                    lat = COALESCE(VALUES(lat), lat),
+                    lng = COALESCE(VALUES(lng), lng),
+                    temp = COALESCE(VALUES(temp), temp),
+                    humi = COALESCE(VALUES(humi), humi)
+                """,
+                (lot_id, ev_dt.strftime("%Y-%m-%d %H:%M:%S"), lat_v, lng_v, tp_v, hm_v),
+            )
+            cur.execute(
+                f"UPDATE `{dst_db}`.`harvest_lots` SET storage_date = %s, current_stage = 'A02' WHERE lot_id = %s",
+                (ev_dt.strftime("%Y-%m-%d"), lot_id),
+            )
+
+        elif stage == "A03":
+            # 농가 저장고 나옴 (선택)
+            p_a02 = parse_dt_safe(row.get("Farm_StD"))
+            if p_a02:
+                cur.execute(
+                    f"INSERT IGNORE INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at) VALUES (%s, NULL, 'A02', %s)",
+                    (lot_id, p_a02.strftime("%Y-%m-%d %H:%M:%S")),
+                )
+            ev_dt = parse_dt_safe(row.get("Farm_StOut")) or now_kst
+            cur.execute(
+                f"""
+                INSERT INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, lat, lng, temp, humi)
+                VALUES (%s, NULL, 'A03', %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    event_at = VALUES(event_at),
+                    lat = COALESCE(VALUES(lat), lat),
+                    lng = COALESCE(VALUES(lng), lng),
+                    temp = COALESCE(VALUES(temp), temp),
+                    humi = COALESCE(VALUES(humi), humi)
+                """,
+                (lot_id, ev_dt.strftime("%Y-%m-%d %H:%M:%S"), lat_v, lng_v, tp_v, hm_v),
+            )
+            cur.execute(f"UPDATE `{dst_db}`.`harvest_lots` SET current_stage = 'A03' WHERE lot_id = %s", (lot_id,))
+
+        elif stage == "A04":
+            # 농가 출하 · APC로 출발 (1구간 운송 시작)
+            for prev_cd, prev_col in (("A02", "Farm_StD"), ("A03", "Farm_StOut")):
+                p_dt = parse_dt_safe(row.get(prev_col))
+                if p_dt:
+                    cur.execute(
+                        f"INSERT IGNORE INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at) VALUES (%s, NULL, %s, %s)",
+                        (lot_id, prev_cd, p_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                    )
+            ev_dt = parse_dt_safe(row.get("Farm_DD")) or now_kst
+            cur.execute(
+                f"""
+                INSERT INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, lat, lng)
+                VALUES (%s, NULL, 'A04', %s, %s, %s)
+                ON DUPLICATE KEY UPDATE event_at = VALUES(event_at), lat = COALESCE(VALUES(lat), lat), lng = COALESCE(VALUES(lng), lng)
+                """,
+                (lot_id, ev_dt.strftime("%Y-%m-%d %H:%M:%S"), lat_v, lng_v),
+            )
+            cur.execute(
+                f"UPDATE `{dst_db}`.`harvest_lots` SET deliver_date = %s, current_stage = 'A04' WHERE lot_id = %s",
+                (ev_dt.strftime("%Y-%m-%d"), lot_id),
+            )
+            cur.execute(
+                f"""
+                INSERT INTO `{dst_db}`.`shipments` (leg_no, lot_id, pkg_id, device_id, departed_at, status)
+                VALUES (1, %s, NULL, %s, %s, 'IN_TRANSIT')
+                ON DUPLICATE KEY UPDATE
+                    device_id = COALESCE(VALUES(device_id), device_id),
+                    departed_at = VALUES(departed_at)
+                """,
+                (lot_id, dev, ev_dt.strftime("%Y-%m-%d %H:%M:%S")),
+            )
+
+        elif stage == "B01":
+            # APC 입고 (1구간 운송 ARRIVED 마감)
+            for prev_cd, prev_col in (("A02", "Farm_StD"), ("A03", "Farm_StOut"), ("A04", "Farm_DD")):
+                p_dt = parse_dt_safe(row.get(prev_col))
+                if p_dt:
+                    cur.execute(
+                        f"INSERT IGNORE INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at) VALUES (%s, NULL, %s, %s)",
+                        (lot_id, prev_cd, p_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                    )
+            ev_dt = parse_dt_safe(row.get("APC_AD")) or now_kst
+            cur.execute(
+                f"""
+                INSERT INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, lat, lng)
+                VALUES (%s, NULL, 'B01', %s, %s, %s)
+                ON DUPLICATE KEY UPDATE event_at = VALUES(event_at), lat = COALESCE(VALUES(lat), lat), lng = COALESCE(VALUES(lng), lng)
+                """,
+                (lot_id, ev_dt.strftime("%Y-%m-%d %H:%M:%S"), lat_v, lng_v),
+            )
+            _close_shipment_leg(cur, dst_db, 1, lot_id, None, dev, ev_dt, dep_dt_hint=parse_dt_safe(row.get("Farm_DD")))
+
+        elif stage == "B02":
+            # APC 선별 (유색 QR 3종 변경 및 등급 배분)
+            ev_dt = parse_dt_safe(row.get("APC_RT")) or now_kst
+            a_q = int(float(str(row.get("AGrade") or "0").strip() or 0))
+            b_q = int(float(str(row.get("BGrade") or "0").strip() or 0))
+            c_q = int(float(str(row.get("CGrade") or "0").strip() or 0))
+            d_q = int(float(str(row.get("DefectRate") or "0").strip() or 0))
+
+            for p_id, g_cd, g_ko, g_q, ship, st_c in [
+                (f"{lot_id}-A", "A", "상", a_q, 1, "B02"),
+                (f"{lot_id}-B", "B", "중", b_q, 1, "B02"),
+                (f"{lot_id}-C", "C", "하", c_q, 1, "B02"),
+                (f"{lot_id}-DEF", "DEFECT", "결점과", d_q, 0, "REJECTED"),
+            ]:
+                cur.execute(
+                    f"""
+                    INSERT INTO `{dst_db}`.`sorted_lots`
+                        (pkg_id, lot_id, grade_code, grade_label_ko, grade_qty, is_shippable, current_stage, sorted_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE grade_qty = VALUES(grade_qty), sorted_at = VALUES(sorted_at)
+                    """,
+                    (p_id, lot_id, g_cd, g_ko, g_q, ship, st_c, ev_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                )
+
+            h_b02 = make_sha256({"lot_id": lot_id, "stage": "B02", "A": a_q, "B": b_q, "C": c_q, "DEFECT": d_q, "rt": ev_dt.strftime("%Y-%m-%d %H:%M:%S")})
+            cur.execute(
+                f"""
+                INSERT INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, lat, lng, tx_hash)
+                VALUES (%s, NULL, 'B02', %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE event_at = VALUES(event_at), tx_hash = COALESCE(tx_hash, VALUES(tx_hash))
+                """,
+                (lot_id, ev_dt.strftime("%Y-%m-%d %H:%M:%S"), lat_v, lng_v, h_b02),
+            )
+
+        elif stage in ("B03", "B04", "B05", "C10", "C11", "D10"):
+            # 유색 QR 등급별 독립 공정 (APC 저장고 입/출고 B03/B04 -> APC 출하 B05 -> 유통 C10/C11 -> 판매처 D10)
+            g_code, g_ko = normalize_pkg_grade(raw_pkg_grade or "A")
+            pkg_id = f"{lot_id}-{g_code}"
+            grade_col_map = {"A": "AGrade", "B": "BGrade", "C": "CGrade"}
+            try:
+                g_qty_val = int(float(str(row.get(grade_col_map[g_code]) or qt or 0).strip()))
+            except Exception:
+                g_qty_val = qt
+
+            cur.execute(
+                f"""
+                INSERT IGNORE INTO `{dst_db}`.`sorted_lots`
+                    (pkg_id, lot_id, grade_code, grade_label_ko, grade_qty, is_shippable, current_stage, sorted_at)
+                VALUES (%s, %s, %s, %s, %s, 1, %s, %s)
+                """,
+                (pkg_id, lot_id, g_code, g_ko, g_qty_val, stage, now_kst.strftime("%Y-%m-%d %H:%M:%S")),
+            )
+            cur.execute(f"UPDATE `{dst_db}`.`sorted_lots` SET current_stage = %s WHERE pkg_id = %s", (stage, pkg_id))
+
+            col_map = {
+                "B03": "APC_StD",
+                "B04": "APC_StOut",
+                "B05": "APC_OP",
+                "C10": "Dist_StD",
+                "C11": "Dist_OP",
+                "D10": "Retail_AD",
+            }
+            ev_dt = parse_dt_safe(row.get(col_map[stage])) or now_kst
+            h_val = (
+                make_sha256({"lot_id": lot_id, "pkg_id": pkg_id, "stage": "D10", "at": ev_dt.strftime("%Y-%m-%d %H:%M:%S")})
+                if stage == "D10"
+                else None
+            )
+            store_env = stage in ("B03", "B04", "C10")
+
+            cur.execute(
+                f"""
+                INSERT INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, lat, lng, temp, humi, tx_hash)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    event_at = VALUES(event_at),
+                    lat = COALESCE(VALUES(lat), lat),
+                    lng = COALESCE(VALUES(lng), lng),
+                    temp = COALESCE(VALUES(temp), temp),
+                    humi = COALESCE(VALUES(humi), humi),
+                    tx_hash = COALESCE(tx_hash, VALUES(tx_hash))
+                """,
+                (
+                    lot_id,
+                    pkg_id,
+                    stage,
+                    ev_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                    lat_v,
+                    lng_v,
+                    tp_v if store_env else None,
+                    hm_v if store_env else None,
+                    h_val,
+                ),
+            )
+
+            if stage == "B04":
+                p_b03 = parse_dt_safe(row.get("APC_StD"))
+                if p_b03:
+                    cur.execute(
+                        f"INSERT IGNORE INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at) VALUES (%s, %s, 'B03', %s)",
+                        (lot_id, pkg_id, p_b03.strftime("%Y-%m-%d %H:%M:%S")),
+                    )
+            elif stage == "B05":
+                for prev_cd, prev_col in (("B03", "APC_StD"), ("B04", "APC_StOut")):
+                    p_dt = parse_dt_safe(row.get(prev_col))
+                    if p_dt:
+                        cur.execute(
+                            f"INSERT IGNORE INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at) VALUES (%s, %s, %s, %s)",
+                            (lot_id, pkg_id, prev_cd, p_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                        )
+                # 2구간 운송 시작 (APC 출하 -> 유통 창고)
+                cur.execute(
+                    f"""
+                    INSERT INTO `{dst_db}`.`shipments` (leg_no, lot_id, pkg_id, device_id, departed_at, status)
+                    VALUES (2, %s, %s, %s, %s, 'IN_TRANSIT')
+                    ON DUPLICATE KEY UPDATE
+                        device_id = COALESCE(VALUES(device_id), device_id),
+                        departed_at = VALUES(departed_at)
+                    """,
+                    (lot_id, pkg_id, dev, ev_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                )
+            elif stage == "C10":
+                for prev_cd, prev_col in (("B03", "APC_StD"), ("B04", "APC_StOut"), ("B05", "APC_OP")):
+                    p_dt = parse_dt_safe(row.get(prev_col))
+                    if p_dt:
+                        cur.execute(
+                            f"INSERT IGNORE INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at) VALUES (%s, %s, %s, %s)",
+                            (lot_id, pkg_id, prev_cd, p_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                        )
+                _close_shipment_leg(cur, dst_db, 2, lot_id, pkg_id, dev, ev_dt, dep_dt_hint=parse_dt_safe(row.get("APC_OP")))
+            elif stage == "C11":
+                for prev_cd, prev_col in (("B05", "APC_OP"), ("C10", "Dist_StD")):
+                    p_dt = parse_dt_safe(row.get(prev_col))
+                    if p_dt:
+                        cur.execute(
+                            f"INSERT IGNORE INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at) VALUES (%s, %s, %s, %s)",
+                            (lot_id, pkg_id, prev_cd, p_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                        )
+                cur.execute(
+                    f"""
+                    INSERT INTO `{dst_db}`.`shipments` (leg_no, lot_id, pkg_id, device_id, departed_at, status)
+                    VALUES (3, %s, %s, %s, %s, 'IN_TRANSIT')
+                    ON DUPLICATE KEY UPDATE
+                        device_id = COALESCE(VALUES(device_id), device_id),
+                        departed_at = VALUES(departed_at)
+                    """,
+                    (lot_id, pkg_id, dev, ev_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                )
+            elif stage == "D10":
+                for prev_cd, prev_col in (("B05", "APC_OP"), ("C10", "Dist_StD"), ("C11", "Dist_OP")):
+                    p_dt = parse_dt_safe(row.get(prev_col))
+                    if p_dt:
+                        cur.execute(
+                            f"INSERT IGNORE INTO `{dst_db}`.`stage_events` (lot_id, pkg_id, stage_code, event_at) VALUES (%s, %s, %s, %s)",
+                            (lot_id, pkg_id, prev_cd, p_dt.strftime("%Y-%m-%d %H:%M:%S")),
+                        )
+                dep3_hint = parse_dt_safe(row.get("Dist_OP")) or parse_dt_safe(row.get("APC_OP"))
+                _close_shipment_leg(cur, dst_db, 3, lot_id, pkg_id, dev, ev_dt, dep_dt_hint=dep3_hint)
+        return
+
+    # =========================================================================
+    # A. v3 레거시 공급망 (16자리, A00 ~ D10 하위 호환 보존)
     # =========================================================================
     if proto_ver == "v3":
         if stage == "A00":

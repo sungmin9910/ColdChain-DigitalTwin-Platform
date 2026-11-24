@@ -1,9 +1,9 @@
 """
-ColdChain DigitalTwin Platform - Supply Chain v3 Specification (SSOT)
+ColdChain DigitalTwin Platform - Supply Chain v4 Specification (SSOT)
 ---------------------------------------------------------------------
-1. 16-digit Unified Lot ID Standard:
-   LotID (16 digits) = AreaCode(5) + FmID(2) + CropCode(3, aT KAMIS) + HarvestDate(6, YYMMDD)
-   Example: 55632 + 07 + 411 + 261122 = 5563207411261122
+1. 17-digit Unified Lot ID Standard (v4):
+   LotID (17 digits) = AreaCode(5) + FmID(3) + CropCode(3, aT KAMIS) + HarvestDate(6, YYMMDD)
+   Example: 55630 + 001 + 411 + 261124 = 55630001411261124
 
 2. aT (KAMIS) Official 3-Digit Agricultural Commodity Codes:
    - 411: Apples (사과)
@@ -13,19 +13,19 @@ ColdChain DigitalTwin Platform - Supply Chain v3 Specification (SSOT)
    - 222: Korean Melon / Cham-oe (참외)
    - 223: Melon (멜론: net melon, baegja melon)
 
-3. v3 Flexible Cold-Chain Stage Flow (A00 ~ D10):
-   A00 (농가 수확·무색QR)
-     -> [A01 농가창고 (선택)] -> A02 (농가 출하, 1구간 출발)
-     -> B10 (APC 입고, 1구간 도착)
-     -> [B12 APC창고 선별전 (선택)]
-     -> B11 (APC 선별·유색QR 변경)
-     -> [B12 APC창고 선별후 (선택)]
-     -> B13 (APC 출하, 2구간 출발)
+3. v4 Cold-Chain Stage Flow (A01 ~ B05, C10 ~ D10):
+   A01 (농가 수확·무색QR)
+     -> [A02 농가 저장고 들어감 (선택) -> A03 농가 저장고 나옴 (선택)]
+     -> A04 (농가 출하·APC로 출발, 1구간 출발)
+     -> B01 (APC 입고, 1구간 도착)
+     -> B02 (APC 선별·유색QR 변경)
+     -> [B03 APC 저장고 들어감 (선택) -> B04 APC 저장고 나옴 (선택)]
+     -> B05 (APC 출하, 2구간 출발)
      -> C10 (유통 창고 저장, 2구간 도착)
      -> C11 (유통 출하·판매처 출발, 3구간 출발)
      -> D10 (판매처 도착, 3구간 도착)
 
-   * Backward-compatible with legacy v2 (A00 ~ A16) lots.
+   * Backward-compatible with legacy v3 (16-digit, A00~D10) and v2 (A00~A16) lots.
 """
 
 import re
@@ -145,6 +145,14 @@ def normalize_fmid_2digit(farmer_id: str) -> str:
     return digits[-2:].zfill(2)
 
 
+def normalize_fmid_3digit(farmer_id: str) -> str:
+    """농가번호(FmID)를 3자리 숫자(001~999)로 정규화합니다."""
+    digits = re.sub(r"\D", "", str(farmer_id or ""))
+    if not digits:
+        return "001"
+    return digits[-3:].zfill(3)
+
+
 def format_yymmdd(harvest_date) -> str:
     if isinstance(harvest_date, (datetime, date)):
         return harvest_date.strftime("%y%m%d")
@@ -156,6 +164,22 @@ def format_yymmdd(harvest_date) -> str:
     return datetime.now().strftime("%y%m%d")
 
 
+def build_lot_id_17(
+    area_code: str,
+    farmer_id: str,
+    fruit_type: str = "Apples",
+    variety: str = "",
+    harvest_date=None,
+    crop_code: str = None,
+) -> str:
+    """v4: AreaCode(5) + FmID(3) + CropCode(3) + HarvestDate(6, YYMMDD) = 17자리 통합 코드 생성"""
+    ac5 = normalize_area_code(area_code)
+    fm3 = normalize_fmid_3digit(farmer_id)
+    cc3 = re.sub(r"\D", "", str(crop_code or ""))[:3].zfill(3) if crop_code else get_crop_code(fruit_type, variety)
+    hd6 = format_yymmdd(harvest_date)
+    return f"{ac5}{fm3}{cc3}{hd6}"
+
+
 def build_lot_id_16(
     area_code: str,
     farmer_id: str,
@@ -164,7 +188,7 @@ def build_lot_id_16(
     harvest_date=None,
     crop_code: str = None,
 ) -> str:
-    """AreaCode(5) + FmID(2) + CropCode(3) + HarvestDate(6, YYMMDD) = 16자리 통합 코드 생성"""
+    """v3 레거시 호환: AreaCode(5) + FmID(2) + CropCode(3) + HarvestDate(6, YYMMDD) = 16자리 통합 코드 생성"""
     ac5 = normalize_area_code(area_code)
     fm2 = normalize_fmid_2digit(farmer_id)
     cc3 = re.sub(r"\D", "", str(crop_code or ""))[:3].zfill(3) if crop_code else get_crop_code(fruit_type, variety)
@@ -172,26 +196,45 @@ def build_lot_id_16(
     return f"{ac5}{fm2}{cc3}{hd6}"
 
 
+def is_v4_lot_id(lot_id: str) -> bool:
+    s = str(lot_id or "").strip()
+    return len(s) == 17 and s.isdigit()
+
+
 def is_v3_lot_id(lot_id: str) -> bool:
     s = str(lot_id or "").strip()
     return len(s) == 16 and s.isdigit()
 
 
-def parse_lot_id_16(lot_id: str):
-    """16자리 LotID를 AreaCode(5), FmID(2), CropCode(3), YYMMDD(6)로 분해합니다."""
+def is_modern_lot_id(lot_id: str) -> bool:
+    """17자리(v4) 또는 16자리(v3) 표준 LotID 여부"""
+    return is_v4_lot_id(lot_id) or is_v3_lot_id(lot_id)
+
+
+def parse_lot_id(lot_id: str):
+    """17자리(v4: AC5+FmID3+CC3+YYMMDD6) 또는 16자리(v3: AC5+FmID2+CC3+YYMMDD6) LotID를 분해합니다."""
     s = str(lot_id or "").strip()
-    if not is_v3_lot_id(s):
+    if is_v4_lot_id(s):
+        ac5 = s[0:5]
+        fm = s[5:8]
+        cc3 = s[8:11]
+        yymmdd = s[11:17]
+        ver = "v4"
+    elif is_v3_lot_id(s):
+        ac5 = s[0:5]
+        fm = s[5:7]
+        cc3 = s[7:10]
+        yymmdd = s[10:16]
+        ver = "v3"
+    else:
         return None
-    ac5 = s[0:5]
-    fm2 = s[5:7]
-    cc3 = s[7:10]
-    yymmdd = s[10:16]
     iso_date = f"20{yymmdd[0:2]}-{yymmdd[2:4]}-{yymmdd[4:6]}"
     crop_info = CROP_INFO_BY_CODE.get(cc3, {"ko": "과일", "en": "Fruit", "fruit_type": "Apples"})
     return {
         "lot_id": s,
+        "protocol_ver": ver,
         "area_code": ac5,
-        "farmer_code": fm2,
+        "farmer_code": fm,
         "crop_code": cc3,
         "yymmdd": yymmdd,
         "harvest_date_iso": iso_date,
@@ -201,19 +244,68 @@ def parse_lot_id_16(lot_id: str):
     }
 
 
+def parse_lot_id_16(lot_id: str):
+    """하위 호환 래퍼: 17자리(v4) 및 16자리(v3) 모두 분해 지원"""
+    return parse_lot_id(lot_id)
+
+
 # ---------------------------------------------------------------------
-# 2. Supply Chain Stage Codes (v3: A00 ~ D10 & Legacy v2: A00 ~ A16)
+# 2. Supply Chain Stage Codes
+#    - v4 (Current): A01~A04, B01~B05, C10~D10 (17-digit LotID, 3-digit FmID)
+#    - v3 (Legacy) : A00~A02, B10~B13, C10~D10 (16-digit LotID, 2-digit FmID)
+#    - v2 (Legacy) : A00~A16
 # ---------------------------------------------------------------------
+V4_STAGE_ORDER = ["A01", "A02", "A03", "A04", "B01", "B02", "B03", "B04", "B05", "C10", "C11", "D10"]
+V4_DB_STAGES = set(V4_STAGE_ORDER)
+V4_RAW_QR_STAGES = {"A01", "A02", "A03", "A04", "B01", "B02"}   # 무색 QR 대상 (농가 수확~APC 입고·선별)
+V4_COLORED_QR_STAGES = {"B03", "B04", "B05", "C10", "C11", "D10"}  # 유색 QR 대상 (선별 후 저장~판매처)
+V4_STORAGE_STAGES = {"A02", "A03", "B03", "B04", "C10"}         # 저장고 입·출고 온습도 기록 단계
+V4_OPTIONAL_STAGES = {"A02", "A03", "B03", "B04"}
+V4_SCANNER_MODES = ["AUTO", "A02", "A03", "A04", "B01", "B03", "B04", "B05", "C10", "C11", "D10"]
+V4_ONLY_STAGES = {"A03", "A04", "B01", "B02", "B03", "B04", "B05"}
+
 V3_STAGE_ORDER = ["A00", "A01", "A02", "B10", "B12_PRE", "B11", "B12_POST", "B13", "C10", "C11", "D10"]
 V3_DB_STAGES = {"A00", "A01", "A02", "B10", "B11", "B12", "B13", "C10", "C11", "D10"}
-V3_RAW_QR_STAGES = {"A00", "A01", "A02", "B10", "B11"}  # 무색 QR 대상 (+ 선별 전 B12)
-V3_COLORED_QR_STAGES = {"B13", "C10", "C11", "D10"}     # 유색 QR 대상 (+ 선별 후 B12)
-V3_STORAGE_STAGES = {"A01", "B12", "C10"}               # 창고 온습도 기록 단계
+V3_RAW_QR_STAGES = {"A00", "A01", "A02", "B10", "B11"}
+V3_COLORED_QR_STAGES = {"B13", "C10", "C11", "D10"}
+V3_STORAGE_STAGES = {"A01", "B12", "C10"}
 V3_OPTIONAL_STAGES = {"A01", "B12", "B12_PRE", "B12_POST"}
 V3_SCANNER_MODES = ["AUTO", "A01", "A02", "B10", "B12", "B13", "C10", "C11", "D10"]
+V3_ONLY_STAGES = {"B10", "B11", "B12", "B13"}
 
 V2_LEGACY_STAGE_ORDER = ["A00", "A01", "A02", "A10", "A11", "A12", "A13", "A14", "A15", "A16"]
 V2_ONLY_STAGES = {"A10", "A11", "A12", "A13", "A14", "A15", "A16"}
+
+V4_STAGE_META = {
+    "KO": {
+        "A01": ("🌱 농가 수확 (A01)", "산지 농가에서 수확하고 17자리 고유 코드 기반 안심 QR을 발급했습니다."),
+        "A02": ("🏡 농가 저장고 입고 (A02)", "수확 직후 농가 저온저장고에 입고되어 예냉 및 신선 보관을 시작했습니다."),
+        "A03": ("📤 농가 저장고 출고 (A03)", "농가 저온저장고 보관을 마치고 출하 준비를 위해 출고되었습니다."),
+        "A04": ("🚜 농가 출하 · APC 출발 (A04)", "농가에서 산지유통센터(APC)로 1구간 운송을 출발했습니다."),
+        "B01": ("🏢 APC 입고 (B01)", "산지유통센터(APC)에 신선한 상태로 입고되었습니다."),
+        "B02": ("🔍 APC 선별 · 유색QR 변경 (B02)", "품질·등급을 엄격하게 선별하고 등급별 유색 QR 코드로 교체했습니다."),
+        "B03": ("❄️ APC 저장고 입고 (B03)", "선별 완료 상품을 APC 저온저장고에 입고하여 최적 온습도로 보관합니다."),
+        "B04": ("📦 APC 저장고 출고 (B04)", "APC 저온저장고 보관을 마치고 출하를 위해 출고되었습니다."),
+        "B05": ("🚛 APC 출하 (B05)", "APC에서 유통 창고를 향해 2구간 냉장 운송을 출발했습니다."),
+        "C10": ("🏬 유통 창고 저장 (C10)", "유통 물류센터 저온창고에 도착하여 안전하게 보관 중입니다."),
+        "C11": ("🚚 유통 출하 · 판매처 출발 (C11)", "유통 창고에서 최종 판매처로 3구간 냉장 배송을 출발했습니다."),
+        "D10": ("🏪 판매처 도착 (D10)", "전 구간 콜드체인 안전 운송을 마치고 판매처에 신선하게 도착했습니다!"),
+    },
+    "EN": {
+        "A01": ("🌱 Farm Harvest (A01)", "Harvested at the farm and issued a 17-digit traceable raw QR code."),
+        "A02": ("🏡 Farm Storage In (A02)", "Entered farm cold storage for pre-cooling and freshness preservation."),
+        "A03": ("📤 Farm Storage Out (A03)", "Exited farm cold storage and prepared for dispatch."),
+        "A04": ("🚜 Farm Dispatch to APC (A04)", "Departed from the farm toward the APC center (Leg 1 transport)."),
+        "B01": ("🏢 APC Receiving (B01)", "Arrived fresh at the Agricultural Products Processing Center (APC)."),
+        "B02": ("🔍 APC Sorting & Colored QR (B02)", "Strictly graded and upgraded to color-coded grade QR labels."),
+        "B03": ("❄️ APC Storage In (B03)", "Entered APC cold storage under optimal temperature & humidity control."),
+        "B04": ("📦 APC Storage Out (B04)", "Exited APC cold storage for distribution dispatch."),
+        "B05": ("🚛 APC Dispatch (B05)", "Departed from APC toward the distribution warehouse (Leg 2 transport)."),
+        "C10": ("🏬 Distribution Storage (C10)", "Arrived and stored safely in the distribution center cold warehouse."),
+        "C11": ("🚚 Distribution Dispatch (C11)", "Dispatched from distribution warehouse to the retail store (Leg 3 transport)."),
+        "D10": ("🏪 Retail Arrival (D10)", "Safely arrived at the retail store with verified end-to-end cold-chain!"),
+    },
+}
 
 V3_STAGE_META = {
     "KO": {
@@ -275,12 +367,18 @@ V2_STAGE_META = {
 
 
 def detect_protocol_version(lot_id: str, stage_codes=None, explicit_ver: str = None) -> str:
-    """해당 로트가 v3(16자리, A00~D10)인지 v2 레거시(A00~A16)인지 판별합니다."""
+    """해당 로트가 v4(17자리, A01~B05·C10~D10), v3(16자리, A00~D10), v2(A00~A16) 중 어느 프로토콜인지 판별합니다."""
     codes = set(stage_codes or [])
-    if codes & {"B10", "B11", "B12", "B13", "C10", "C11", "D10"}:
+    if codes & V4_ONLY_STAGES:
+        return "v4"
+    if is_v4_lot_id(lot_id):
+        return "v4"
+    if codes & V3_ONLY_STAGES:
+        return "v3"
+    if is_v3_lot_id(lot_id):
         return "v3"
     if codes & V2_ONLY_STAGES:
         return "v2"
-    if explicit_ver in ("v2", "v3"):
+    if explicit_ver in ("v2", "v3", "v4"):
         return explicit_ver
-    return "v3" if is_v3_lot_id(lot_id) else "v2"
+    return "v2"

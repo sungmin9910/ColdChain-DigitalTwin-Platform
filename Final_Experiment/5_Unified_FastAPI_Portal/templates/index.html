@@ -227,10 +227,10 @@
           🔍 1. Consumer Traceability
         </button>
         <button id="tab-btn-farm" onclick="switchTab('farm')" class="hidden px-3.5 py-1.5 rounded-xl text-xs transition tab-btn-inactive">
-          🌾 2. Farm Harvest & QR (A00)
+          🌾 2. Farm Harvest & QR (A01)
         </button>
         <button id="tab-btn-apc" onclick="switchTab('apc')" class="hidden px-3.5 py-1.5 rounded-xl text-xs transition tab-btn-inactive">
-          🏭 3. APC Sorting & Grade QR (B11)
+          🏭 3. APC Sorting & Grade QR (B02)
         </button>
         <button id="tab-btn-control" onclick="switchTab('control')" class="hidden px-3.5 py-1.5 rounded-xl text-xs transition tab-btn-inactive">
           🛰️ 4. Live Vehicle Control
@@ -458,7 +458,7 @@
       <div class="glass-card p-6">
         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4 mb-5">
           <div>
-            <h2 id="farm-title" class="text-xl font-bold text-slate-900">🌾 Farm Harvest Registration & A00 Raw QR Issuance</h2>
+            <h2 id="farm-title" class="text-xl font-bold text-slate-900">🌾 Farm Harvest Registration & A01 Raw QR Issuance</h2>
           </div>
           <div class="bg-sky-50 border border-sky-200 rounded-xl px-4 py-2">
             <label id="farm-target-lbl" class="block text-[11px] text-sky-800 font-bold mb-1">🔗 Target Consumer Dashboard URL</label>
@@ -474,8 +474,8 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 sub-panel">
               <div id="farm-sec1-title" class="sm:col-span-3 text-base md:text-lg font-extrabold text-sky-700 tracking-wide">1. FARMER INFO</div>
               <div>
-                <label id="lbl-f-fmid" class="text-sm font-semibold text-slate-700">Farmer ID (2-digit FmID)</label>
-                <input id="f-fmid" type="text" maxlength="2" value="" placeholder="01~99" oninput="this.value=this.value.replace(/[^0-9]/g,''); updateLotIdPreview();" class="form-input w-full mt-1.5 px-3 py-2 text-sm font-bold text-sky-700" />
+                <label id="lbl-f-fmid" class="text-sm font-semibold text-slate-700">Farmer ID (3-digit FmID)</label>
+                <input id="f-fmid" type="text" maxlength="3" value="" placeholder="001~999" oninput="this.value=this.value.replace(/[^0-9]/g,''); updateLotIdPreview();" class="form-input w-full mt-1.5 px-3 py-2 text-sm font-bold text-sky-700" />
               </div>
               <div>
                 <label id="lbl-f-ac" class="text-sm font-semibold text-slate-700">Area Code (5-digit AC)</label>
@@ -509,8 +509,8 @@
                 <input id="f-ct" type="text" value="" placeholder="" oninput="this.value=this.value.replace(/[^0-9]/g,'')" class="form-input w-full mt-1.5 px-3 py-2 text-sm" />
               </div>
               <div class="sm:col-span-3 rounded-xl bg-sky-50 border border-sky-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2">
-                <span class="text-xs font-bold text-sky-800">🔑 16-Digit Unified Lot ID (AC5 + FmID2 + CropCode3 + YYMMDD6):</span>
-                <span id="f-lotid-preview" class="font-mono text-sm md:text-base font-extrabold text-sky-700 tracking-wider">----- -- --- ------</span>
+                <span class="text-xs font-bold text-sky-800">🔑 17-Digit Unified Lot ID (AC5 + FmID3 + CropCode3 + YYMMDD6):</span>
+                <span id="f-lotid-preview" class="font-mono text-sm md:text-base font-extrabold text-sky-700 tracking-wider">----- --- --- ------</span>
               </div>
             </div>
 
@@ -526,14 +526,14 @@
               <div>
                 <label id="lbl-f-std" class="text-sm font-semibold text-slate-700">Planned Storage Date (Optional)</label>
                 <div class="relative mt-1.5">
-                  <input id="f-std" type="text" value="" placeholder="YYYY-MM-DD (A01 Scanner)" autocomplete="off" class="form-input w-full px-3 py-2 pr-9 text-sm" />
+                  <input id="f-std" type="text" value="" placeholder="YYYY-MM-DD (A02 Scanner)" autocomplete="off" class="form-input w-full px-3 py-2 pr-9 text-sm" />
                   <span onclick="document.getElementById('f-std')._flatpickr && document.getElementById('f-std')._flatpickr.open()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer select-none">📅</span>
                 </div>
               </div>
               <div>
                 <label id="lbl-f-dd" class="text-sm font-semibold text-slate-700">Planned Delivery Date (Optional)</label>
                 <div class="relative mt-1.5">
-                  <input id="f-dd" type="text" value="" placeholder="YYYY-MM-DD (A02 Scanner)" autocomplete="off" class="form-input w-full px-3 py-2 pr-9 text-sm" />
+                  <input id="f-dd" type="text" value="" placeholder="YYYY-MM-DD (A04 Scanner)" autocomplete="off" class="form-input w-full px-3 py-2 pr-9 text-sm" />
                   <span onclick="document.getElementById('f-dd')._flatpickr && document.getElementById('f-dd')._flatpickr.open()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer select-none">📅</span>
                 </div>
               </div>
@@ -582,19 +582,19 @@
 
             <div class="pt-1">
               <button id="btn-farm-save" onclick="createFarmQR()" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-md transition">
-                🚀 SAVE & GENERATE FARM QR (A00)
+                🚀 SAVE & GENERATE FARM QR (A01)
               </button>
               <div id="farm-result-msg" class="text-xs text-emerald-700 mt-2 font-semibold"></div>
             </div>
           </div>
 
           <div class="lg:col-span-4 sub-panel p-5 flex flex-col items-center justify-center text-center">
-            <div id="farm-qr-box-title" class="text-sm font-bold text-slate-600 mb-3">Issued Farm Raw QR Code (A00)</div>
+            <div id="farm-qr-box-title" class="text-sm font-bold text-slate-600 mb-3">Issued Farm Raw QR Code (A01)</div>
             <img id="farm-qr-img" src="" alt="QR Preview" class="hidden w-52 h-52 rounded-xl border-4 border-white shadow-md bg-white p-1" />
             <div id="farm-qr-placeholder" class="w-52 h-52 rounded-xl border border-dashed border-slate-300 bg-white flex items-center justify-center text-xs text-slate-400 px-4">
               Fill out the form and click Save to generate QR
             </div>
-            <a id="farm-qr-download" href="#" download="Farm_A00_QR.png"
+            <a id="farm-qr-download" href="#" download="Farm_A01_QR.png"
                class="hidden mt-4 px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-xs font-bold text-white">
               📥 Download QR Image (PNG)
             </a>
@@ -604,13 +604,13 @@
     </section>
 
     <!-- ============================================================== -->
-    <!-- [Tab 3] 🏭 APC Sorting & Colored Grade QR Generation (A12) -->
+    <!-- [Tab 3] 🏭 APC Sorting & Colored Grade QR Generation (B02) -->
     <!-- ============================================================== -->
     <section id="tab-apc" class="hidden space-y-6 pt-6">
       <div class="glass-card p-6 space-y-5">
         <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
           <div>
-            <h2 id="apc-title" class="text-xl font-bold text-slate-900">🏭 B11 APC Sorting & Grade Colored QR Issuance</h2>
+            <h2 id="apc-title" class="text-xl font-bold text-slate-900">🏭 B02 APC Sorting & Grade Colored QR Issuance</h2>
           </div>
           <div class="flex items-center gap-2">
             <select id="apc-target-mode" class="form-input text-xs px-2.5 py-2 font-semibold">
@@ -621,9 +621,9 @@
         </div>
 
         <div class="p-4 rounded-xl bg-sky-50 border-2 border-sky-200 flex flex-wrap items-center gap-3">
-          <span id="apc-scan-prompt" class="text-sm font-extrabold text-sky-800">👉 Scan Farm QR or Enter 16-Digit LotID:</span>
+          <span id="apc-scan-prompt" class="text-sm font-extrabold text-sky-800">👉 Scan Farm QR or Enter 17-Digit LotID:</span>
           <input id="apc-qr-scanner-input" type="text"
-                 placeholder="Scan QR or enter 16-digit LotID (e.g. 5563207411261122) and press Enter..."
+                 placeholder="Scan QR or enter 17-digit LotID (e.g. 55630001411261124) and press Enter..."
                  onkeydown="if(event.key==='Enter') handleApcQrScan(this.value, true)"
                  class="form-input flex-1 min-w-[260px] px-3.5 py-2 text-sm" />
           <button id="apc-scan-btn" onclick="handleApcQrScan(document.getElementById('apc-qr-scanner-input').value, true)"
@@ -632,7 +632,7 @@
           </button>
           <select id="apc-fmid-select" onchange="if(this.value) handleApcQrScan(this.value, true)"
                   class="form-input px-3 py-2 text-xs font-semibold">
-            <option value="">(Or select B10/B12 APC ready lot from DB)</option>
+            <option value="">(Or select B01 APC ready lot from DB)</option>
           </select>
         </div>
 
@@ -641,7 +641,7 @@
             <div id="apc-sec1-title" class="text-base md:text-lg font-extrabold text-sky-700">1. BASIC LOT INFO</div>
             <div class="grid grid-cols-3 gap-2.5">
               <div class="col-span-3">
-                <label class="text-xs font-semibold text-slate-600">16-Digit LotID</label>
+                <label class="text-xs font-semibold text-slate-600">17-Digit LotID</label>
                 <input id="apc-info-lotid" type="text" readonly class="form-input w-full mt-1 px-2.5 py-1.5 text-sm font-mono font-bold text-sky-700" />
               </div>
               <div>
@@ -726,7 +726,7 @@
         </div>
 
         <button id="btn-apc-save" onclick="createApcSortingQR()" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-md transition">
-          💾 SAVE & GENERATE COLORED GRADE QRs (B11)
+          💾 SAVE & GENERATE COLORED GRADE QRs (B02)
         </button>
         <div id="apc-result-msg" class="text-xs text-emerald-700 font-semibold"></div>
         <div id="apc-qr-grid" class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2"></div>
@@ -860,8 +860,8 @@
         login_btn: "🔐 권한 전환",
         logout_btn: "로그아웃",
         tab_1: "🔍 1. 소비자 안심 조회",
-        tab_2: "🌾 2. 농가 수확·QR 생성 (A00)",
-        tab_3: "🏭 3. APC 선별·등급 QR 생성 (B11)",
+        tab_2: "🌾 2. 농가 수확·QR 생성 (A01)",
+        tab_3: "🏭 3. APC 선별·등급 QR 생성 (B02)",
         tab_4: "🛰️ 4. 실시간 차량 관제 대시보드",
         pin_guide: "PIN 안내 — <b>0000</b>: 통합관리자 | <b>1111</b>: 농가 | <b>2222</b>: APC | <b>3333</b>: 관제사",
         cs_fmid_lbl: "🔑 [마스터] 로트 번호(LotID):",
@@ -908,7 +908,8 @@
         route_leg2: "🚛 APC → 유통창고 운송 (2구간)",
         route_leg2_legacy: "🚛 APC → 판매처 냉장운송 (2구간)",
         route_leg3: "🚚 유통창고 → 판매처 배송 (3구간)",
-        route_apc_hub: "🏢 APC 공정 (B10~B13)",
+        route_apc_hub: "🏢 APC 공정 (B01~B05)",
+        route_apc_hub_v3: "🏢 APC 공정 (B10~B13)",
         route_apc_hub_legacy: "🏢 APC 품질공정 (A10~A15)",
         route_dist_hub: "🏬 유통 창고 (C10~C11)",
         route_list: "📋 지리 좌표 경로 목록",
@@ -918,20 +919,20 @@
         col_time: "처리 일시",
         col_lat: "위도 (Latitude)",
         col_lon: "경도 (Longitude)",
-        farm_title: "🌾 농가 수확 등록 및 16자리 통합 QR 발급 (A00)",
+        farm_title: "🌾 농가 수확 등록 및 17자리 통합 QR 발급 (A01)",
         farm_target_lbl: "🔗 QR 스캔 시 연결할 대시보드",
         opt_streamlit: "✅ Streamlit 소비자 대시보드",
         opt_fastapi: "🚀 현재 통합 포털",
-        farm_sec1: "1. FARMER INFO (지역 5자리 · 농가 2자리 · 연락처)",
-        farm_sec2: "2. HARVEST LOGISTICS (수확일 6자리 · 회차 · 수량 | A01/A02는 스캐너 진행)",
+        farm_sec1: "1. FARMER INFO (지역 5자리 · 농가 3자리 · 연락처)",
+        farm_sec2: "2. HARVEST LOGISTICS (수확일 6자리 · 회차 · 수량 | A02~A04는 스캐너 진행)",
         farm_sec3: "3. CULTIVATION DETAILS (품목 · 품종 · aT 3자리 작물코드 자동 부여)",
-        btn_farm_save: "🚀 저장 및 16자리 농가 무색 QR 생성 (A00)",
-        farm_qr_box_title: "발급된 농가 원본(무색) QR 코드 (A00)",
+        btn_farm_save: "🚀 저장 및 17자리 농가 무색 QR 생성 (A01)",
+        farm_qr_box_title: "발급된 농가 원본(무색) QR 코드 (A01)",
         farm_qr_placeholder: "좌측 폼 입력 후 생성 버튼을 누르세요",
-        apc_title: "🏭 B11 APC 선별 및 등급별 유색 QR 발급",
-        apc_scan_prompt: "👉 무색(농가) QR 스캔 또는 16자리 LotID 입력:",
+        apc_title: "🏭 B02 APC 선별 및 등급별 유색 QR 발급",
+        apc_scan_prompt: "👉 무색(농가) QR 스캔 또는 17자리 LotID 입력:",
         apc_scan_btn: "🔍 스캔 처리 & 자동 생성",
-        btn_apc_save: "💾 저장 및 등급별 유색 QR 생성 (B11)",
+        btn_apc_save: "💾 저장 및 등급별 유색 QR 생성 (B02)",
         ctrl_lbl_truck: "🚚 관제 대상 차량",
         ctrl_lbl_session: "📂 조회 주행 세션",
         ctrl_ws_ok: "🟢 WebSocket 실시간 연결됨",
@@ -972,6 +973,20 @@
           "55459": "전북 진안군 (성수면)",
           "55416": "전북 진안군 (부귀면)"
         },
+        stages_v4: {
+          A01: ["🌱 농가 수확 (A01)", "산지 농가에서 수확하고 17자리 고유 코드 기반 안심 QR을 발급했습니다.", "HD"],
+          A02: ["🏡 농가 저장고 입고 (A02)", "수확 직후 농가 저온저장고에 입고되어 예냉 및 신선 보관을 시작했습니다.", "Farm_StD"],
+          A03: ["📤 농가 저장고 출고 (A03)", "농가 저온저장고 보관을 마치고 출하 준비를 위해 출고되었습니다.", "Farm_StOut"],
+          A04: ["🚜 농가 출하 · APC 출발 (A04)", "농가에서 산지유통센터(APC)로 1구간 운송을 출발했습니다.", "Farm_DD"],
+          B01: ["🏢 APC 입고 (B01)", "산지유통센터(APC)에 신선한 상태로 입고되었습니다.", "APC_AD"],
+          B02: ["🔍 APC 선별 · 유색QR 변경 (B02)", "품질·등급을 엄격하게 선별하고 등급별 유색 QR로 교체했습니다.", "APC_RT"],
+          B03: ["❄️ APC 저장고 입고 (B03)", "선별 완료 상품을 APC 저온저장고에 입고하여 최적 온습도로 보관합니다.", "APC_StD"],
+          B04: ["📦 APC 저장고 출고 (B04)", "APC 저온저장고 보관을 마치고 출하를 위해 출고되었습니다.", "APC_StOut"],
+          B05: ["🚛 APC 출하 (B05)", "APC에서 유통 창고를 향해 2구간 냉장 운송을 출발했습니다.", "APC_OP"],
+          C10: ["🏬 유통 창고 저장 (C10)", "유통 물류센터 저온창고에 도착하여 안전하게 보관 중입니다.", "Dist_StD"],
+          C11: ["🚚 유통 출하 · 판매처 출발 (C11)", "유통 창고에서 최종 판매처로 3구간 냉장 배송을 출발했습니다.", "Dist_OP"],
+          D10: ["🏪 판매처 도착 (D10)", "전 구간 콜드체인 안전 운송을 마치고 판매처에 신선하게 도착했습니다!", "Retail_AD"]
+        },
         stages: {
           A00: ["🌱 농가 수확 (A00)", "산지 농가에서 수확하고 16자리 고유 코드 기반 안심 QR을 발급했습니다.", "HD"],
           A01: ["🏡 농가 창고 보관 (A01)", "수확 직후 농가 저온창고에서 예냉 및 신선 보관을 진행했습니다.", "Farm_StD"],
@@ -1000,8 +1015,8 @@
         login_btn: "🔐 Switch Role",
         logout_btn: "Logout",
         tab_1: "🔍 1. Consumer Traceability",
-        tab_2: "🌾 2. Farm Harvest & QR (A00)",
-        tab_3: "🏭 3. APC Sorting & Grade QR (B11)",
+        tab_2: "🌾 2. Farm Harvest & QR (A01)",
+        tab_3: "🏭 3. APC Sorting & Grade QR (B02)",
         tab_4: "🛰️ 4. Live Vehicle Control",
         pin_guide: "PIN Guide — <b>0000</b>: Master | <b>1111</b>: Farm | <b>2222</b>: APC | <b>3333</b>: Control",
         cs_fmid_lbl: "🔑 [Master] Lot ID:",
@@ -1048,7 +1063,8 @@
         route_leg2: "🚛 APC → Dist. Warehouse (Leg 2)",
         route_leg2_legacy: "🚛 APC → Retail Cold-Chain (Leg 2)",
         route_leg3: "🚚 Dist. → Retail Store (Leg 3)",
-        route_apc_hub: "🏢 APC Center (B10~B13)",
+        route_apc_hub: "🏢 APC Center (B01~B05)",
+        route_apc_hub_v3: "🏢 APC Center (B10~B13)",
         route_apc_hub_legacy: "🏢 APC Quality Hub (A10~A15)",
         route_dist_hub: "🏬 Distribution Hub (C10~C11)",
         route_list: "📋 Geographical Coordinate Route List",
@@ -1058,20 +1074,20 @@
         col_time: "Processed Time",
         col_lat: "Latitude",
         col_lon: "Longitude",
-        farm_title: "🌾 Farm Harvest Registration & 16-Digit Raw QR Issuance (A00)",
+        farm_title: "🌾 Farm Harvest Registration & 17-Digit Raw QR Issuance (A01)",
         farm_target_lbl: "🔗 Target Consumer Dashboard URL",
         opt_streamlit: "✅ Streamlit Consumer Dashboard",
         opt_fastapi: "🚀 Unified FastAPI Portal",
-        farm_sec1: "1. FARMER INFO (AreaCode 5 · FmID 2 · Contact)",
-        farm_sec2: "2. HARVEST LOGISTICS (Harvest Date · No. · Qty | A01/A02 via Scanner)",
+        farm_sec1: "1. FARMER INFO (AreaCode 5 · FmID 3 · Contact)",
+        farm_sec2: "2. HARVEST LOGISTICS (Harvest Date · No. · Qty | A02~A04 via Scanner)",
         farm_sec3: "3. CULTIVATION DETAILS (Fruit · Variety · aT 3-Digit Crop Code)",
-        btn_farm_save: "🚀 SAVE & GENERATE 16-DIGIT FARM QR (A00)",
-        farm_qr_box_title: "Issued Farm Raw QR Code (A00)",
+        btn_farm_save: "🚀 SAVE & GENERATE 17-DIGIT FARM QR (A01)",
+        farm_qr_box_title: "Issued Farm Raw QR Code (A01)",
         farm_qr_placeholder: "Fill out the form and click Save to generate QR",
-        apc_title: "🏭 B11 APC Sorting & Grade Colored QR Issuance",
-        apc_scan_prompt: "👉 Scan Farm QR or Enter 16-Digit LotID:",
+        apc_title: "🏭 B02 APC Sorting & Grade Colored QR Issuance",
+        apc_scan_prompt: "👉 Scan Farm QR or Enter 17-Digit LotID:",
         apc_scan_btn: "🔍 Scan & Auto-Generate",
-        btn_apc_save: "💾 SAVE & GENERATE COLORED GRADE QRs (B11)",
+        btn_apc_save: "💾 SAVE & GENERATE COLORED GRADE QRs (B02)",
         ctrl_lbl_truck: "🚚 Target Vehicle",
         ctrl_lbl_session: "📂 Driving Session",
         ctrl_ws_ok: "🟢 WebSocket Connected",
@@ -1111,6 +1127,20 @@
           "55455": "Baegun-myeon, Jinan-gun, Jeonbuk",
           "55459": "Seongsu-myeon, Jinan-gun, Jeonbuk",
           "55416": "Bugwi-myeon, Jinan-gun, Jeonbuk"
+        },
+        stages_v4: {
+          A01: ["🌱 Farm Harvest (A01)", "Harvested at the farm and issued a 17-digit traceable raw QR code.", "HD"],
+          A02: ["🏡 Farm Storage In (A02)", "Entered farm cold storage for pre-cooling and freshness preservation.", "Farm_StD"],
+          A03: ["📤 Farm Storage Out (A03)", "Exited farm cold storage and prepared for dispatch.", "Farm_StOut"],
+          A04: ["🚜 Farm Dispatch to APC (A04)", "Departed from the farm toward the APC center (Leg 1 transport).", "Farm_DD"],
+          B01: ["🏢 APC Receiving (B01)", "Arrived fresh at the Agricultural Products Processing Center (APC).", "APC_AD"],
+          B02: ["🔍 APC Sorting & Colored QR (B02)", "Strictly graded and upgraded to color-coded grade QR labels.", "APC_RT"],
+          B03: ["❄️ APC Storage In (B03)", "Entered APC cold storage under optimal temperature & humidity control.", "APC_StD"],
+          B04: ["📦 APC Storage Out (B04)", "Exited APC cold storage for distribution dispatch.", "APC_StOut"],
+          B05: ["🚛 APC Dispatch (B05)", "Departed from APC toward the distribution warehouse (Leg 2 transport).", "APC_OP"],
+          C10: ["🏬 Distribution Storage (C10)", "Arrived and stored safely in the distribution center cold warehouse.", "Dist_StD"],
+          C11: ["🚚 Distribution Dispatch (C11)", "Dispatched from distribution warehouse to the retail store (Leg 3 transport).", "Dist_OP"],
+          D10: ["🏪 Retail Arrival (D10)", "Safely arrived at the retail store with verified end-to-end cold-chain!", "Retail_AD"]
         },
         stages: {
           A00: ["🌱 Farm Harvest (A00)", "Harvested at the farm and issued a 16-digit traceable raw QR code.", "HD"],
@@ -1291,7 +1321,7 @@
       document.getElementById("farm-qr-placeholder").textContent = L.farm_qr_placeholder;
 
       const isKo = csLang === "KO";
-      document.getElementById("lbl-f-fmid").textContent = isKo ? "농가 고유 번호 2자리 (FmID)" : "Farmer ID (2-digit FmID)";
+      document.getElementById("lbl-f-fmid").textContent = isKo ? "농가 고유 번호 3자리 (FmID)" : "Farmer ID (3-digit FmID)";
       document.getElementById("lbl-f-ac").textContent = isKo ? "지역 코드 (AC)" : "Area Code (5-digit AC)";
       document.querySelectorAll("#f-ac option[data-ko]").forEach(opt => {
         opt.textContent = isKo ? opt.getAttribute("data-ko") : opt.getAttribute("data-en");
@@ -1399,7 +1429,7 @@
     function updateLotIdPreview() {
       const ac = (document.getElementById("f-ac").value || "").replace(/\D/g, "").slice(0, 5);
       const fmRaw = (document.getElementById("f-fmid").value || "").replace(/\D/g, "");
-      const fm = fmRaw ? fmRaw.slice(-2).padStart(2, "0") : "";
+      const fm = fmRaw ? fmRaw.slice(-3).padStart(3, "0") : "";
       const frt = document.getElementById("f-frt").value || "";
       const vt = document.getElementById("f-vt").value || "";
       const cc = getCropCodeJS(frt, vt);
@@ -1413,10 +1443,10 @@
       }
       const prevEl = document.getElementById("f-lotid-preview");
       if (prevEl) {
-        if (ac.length === 5 && fm.length === 2 && cc.length === 3 && yymmdd.length === 6) {
+        if (ac.length === 5 && fm.length === 3 && cc.length === 3 && yymmdd.length === 6) {
           prevEl.textContent = `${ac}${fm}${cc}${yymmdd}`;
         } else {
-          prevEl.textContent = `${ac || "-----"} ${fm || "--"} ${cc || "---"} ${yymmdd || "------"}`;
+          prevEl.textContent = `${ac || "-----"} ${fm || "---"} ${cc || "---"} ${yymmdd || "------"}`;
         }
       }
     }
@@ -1590,7 +1620,7 @@
         const opt = document.createElement("option");
         const idVal = item.LotID || item.FmID;
         opt.value = idVal;
-        const verTag = item.protocol_ver === "v3" ? "v3" : "v2";
+        const verTag = item.protocol_ver || "v2";
         opt.textContent = `[${verTag}] ${idVal} (${item.Vt || item.FrT || 'Apple'} · ${item.latest_step})`;
         sel.appendChild(opt);
       });
@@ -1649,7 +1679,7 @@
       const displayGrade = csLang === "KO" ? selGrade : (selGrade === "상" ? "H" : (selGrade === "중" ? "M" : "L"));
       document.getElementById("val-grade").textContent = displayGrade;
 
-      const sortRec = stageLookup["B11"] || stageLookup["A12"] || s;
+      const sortRec = stageLookup["B02"] || stageLookup["B11"] || stageLookup["A12"] || s;
       let gradeQty = s.Qt || "-";
       if (selGrade === "상" && sortRec.AGrade != null) gradeQty = sortRec.AGrade;
       else if (selGrade === "중" && sortRec.BGrade != null) gradeQty = sortRec.BGrade;
@@ -1657,8 +1687,12 @@
       document.getElementById("val-grade-qty").textContent = `${L.quantity}: ${L.boxes(gradeQty)}`;
       document.getElementById("val-method").textContent = trMethod(s.Mt, csLang);
 
+      const isV4 = data.protocol_ver === "v4";
+      const isV3 = data.protocol_ver === "v3";
       document.getElementById("lbl-farmer-title").textContent = L.farmer_title;
-      document.getElementById("lbl-farmer-id").textContent = data.protocol_ver === "v3" ? (csLang === "KO" ? "16자리 고유코드 (LotID)" : "16-Digit Lot ID") : L.farmer_id;
+      document.getElementById("lbl-farmer-id").textContent = isV4
+        ? (csLang === "KO" ? "17자리 고유코드 (LotID)" : "17-Digit Lot ID")
+        : (isV3 ? (csLang === "KO" ? "16자리 고유코드 (LotID)" : "16-Digit Lot ID") : L.farmer_id);
       document.getElementById("lbl-contact").textContent = L.contact;
       document.getElementById("lbl-harvest-date").textContent = L.harvest_date;
       document.getElementById("val-farmer-id").textContent = data.lot_id || data.fmid || "-";
@@ -1671,14 +1705,19 @@
       const tlContainer = document.getElementById("consumer-timeline");
       tlContainer.innerHTML = "";
 
-      const isV3 = data.protocol_ver === "v3";
-      const timelineOrder = isV3
-        ? ["A00", "A01", "A02", "B10", "B12_PRE", "B11", "B12_POST", "B13", "C10", "C11", "D10"]
-        : ["A00", "A01", "A02", "A10", "A11", "A12", "A13", "A14", "A15", "A16"];
+      const stageDict = isV4 ? L.stages_v4 : L.stages;
+      const timelineOrder = isV4
+        ? ["A01", "A02", "A03", "A04", "B01", "B02", "B03", "B04", "B05", "C10", "C11", "D10"]
+        : (isV3
+          ? ["A00", "A01", "A02", "B10", "B12_PRE", "B11", "B12_POST", "B13", "C10", "C11", "D10"]
+          : ["A00", "A01", "A02", "A10", "A11", "A12", "A13", "A14", "A15", "A16"]);
+      const optionalV4 = new Set(["A02", "A03", "B03", "B04"]);
       const optionalV3 = new Set(["A01", "B12_PRE", "B12_POST"]);
-      const storageStages = new Set(["A01", "B12_PRE", "B12_POST", "C10", "A14"]);
+      const storageStages = isV4
+        ? new Set(["A02", "A03", "B03", "B04", "C10"])
+        : new Set(["A01", "B12_PRE", "B12_POST", "C10", "A14"]);
 
-      // v3에서 이미 지나간 선택 단계(예: A01 건너뛰고 A02 진행됨, B12_PRE 건너뛰고 B11 진행됨)는 생략하여 타임라인을 깔끔하게 유지
+      // 이미 지나간 선택 저장고 단계(생략 직행 시)는 깔끔하게 숨김
       let maxDoneIdx = -1;
       timelineOrder.forEach((c, idx) => {
         if (stageLookup[c]) maxDoneIdx = idx;
@@ -1686,11 +1725,14 @@
 
       timelineOrder.forEach((code, idx) => {
         const row = stageLookup[code];
+        if (isV4 && optionalV4.has(code) && !row) {
+          if (idx < maxDoneIdx) return;
+        }
         if (isV3 && optionalV3.has(code) && !row) {
           if (idx < maxDoneIdx) return;
           if (code === "B12_PRE" || (code === "B12_POST" && !stageLookup["B11"])) return;
         }
-        const [stTitle, stDesc, timeCol] = L.stages[code];
+        const [stTitle, stDesc, timeCol] = stageDict[code];
         if (row) {
           const stTime = row.event_at || row[timeCol] || "";
           const elapsed = formatElapsed(stTime, csLang);
@@ -1759,12 +1801,16 @@
       document.getElementById("lbl-route-safe-badge").textContent = L_dict.route_safe_badge;
       document.getElementById("lbl-route-avg-temp").textContent = L_dict.route_avg_temp;
       document.getElementById("lbl-route-max-g").textContent = L_dict.route_max_g;
+      const isV4 = data.protocol_ver === "v4";
       const isV3 = data.protocol_ver === "v3";
+      const isModern = isV4 || isV3;
+      const stageDict = isV4 ? L_dict.stages_v4 : L_dict.stages;
+      const harvestCode = isV4 ? "A01" : "A00";
       document.getElementById("lbl-leg1").textContent = L_dict.route_leg1;
-      document.getElementById("lbl-leg2").textContent = isV3 ? L_dict.route_leg2 : L_dict.route_leg2_legacy;
+      document.getElementById("lbl-leg2").textContent = isModern ? L_dict.route_leg2 : L_dict.route_leg2_legacy;
       const leg3Wrap = document.getElementById("legend-leg3-wrap");
       if (leg3Wrap) {
-        if (isV3) {
+        if (isModern) {
           leg3Wrap.classList.remove("hidden");
           document.getElementById("lbl-leg3").textContent = L_dict.route_leg3;
         } else {
@@ -1805,7 +1851,7 @@
       const mapTableRows = [];
       if (originPt) {
         mapTableRows.push({
-          stage: L_dict.stages.A00[0],
+          stage: stageDict[harvestCode][0],
           time: s.HD || "-",
           lat: originPt[0],
           lon: originPt[1]
@@ -1821,16 +1867,16 @@
 
       (data.records || []).forEach(r => {
         const code = r.Lo;
-        if (!code || !L_dict.stages[code]) return;
-        const [stName, , tCol] = L_dict.stages[code];
+        if (!code || !stageDict[code]) return;
+        const [stName, , tCol] = stageDict[code];
         const stTime = r.event_at || r[tCol] || "-";
         const la = Number(r.Lat || 0);
         const lo = Number(r.lon || 0);
         const validPt = (Math.abs(la) > 1 && Math.abs(lo) > 1) ? [la, lo] : null;
 
-        if (["A01", "A02"].includes(code)) {
+        if (["A01", "A02", "A03", "A04"].includes(code)) {
           if (validPt && !originPt) originPt = validPt;
-        } else if (["B10", "B11", "B12_PRE", "B12_POST", "B13", "A10", "A11", "A12", "A13", "A14", "A15"].includes(code)) {
+        } else if (["B01", "B02", "B03", "B04", "B05", "B10", "B11", "B12_PRE", "B12_POST", "B13", "A10", "A11", "A12", "A13", "A14", "A15"].includes(code)) {
           if (stTime && stTime !== "-") lastApcTime = stTime;
           if (validPt) apcHubPt = validPt;
         } else if (["C10", "C11"].includes(code)) {
@@ -1840,7 +1886,7 @@
           retailTime = stTime;
           if (validPt) retailPt = validPt;
         }
-        if (validPt && !["A00"].includes(code)) {
+        if (validPt && code !== harvestCode) {
           mapTableRows.push({stage: stName, time: stTime, lat: validPt[0], lon: validPt[1]});
         }
       });
@@ -1849,7 +1895,7 @@
         if (leg1Pts.length > 0) apcHubPt = [Number(leg1Pts[leg1Pts.length - 1].lat), Number(leg1Pts[leg1Pts.length - 1].lng)];
         else if (leg2Pts.length > 0) apcHubPt = [Number(leg2Pts[0].lat), Number(leg2Pts[0].lng)];
       }
-      if (isV3 && !distHubPt) {
+      if (isModern && !distHubPt) {
         if (leg2Pts.length > 0) distHubPt = [Number(leg2Pts[leg2Pts.length - 1].lat), Number(leg2Pts[leg2Pts.length - 1].lng)];
         else if (leg3Pts.length > 0) distHubPt = [Number(leg3Pts[0].lat), Number(leg3Pts[0].lng)];
       }
@@ -1872,7 +1918,7 @@
         leg1Path.forEach(p => bounds.push(p));
       }
 
-      const leg2EndPt = isV3 ? (distHubPt || retailPt) : retailPt;
+      const leg2EndPt = isModern ? (distHubPt || retailPt) : retailPt;
       let leg2Path = leg2Pts.map(p => [Number(p.lat), Number(p.lng)]);
       if (leg2Path.length < 2 && apcHubPt && leg2EndPt) leg2Path = [apcHubPt, leg2EndPt];
       else if (leg2Path.length >= 2) {
@@ -1884,7 +1930,7 @@
         leg2Path.forEach(p => bounds.push(p));
       }
 
-      if (isV3) {
+      if (isModern) {
         let leg3Path = leg3Pts.map(p => [Number(p.lat), Number(p.lng)]);
         const leg3Start = distHubPt || apcHubPt;
         if (leg3Path.length < 2 && leg3Start && retailPt) leg3Path = [leg3Start, retailPt];
@@ -1900,22 +1946,23 @@
 
       if (originPt) {
         L.circleMarker(originPt, {radius: 8, color: "#fff", weight: 2, fillColor: "#2ecc71", fillOpacity: 0.95})
-          .bindPopup(`<b>${L_dict.stages.A00[0]}</b><br>⏰ ${s.HD || "-"}`).addTo(consumerLayerGroup);
+          .bindPopup(`<b>${stageDict[harvestCode][0]}</b><br>⏰ ${s.HD || "-"}`).addTo(consumerLayerGroup);
         bounds.push(originPt);
       }
       if (apcHubPt) {
+        const apcLbl = isV4 ? L_dict.route_apc_hub : (isV3 ? L_dict.route_apc_hub_v3 : L_dict.route_apc_hub_legacy);
         L.circleMarker(apcHubPt, {radius: 8, color: "#fff", weight: 2, fillColor: "#f39c12", fillOpacity: 0.95})
-          .bindPopup(`<b>${isV3 ? L_dict.route_apc_hub : L_dict.route_apc_hub_legacy}</b><br>⏰ ${lastApcTime}`).addTo(consumerLayerGroup);
+          .bindPopup(`<b>${apcLbl}</b><br>⏰ ${lastApcTime}`).addTo(consumerLayerGroup);
         bounds.push(apcHubPt);
       }
-      if (isV3 && distHubPt) {
+      if (isModern && distHubPt) {
         L.circleMarker(distHubPt, {radius: 8, color: "#fff", weight: 2, fillColor: "#007aff", fillOpacity: 0.95})
           .bindPopup(`<b>${L_dict.route_dist_hub}</b><br>⏰ ${distTime}`).addTo(consumerLayerGroup);
         bounds.push(distHubPt);
       }
       if (retailPt) {
-        const retLbl = isV3 ? L_dict.stages.D10[0] : L_dict.stages.A16[0];
-        L.circleMarker(retailPt, {radius: 8, color: "#fff", weight: 2, fillColor: isV3 ? "#7c3aed" : "#007aff", fillOpacity: 0.95})
+        const retLbl = isModern ? stageDict.D10[0] : stageDict.A16[0];
+        L.circleMarker(retailPt, {radius: 8, color: "#fff", weight: 2, fillColor: isModern ? "#7c3aed" : "#007aff", fillOpacity: 0.95})
           .bindPopup(`<b>${retLbl}</b><br>⏰ ${retailTime}`).addTo(consumerLayerGroup);
         bounds.push(retailPt);
       }
@@ -1955,7 +2002,7 @@
       const mt = document.getElementById("f-mt").value;
 
       if (!fmid || !ac || !ct || !hd || !hn || !qt || !frt || !vt || !mt) {
-        alert(csLang === "KO" ? "필수 항목을 모두 입력해 주세요. (보관일·출하일은 스캐너로 진행하므로 선택 사항)" : "Please fill out all required fields (Storage/Delivery dates are optional since A01/A02 are scanned).");
+        alert(csLang === "KO" ? "필수 항목을 모두 입력해 주세요. (보관일·출하일은 스캐너로 진행하므로 선택 사항)" : "Please fill out all required fields (Storage/Delivery dates are optional since A02~A04 are scanned).");
         return;
       }
 
@@ -1986,7 +2033,7 @@
         return;
       }
       document.getElementById("farm-result-msg").textContent =
-        `✅ Saved (A00) | LotID: ${data.lot_id} (CropCode: ${data.crop_code}) | Next: Scan A01(창고) or A02(출하)`;
+        `✅ Saved (A01) | LotID: ${data.lot_id} (FmID: ${data.fmid}, CropCode: ${data.crop_code}) | Next: Scan A02(저장고 입고) or A04(출하)`;
       const img = document.getElementById("farm-qr-img");
       img.src = data.qr_base64;
       img.classList.remove("hidden");
@@ -1999,7 +2046,7 @@
     }
 
     // =====================================================================
-    // 5. [Tab 3] APC Sorting & Colored Grade QRs (B11)
+    // 5. [Tab 3] APC Sorting & Colored Grade QRs (B02)
     // =====================================================================
     function clearApcFormAndQrs() {
       ["apc-info-lotid", "apc-info-fmid", "apc-info-ac", "apc-info-ct", "apc-info-hd", "apc-info-dd", "apc-info-std", "apc-info-qt", "apc-info-frt", "apc-info-vt", "apc-info-mt", "apc-a", "apc-b", "apc-c", "apc-defect"].forEach(id => {
@@ -2033,7 +2080,7 @@
       const data = await res.json();
       apcCandidatesCache = data.items || [];
       const sel = document.getElementById("apc-fmid-select");
-      sel.innerHTML = `<option value="">${csLang === "KO" ? "(또는 APC 입고(B10)·창고(B12) 대기 로트 선택)" : "(Or select B10/B12 APC ready lot from DB)"}</option>`;
+      sel.innerHTML = `<option value="">${csLang === "KO" ? "(또는 APC 입고(B01) 대기 로트 선택)" : "(Or select B01 APC ready lot from DB)"}</option>`;
       apcCandidatesCache.forEach(r => {
         const opt = document.createElement("option");
         const idVal = r.LotID || r.FmID;
@@ -2058,7 +2105,7 @@
       if (!res.ok) {
         clearApcFormAndQrs();
         msgEl.className = "text-xs font-bold text-rose-600";
-        msgEl.textContent = `❌ ${data.detail || "B10/B12 record not found in DB"}`;
+        msgEl.textContent = `❌ ${data.detail || "B01 record not found in DB"}`;
         return;
       }
 
@@ -2088,7 +2135,7 @@
         renderApcQrCards(data.lot_id || data.fmid, data.qrs || []);
       } else {
         msgEl.textContent =
-          `✅ QR Scanned [${row.ready_stage || 'B10'}] (A=${g.AGrade}, B=${g.BGrade}, C=${g.CGrade}, Defect=${g.DefectRate}) ➔ Generating B11 colored QRs...`;
+          `✅ QR Scanned [${row.ready_stage || 'B01'}] (A=${g.AGrade}, B=${g.BGrade}, C=${g.CGrade}, Defect=${g.DefectRate}) ➔ Generating B02 colored QRs...`;
         if (autoSave) {
           setTimeout(() => createApcSortingQR(), 300);
         }
@@ -2100,7 +2147,7 @@
       const msgEl = document.getElementById("apc-result-msg");
       if (!lotId) {
         msgEl.className = "text-xs font-bold text-rose-600";
-        msgEl.textContent = "❌ Please scan a Farm QR or select a B10/B12 lot first.";
+        msgEl.textContent = "❌ Please scan a Farm QR or select a B01 lot first.";
         return;
       }
       const payload = {
@@ -2128,7 +2175,7 @@
       }
       msgEl.className = "text-xs font-semibold text-emerald-700";
       msgEl.textContent =
-        `✅ ${data.stage || 'B11'} Saved & Colored QRs Generated (${(data.saved_files || []).join(", ")} | Time: ${data.apc_rt})`;
+        `✅ ${data.stage || 'B02'} Saved & Colored QRs Generated (${(data.saved_files || []).join(", ")} | Time: ${data.apc_rt})`;
       renderApcQrCards(data.lot_id || data.fmid, data.qrs || []);
       document.getElementById("apc-qr-scanner-input").focus();
     }

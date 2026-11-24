@@ -20,9 +20,12 @@ from cloud_backend.db_v2.bridge_sync import sync_v1_delta_to_v2, make_sha256
 from cloud_backend.supply_chain_spec import (
     get_crop_code,
     normalize_area_code,
-    normalize_fmid_2digit,
-    build_lot_id_16,
+    normalize_fmid_3digit,
+    build_lot_id_17,
     is_v3_lot_id,
+    is_v4_lot_id,
+    is_modern_lot_id,
+    parse_lot_id,
     detect_protocol_version,
 )
 
@@ -97,6 +100,25 @@ LANG_DICT = {
         'origin_55459': "전북 진안군 (성수면)",
         'origin_55416': "전북 진안군 (부귀면)",
         'origin_default': "대한민국",
+        'v4_stage_A01_title': "🌱 농가 수확 (A01)",
+        'v4_stage_A01_desc': "산지 농가에서 수확하고 17자리 고유 코드 기반 안심 QR을 발급했습니다.",
+        'v4_stage_A02_title': "🏡 농가 저장고 입고 (A02)",
+        'v4_stage_A02_desc': "수확 직후 농가 저온저장고에 입고되어 예냉 및 신선 보관을 시작했습니다.",
+        'v4_stage_A03_title': "📤 농가 저장고 출고 (A03)",
+        'v4_stage_A03_desc': "농가 저온저장고 보관을 마치고 출하 준비를 위해 출고되었습니다.",
+        'v4_stage_A04_title': "🚜 농가 출하 · APC 출발 (A04)",
+        'v4_stage_A04_desc': "농가에서 산지유통센터(APC)로 1구간 운송을 출발했습니다.",
+        'v4_stage_B01_title': "🏢 APC 입고 (B01)",
+        'v4_stage_B01_desc': "산지유통센터(APC)에 신선한 상태로 입고되었습니다.",
+        'v4_stage_B02_title': "🔍 APC 선별 · 유색QR 변경 (B02)",
+        'v4_stage_B02_desc': "크기와 당도, 품질을 엄격하게 선별하고 등급별 유색 QR로 교체했습니다.",
+        'v4_stage_B03_title': "❄️ APC 저장고 입고 (B03)",
+        'v4_stage_B03_desc': "선별 완료 상품을 APC 저온저장고에 입고하여 최적 온습도로 보관합니다.",
+        'v4_stage_B04_title': "📦 APC 저장고 출고 (B04)",
+        'v4_stage_B04_desc': "APC 저온저장고 보관을 마치고 출하를 위해 출고되었습니다.",
+        'v4_stage_B05_title': "🚛 APC 출하 (B05)",
+        'v4_stage_B05_desc': "APC에서 유통 창고를 향해 2구간 냉장 운송을 출발했습니다.",
+        'route_apc_hub_v4': "🏢 APC 공정 (B01~B05)",
         'stage_A00_title': "🌱 농가 수확 (A00)",
         'stage_A00_desc': "산지 농가에서 수확하고 16자리 고유 코드 기반 안심 QR을 발급했습니다.",
         'stage_A01_title': "🏡 농가 창고 보관 (A01)",
@@ -217,6 +239,25 @@ LANG_DICT = {
         'origin_55459': "Seongsu-myeon, Jinan-gun, Jeonbuk",
         'origin_55416': "Bugwi-myeon, Jinan-gun, Jeonbuk",
         'origin_default': "Republic of Korea",
+        'v4_stage_A01_title': "🌱 Farm Harvest (A01)",
+        'v4_stage_A01_desc': "Harvested at the farm and issued a 17-digit traceable raw QR code.",
+        'v4_stage_A02_title': "🏡 Farm Storage In (A02)",
+        'v4_stage_A02_desc': "Entered farm cold storage for pre-cooling and freshness preservation.",
+        'v4_stage_A03_title': "📤 Farm Storage Out (A03)",
+        'v4_stage_A03_desc': "Exited farm cold storage and prepared for dispatch.",
+        'v4_stage_A04_title': "🚜 Farm Dispatch to APC (A04)",
+        'v4_stage_A04_desc': "Departed from the farm toward the APC center (Leg 1 transport).",
+        'v4_stage_B01_title': "🏢 APC Receiving (B01)",
+        'v4_stage_B01_desc': "Arrived fresh at the APC center from the farm.",
+        'v4_stage_B02_title': "🔍 APC Sorting & Colored QR (B02)",
+        'v4_stage_B02_desc': "Strictly graded and upgraded to color-coded grade QR labels.",
+        'v4_stage_B03_title': "❄️ APC Storage In (B03)",
+        'v4_stage_B03_desc': "Entered APC cold storage under optimal temperature & humidity control.",
+        'v4_stage_B04_title': "📦 APC Storage Out (B04)",
+        'v4_stage_B04_desc': "Exited APC cold storage for distribution dispatch.",
+        'v4_stage_B05_title': "🚛 APC Dispatch (B05)",
+        'v4_stage_B05_desc': "Departed from APC toward the distribution warehouse (Leg 2 transport).",
+        'route_apc_hub_v4': "🏢 APC Center (B01~B05)",
         'stage_A00_title': "🌱 Farm Harvest (A00)",
         'stage_A00_desc': "Harvested at the farm and issued a 16-digit traceable raw QR code.",
         'stage_A01_title': "🏡 Farm Storage (A01)",
@@ -749,9 +790,9 @@ if not fm_id:
     st.info(LANG_DICT[st.session_state.lang]["landing_guide"])
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- 24/7 상시 클라우드 현장 작업자/관리자 포털 (PC 전원 OFF 상태에서도 스마트폰에서 A00/B11 생성 가능) ---
+    # --- 24/7 상시 클라우드 현장 작업자/관리자 포털 (PC 전원 OFF 상태에서도 스마트폰에서 A01/B02 생성 가능) ---
     st.markdown("<br>", unsafe_allow_html=True)
-    with st.expander("🔐 현장 작업자 / 관리자 통합 포털 (농가 A00 16자리 QR · APC B11 유색 QR · 이력 조회)", expanded=(query_params.get("mode") == "admin")):
+    with st.expander("🔐 현장 작업자 / 관리자 통합 포털 (농가 A01 17자리 QR · APC B02 유색 QR · 이력 조회)", expanded=(query_params.get("mode") == "admin")):
         import random
         import hashlib
         from urllib.parse import urlencode, urlparse, parse_qs
@@ -816,18 +857,18 @@ if not fm_id:
 
         portal_tabs = []
         if pin_val in ("0000", "1111"):
-            portal_tabs.append("🌾 1. 농가 수확·16자리 무색 QR (A00)")
+            portal_tabs.append("🌾 1. 농가 수확·17자리 무색 QR (A01)")
         if pin_val in ("0000", "2222"):
-            portal_tabs.append("🏭 2. APC 선별·유색 QR 변경 (B11)")
+            portal_tabs.append("🏭 2. APC 선별·유색 QR 변경 (B02)")
         portal_tabs.append("🔍 3. 소비자 안심 이력 바로 조회")
 
         selected_ptab = st.radio("작업 모듈 선택", portal_tabs, horizontal=True)
         st.markdown("---")
 
-        # [모듈 1] 농가 수확 무색 QR 생성 (A00 - 16자리 통합 코드)
+        # [모듈 1] 농가 수확 무색 QR 생성 (A01 - 17자리 통합 코드, 3자리 FmID)
         if selected_ptab.startswith("🌾"):
-            st.subheader("🌾 농가 수확 등록 및 16자리 무색 QR 발급 (A00)")
-            st.caption("AreaCode(5자리) + FmID(2자리) + aT 작물코드(3자리) + 수확날짜(6자리) = 총 16자리 고유 코드가 자동 생성됩니다. 이후 농가창고(A01)·농가출하(A02)는 QR 스캐너로 진행합니다.")
+            st.subheader("🌾 농가 수확 등록 및 17자리 무색 QR 발급 (A01)")
+            st.caption("AreaCode(5자리) + FmID(3자리) + aT 작물코드(3자리) + 수확날짜(6자리) = 총 17자리 고유 코드가 자동 생성됩니다. 이후 농가 저장고 입출고(A02~A03)·농가출하(A04)는 QR 스캐너로 진행합니다.")
             c1, c2 = st.columns(2)
             with c1:
                 f_ac_label = st.selectbox("지역 코드 5자리 (Area Code, AC)", [
@@ -841,15 +882,15 @@ if not fm_id:
                 f_hn = st.number_input("수확 횟수 (Harvesting No., HN)", min_value=1, max_value=99, value=1)
                 f_hd = st.date_input("수확 일자 (Harvest Date, HD)", value=datetime.now(timezone(timedelta(hours=9))).date())
             with c2:
-                f_fmid = st.text_input("농가 고유 번호 2자리 (Farmer ID, FmID)", value="07", max_chars=2)
+                f_fmid = st.text_input("농가 고유 번호 3자리 (Farmer ID, FmID)", value="001", max_chars=3)
                 f_vt = st.selectbox("품종 (Variety, Vt)", VARIETY_OPTIONS[f_frt])
                 f_mt = st.selectbox("재배 방식 (Farming Method, Mt)", ["Organic", "Pesticide-Free", "Conventional", "Natural"])
                 f_qt = st.number_input("총 수확 수량 (Quantity, Qt)", min_value=1, max_value=99999, value=100)
                 preview_cc = get_crop_code(f_frt, f_vt)
-                preview_lot = build_lot_id_16(f_ac, f_fmid, f_frt, f_vt, f_hd, crop_code=preview_cc)
-                st.info(f"🔑 **16자리 LotID 미리보기**: `{preview_lot}` (작물코드 `{preview_cc}`)")
+                preview_lot = build_lot_id_17(f_ac, f_fmid, f_frt, f_vt, f_hd, crop_code=preview_cc)
+                st.info(f"🔑 **17자리 LotID 미리보기**: `{preview_lot}` (FmID `{normalize_fmid_3digit(f_fmid)}` / 작물코드 `{preview_cc}`)")
 
-            if st.button("🛡️ A00 DB 저장 + 16자리 무색 농가 QR 생성", use_container_width=True, type="primary"):
+            if st.button("🛡️ A01 DB 저장 + 17자리 무색 농가 QR 생성", use_container_width=True, type="primary"):
                 try:
                     conn_p = get_db_connection()
                     sync_v1_delta_to_v2(conn_p, src_db=DB_V1_NAME, dst_db=DB_NAME)
@@ -859,43 +900,43 @@ if not fm_id:
                     srv_now_str = cur_p.fetchone()["srv_dt"]
                     hd_str = f_hd.strftime("%Y-%m-%d")
                     ac5 = normalize_area_code(f_ac)
-                    fm2 = normalize_fmid_2digit(f_fmid)
+                    fm3 = normalize_fmid_3digit(f_fmid)
                     cc3 = get_crop_code(f_frt, f_vt)
-                    lot_id_val = build_lot_id_16(ac5, fm2, f_frt, f_vt, hd_str, crop_code=cc3)
+                    lot_id_val = build_lot_id_17(ac5, fm3, f_frt, f_vt, hd_str, crop_code=cc3)
 
-                    # 1) 물리 ESP32 스캐너 호환용 lab225.qr A00 기록
+                    # 1) 물리 ESP32 스캐너 호환용 lab225.qr A01(농가 수확) 기록
                     cur_p.execute(f"""
                         INSERT INTO `{DB_V1_NAME}`.`qr` (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Rp)
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
-                        "A00", ac5, fm2, lot_id_val, cc3, f_frt, f_vt, f_ct.strip(),
+                        "A01", ac5, fm3, lot_id_val, cc3, f_frt, f_vt, f_ct.strip(),
                         srv_now_str, None, str(f_qt), f_mt, str(f_hn), None, None
                     ))
                     v1_qr_id = cur_p.lastrowid
 
-                    # 2) lab225_v2 정규화 저장: harvest_lots(current_stage='A00', protocol_ver='v3') + stage_events(A00만 기록)
+                    # 2) lab225_v2 정규화 저장: harvest_lots(current_stage='A01', protocol_ver='v4') + stage_events(A01만 기록)
                     cur_p.execute(f"""
                         INSERT INTO `{DB_NAME}`.`harvest_lots`
                         (lot_id, origin_zip, farmer_code, crop_code, fruit_type, variety, farmer_phone, cultivation,
                          harvest_no, total_qty, harvest_date, storage_date, deliver_date,
                          ag_practice, current_stage, protocol_ver, is_test, created_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, NULL, NULL, 'A00', 'v3', 0, %s)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, NULL, NULL, 'A01', 'v4', 0, %s)
                         ON DUPLICATE KEY UPDATE
                             origin_zip=VALUES(origin_zip), farmer_code=VALUES(farmer_code), crop_code=VALUES(crop_code),
                             fruit_type=VALUES(fruit_type), variety=VALUES(variety), farmer_phone=VALUES(farmer_phone),
                             cultivation=VALUES(cultivation), harvest_no=VALUES(harvest_no), total_qty=VALUES(total_qty),
-                            harvest_date=VALUES(harvest_date), protocol_ver='v3', is_test=0
+                            harvest_date=VALUES(harvest_date), protocol_ver='v4', is_test=0
                     """, (
-                        lot_id_val, ac5, fm2, cc3, f_frt, f_vt, f_ct.strip(), f_mt,
+                        lot_id_val, ac5, fm3, cc3, f_frt, f_vt, f_ct.strip(), f_mt,
                         int(f_hn), int(f_qt), hd_str, srv_now_str
                     ))
 
-                    a00_hash = make_sha256({"lot_id": lot_id_val, "stage": "A00", "ac": ac5, "cc": cc3, "qt": int(f_qt), "hd": hd_str})
+                    a01_hash = make_sha256({"lot_id": lot_id_val, "stage": "A01", "ac": ac5, "fm": fm3, "cc": cc3, "qt": int(f_qt), "hd": hd_str})
                     cur_p.execute(f"""
                         INSERT INTO `{DB_NAME}`.`stage_events` (lot_id, pkg_id, stage_code, event_at, tx_hash)
-                        VALUES (%s, NULL, 'A00', %s, %s)
+                        VALUES (%s, NULL, 'A01', %s, %s)
                         ON DUPLICATE KEY UPDATE event_at=VALUES(event_at), tx_hash=COALESCE(VALUES(tx_hash), tx_hash)
-                    """, (lot_id_val, srv_now_str, a00_hash))
+                    """, (lot_id_val, srv_now_str, a01_hash))
 
                     if v1_qr_id:
                         cur_p.execute(f"""
@@ -907,7 +948,7 @@ if not fm_id:
                     conn_p.close()
 
                     q_params = {
-                        "LotID": lot_id_val, "AC": ac5, "FmID": fm2, "CC": cc3,
+                        "LotID": lot_id_val, "AC": ac5, "FmID": fm3, "CC": cc3,
                         "Ct": f_ct.strip(), "FrT": f_frt, "Vt": f_vt, "HD": hd_str,
                         "Mt": f_mt, "HN": str(f_hn), "Qt": str(f_qt),
                     }
@@ -917,7 +958,7 @@ if not fm_id:
                         "bytes": _make_portal_qr_bytes(farm_qr_url, FARM_ICONS.get(f_frt, "apple.png"), rounded=True),
                         "filename": farm_fn,
                         "lot_id": lot_id_val,
-                        "fmid": fm2,
+                        "fmid": fm3,
                         "crop_code": cc3,
                         "hd_full": srv_now_str,
                     }
@@ -926,7 +967,7 @@ if not fm_id:
 
             if "last_farm_qr" in st.session_state:
                 lf = st.session_state["last_farm_qr"]
-                st.success(f"✅ A00 DB 저장 완료! (16자리 LotID=`{lf.get('lot_id', lf['fmid'])}`, 작물코드=`{lf.get('crop_code', '-')}` | 다음: QR 스캐너로 A01 창고 또는 A02 출하 스캔)")
+                st.success(f"✅ A01 DB 저장 완료! (17자리 LotID=`{lf.get('lot_id', lf['fmid'])}`, FmID=`{lf.get('fmid', '-')}`, 작물코드=`{lf.get('crop_code', '-')}` | 다음: QR 스캐너로 A02 저장고 입고 또는 A04 출하 스캔)")
                 st.image(lf["bytes"], caption=f"농가 무색 원본 QR ({lf['filename']})", width=260)
                 st.download_button(
                     label=f"📥 무색 QR 이미지 다운로드 ({lf['filename']})",
@@ -936,10 +977,10 @@ if not fm_id:
                     use_container_width=True,
                 )
 
-        # [모듈 2] APC 선별 및 등급별 유색 QR 자동 생성 (B11)
+        # [모듈 2] APC 선별 및 등급별 유색 QR 자동 생성 (B02)
         elif selected_ptab.startswith("🏭"):
-            st.subheader("🏭 B11 APC 선별 및 유색 QR 변경 (무색 QR 스캔 / 16자리 LotID 입력 ➔ 난수 배분 ➔ 유색 QR 생성)")
-            st.caption("DB에서 APC 입고(B10) 또는 선별 전 APC 창고(B12) 완료 로트를 확인한 뒤 난수로 A/B/C/결점 등급을 나누고 즉시 유색 QR 3종으로 변경·발급합니다.")
+            st.subheader("🏭 B02 APC 선별 및 유색 QR 변경 (무색 QR 스캔 / 17자리 LotID 입력 ➔ 난수 배분 ➔ 유색 QR 생성)")
+            st.caption("DB에서 APC 입고(B01) 완료 로트를 확인한 뒤 난수로 A/B/C/결점 등급을 나누고 즉시 유색 QR 3종으로 변경·발급합니다.")
 
             apc_candidates = []
             try:
@@ -951,8 +992,8 @@ if not fm_id:
                            hl.total_qty AS Qt, hl.current_stage, MAX(se.event_at) AS ready_at
                     FROM `{DB_NAME}`.`harvest_lots` hl
                     JOIN `{DB_NAME}`.`stage_events` se
-                      ON hl.lot_id = se.lot_id AND se.pkg_id IS NULL AND se.stage_code IN ('B10', 'B12', 'A11')
-                    WHERE hl.current_stage IN ('B10', 'B12', 'A11')
+                      ON hl.lot_id = se.lot_id AND se.pkg_id IS NULL AND se.stage_code IN ('B01', 'B10', 'B12', 'A11')
+                    WHERE hl.current_stage IN ('B01', 'B10', 'B12', 'A11')
                     GROUP BY hl.lot_id, hl.fruit_type, hl.variety, hl.total_qty, hl.current_stage
                     ORDER BY ready_at DESC
                     LIMIT 25
@@ -964,12 +1005,12 @@ if not fm_id:
 
             col_s1, col_s2 = st.columns([2, 1])
             with col_s1:
-                raw_scan_in = st.text_input("👉 무색(농가) QR URL 스캔 또는 16자리 LotID 직접 입력", placeholder="예: 5563207411261122 또는 QR 스캔")
+                raw_scan_in = st.text_input("👉 무색(농가) QR URL 스캔 또는 17자리 LotID 직접 입력", placeholder="예: 55630001411261124 또는 QR 스캔")
             with col_s2:
                 cand_opts = ["(직접 입력 사용)"] + [f"{c['LotID']} | [{c['current_stage']}] {c.get('Vt') or c.get('FrT')} ({c.get('Qt')}박스)" for c in apc_candidates]
-                sel_cand = st.selectbox("또는 B10(입고)/B12(창고) 대기 목록 선택", cand_opts)
+                sel_cand = st.selectbox("또는 B01(APC 입고) 대기 목록 선택", cand_opts)
 
-            if st.button("⚡ B10/B12 조회 + 난수 등급 배분 + B11 유색 QR 3종 즉시 생성", use_container_width=True, type="primary"):
+            if st.button("⚡ B01 조회 + 난수 등급 배분 + B02 유색 QR 3종 즉시 생성", use_container_width=True, type="primary"):
                 target_lotid = ""
                 if sel_cand != "(직접 입력 사용)":
                     target_lotid = sel_cand.split("|")[0].strip()
@@ -982,7 +1023,7 @@ if not fm_id:
                         target_lotid = s_raw
 
                 if not target_lotid:
-                    st.error("❌ 조회할 16자리 LotID를 입력하거나 목록에서 선택해 주세요.")
+                    st.error("❌ 조회할 17자리 LotID를 입력하거나 목록에서 선택해 주세요.")
                 else:
                     try:
                         conn_a = get_db_connection()
@@ -993,19 +1034,20 @@ if not fm_id:
                             SELECT hl.*, se.stage_code AS ready_stage, se.lat AS prev_lat, se.lng AS prev_lng
                             FROM `{DB_NAME}`.`harvest_lots` hl
                             JOIN `{DB_NAME}`.`stage_events` se
-                              ON hl.lot_id = se.lot_id AND se.pkg_id IS NULL AND se.stage_code IN ('B10', 'B12', 'A11')
+                              ON hl.lot_id = se.lot_id AND se.pkg_id IS NULL AND se.stage_code IN ('B01', 'B10', 'B12', 'A11')
                             WHERE hl.lot_id = %s
-                            ORDER BY FIELD(se.stage_code, 'B12', 'B10', 'A11'), se.event_at DESC
+                            ORDER BY FIELD(se.stage_code, 'B01', 'B12', 'B10', 'A11'), se.event_at DESC
                             LIMIT 1
                         """, (target_lotid,))
                         lot_row = cur_a.fetchone()
                         if not lot_row:
                             conn_a.close()
                             st.session_state.pop("last_apc_qrs", None)
-                            st.error(f"❌ DB에서 APC 입고(B10) 또는 선별 전 창고(B12) 이력을 찾을 수 없음! (LotID={target_lotid})")
+                            st.error(f"❌ DB에서 APC 입고(B01) 이력을 찾을 수 없음! (LotID={target_lotid})")
                         else:
-                            is_legacy_v2 = (lot_row.get("ready_stage") == "A11" and not is_v3_lot_id(target_lotid))
-                            sort_stage = "A12" if is_legacy_v2 else "B11"
+                            is_v4_lot = (lot_row.get("protocol_ver") == "v4" or is_v4_lot_id(target_lotid) or lot_row.get("ready_stage") == "B01")
+                            is_legacy_v2 = (not is_v4_lot and lot_row.get("ready_stage") == "A11" and not is_modern_lot_id(target_lotid))
+                            sort_stage = "B02" if is_v4_lot else ("A12" if is_legacy_v2 else "B11")
 
                             tot_qt = int(lot_row.get("total_qty") or 0)
                             if tot_qt > 0:
@@ -1052,7 +1094,7 @@ if not fm_id:
                             cur_a.execute(f"""
                                 SELECT * FROM `{DB_V1_NAME}`.`qr`
                                 WHERE (LotID=%s OR (LotID IS NULL AND FmID=%s))
-                                  AND Lo IN ('B12', 'B10', 'A11')
+                                  AND Lo IN ('B01', 'B12', 'B10', 'A11')
                                   AND (pkg_grade IS NULL OR pkg_grade = '')
                                 ORDER BY id DESC LIMIT 1
                             """, (target_lotid, target_lotid))
@@ -1061,7 +1103,7 @@ if not fm_id:
                                 ins_dict = dict(v1_prev)
                                 ins_dict.update({
                                     "Lo": sort_stage,
-                                    "LotID": target_lotid if is_v3_lot_id(target_lotid) else ins_dict.get("LotID"),
+                                    "LotID": target_lotid if is_modern_lot_id(target_lotid) else ins_dict.get("LotID"),
                                     "AGrade": str(a_v),
                                     "BGrade": str(b_v),
                                     "CGrade": str(c_v),
@@ -1087,15 +1129,16 @@ if not fm_id:
 
                             frt_name = str(lot_row.get("fruit_type") or "Apples")
                             ac_val = str(lot_row.get("origin_zip") or "")
-                            fm2_val = str(lot_row.get("farmer_code") or (target_lotid[5:7] if is_v3_lot_id(target_lotid) else target_lotid))
-                            cc3_val = str(lot_row.get("crop_code") or get_crop_code(frt_name, lot_row.get("variety") or ""))
+                            parsed_t = parse_lot_id(target_lotid)
+                            fm_val = str(lot_row.get("farmer_code") or (parsed_t["farmer_code"] if parsed_t else target_lotid))
+                            cc3_val = str(lot_row.get("crop_code") or (parsed_t["crop_code"] if parsed_t else get_crop_code(frt_name, lot_row.get("variety") or "")))
                             g_icons = GRADE_ICONS.get(frt_name, GRADE_ICONS["Apples"])
                             gen_list = []
                             for idx_g, (g_kr, g_en, g_cnt) in enumerate([("상", "A", a_v), ("중", "B", b_v), ("하", "C", c_v)]):
                                 if is_legacy_v2:
                                     g_url = f"{STREAMLIT_BASE_URL}?FmID={target_lotid}&grade={g_kr}&pkg_grade={g_en}&AC={ac_val}&FrT={frt_name}"
                                 else:
-                                    g_url = f"{STREAMLIT_BASE_URL}?LotID={target_lotid}&FmID={fm2_val}&CC={cc3_val}&grade={g_kr}&pkg_grade={g_en}&AC={ac_val}&FrT={frt_name}"
+                                    g_url = f"{STREAMLIT_BASE_URL}?LotID={target_lotid}&FmID={fm_val}&CC={cc3_val}&grade={g_kr}&pkg_grade={g_en}&AC={ac_val}&FrT={frt_name}"
                                 g_fn = f"{target_lotid}_{g_en}_QR.png"
                                 gen_list.append({
                                     "grade_en": g_en,
@@ -1118,7 +1161,7 @@ if not fm_id:
             if "last_apc_qrs" in st.session_state:
                 la = st.session_state["last_apc_qrs"]
                 a_v, b_v, c_v, def_v, tot_qt = la["grades"]
-                st.success(f"✅ {la.get('stage', 'B11')} 선별 DB 저장 및 유색 QR 생성 완료! (LotID=`{la['lot_id']}` | 총 {tot_qt}박스 ➔ A:{a_v}, B:{b_v}, C:{c_v}, 결점:{def_v} | 시각: {la['apc_rt']})")
+                st.success(f"✅ {la.get('stage', 'B02')} 선별 DB 저장 및 유색 QR 생성 완료! (LotID=`{la['lot_id']}` | 총 {tot_qt}박스 ➔ A:{a_v}, B:{b_v}, C:{c_v}, 결점:{def_v} | 시각: {la['apc_rt']})")
                 q_cols = st.columns(3)
                 for idx_c, q_item in enumerate(la["qrs"]):
                     with q_cols[idx_c]:
@@ -1136,11 +1179,11 @@ if not fm_id:
         # [모듈 3] 소비자 안심 이력 바로 조회
         else:
             st.subheader("🔍 소비자 안심 이력 조회")
-            q_lot = st.text_input("조회할 16자리 LotID 또는 기존 FmID", value="85")
+            q_lot = st.text_input("조회할 17자리 LotID 또는 기존 LotID/FmID", value="85")
             q_grade = st.selectbox("조회할 등급", ["상", "중", "하"])
             if st.button("🍏 해당 과일 안심 이력 열기", use_container_width=True, type="primary"):
                 q_val = q_lot.strip()
-                if is_v3_lot_id(q_val):
+                if is_modern_lot_id(q_val):
                     st.query_params["LotID"] = q_val
                 else:
                     st.query_params["FmID"] = q_val
@@ -1249,8 +1292,9 @@ try:
 
     if lot_master:
         resolved_lot_id = lot_master["lot_id"]
-        resolved_farmer_code = lot_master.get("farmer_code") or (resolved_lot_id[5:7] if is_v3_lot_id(resolved_lot_id) else resolved_lot_id)
-        resolved_crop_code = lot_master.get("crop_code") or (resolved_lot_id[7:10] if is_v3_lot_id(resolved_lot_id) else get_crop_code(lot_master.get("fruit_type"), lot_master.get("variety")))
+        parsed_res = parse_lot_id(resolved_lot_id)
+        resolved_farmer_code = lot_master.get("farmer_code") or (parsed_res["farmer_code"] if parsed_res else resolved_lot_id)
+        resolved_crop_code = lot_master.get("crop_code") or (parsed_res["crop_code"] if parsed_res else get_crop_code(lot_master.get("fruit_type"), lot_master.get("variety")))
 
         # (2) APC 선별 결과(A / B / C / DEFECT) JOIN 조회
         cursor.execute(f"SELECT * FROM `{DB_NAME}`.`sorted_lots` WHERE lot_id = %s", (resolved_lot_id,))
@@ -1283,7 +1327,7 @@ try:
         # (4) 1구간, 2구간, 3구간 운송 궤적 정밀 JOIN 조회
         cursor.execute(f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 1 LIMIT 1", (resolved_lot_id,))
         sh_leg1 = cursor.fetchone()
-        if sh_leg1 and (sh_leg1.get("status") == "ARRIVED" or sh_leg1.get("run_id") or proto_ver == "v3"):
+        if sh_leg1 and (sh_leg1.get("status") == "ARRIVED" or sh_leg1.get("run_id") or proto_ver in ("v3", "v4")):
             leg1_sensor_pts = fetch_shipment_telemetry(cursor, sh_leg1)
 
         cursor.execute(f"SELECT * FROM `{DB_NAME}`.`shipments` WHERE lot_id = %s AND leg_no = 2 AND pkg_id = %s LIMIT 1", (resolved_lot_id, effective_pkg_id))
@@ -1317,7 +1361,8 @@ try:
                 else:
                     ev_time_str = raw_ev_str
             else:
-                ev_time_str = raw_ev_str[:10] if (st_cd == "A00" and raw_ev_str.endswith("00:00:00")) else raw_ev_str
+                is_harvest_cd = (st_cd == "A01" if proto_ver == "v4" else st_cd == "A00")
+                ev_time_str = raw_ev_str[:10] if (is_harvest_cd and raw_ev_str.endswith("00:00:00")) else raw_ev_str
 
             rec_item = {
                 "Lo": st_cd,
@@ -1438,7 +1483,7 @@ with col_header_right:
     else:
         grade_idx = 0
         
-    if proto_ver == "v3":
+    if proto_ver in ("v3", "v4"):
         pkg_g_code = "B" if norm_grade == "중" else ("C" if norm_grade == "하" else "A")
         qr_url = f"https://coldchain-digitaltwin-platform-xg7e8qvdp9lkcupwdcmceh.streamlit.app/?LotID={resolved_lot_id}&FmID={resolved_farmer_code}&CC={resolved_crop_code}&grade={display_grade}&pkg_grade={pkg_g_code}&AC={latest.get('AC', '')}&FrT={latest.get('FrT', '')}"
     else:
@@ -1479,8 +1524,8 @@ with tab1:
     st.markdown(f'<h2 style="text-align:center; font-weight:800; color:#1d1d1f; margin-bottom:5px; margin-top:10px;">{LANG_DICT[st.session_state.lang]["premium_fruit"].format(fruit_type_translated)}</h2>', unsafe_allow_html=True)
     st.markdown(f'<p style="text-align:center; font-size:1rem; color:#666; margin-bottom:25px;">{LANG_DICT[st.session_state.lang]["fruit_desc"].format(fruit_type_translated)}</p>', unsafe_allow_html=True)
 
-    # 해당 등급의 구체적인 수량 추출 (v3: B11 또는 레거시 v2: A12 선별 단계 참조)
-    a12_record = next((r for r in records if r.get("Lo") in ("B11", "A12")), None)
+    # 해당 등급의 구체적인 수량 추출 (v4: B02, v3: B11, v2: A12 선별 단계 참조)
+    a12_record = next((r for r in records if r.get("Lo") in ("B02", "B11", "A12")), None)
     grade_qty = None
     if a12_record:
         norm_grade = normalize_grade(raw_grade)
@@ -1531,10 +1576,17 @@ with tab1:
 
     # 농가 정보 (Farmer Info) 리디자인
     st.markdown(f"<h3 style='font-size:1.3rem; font-weight:700; margin-top:20px;'>{LANG_DICT[st.session_state.lang]['farmer_title']}</h3>", unsafe_allow_html=True)
-    farmer_id_display = resolved_lot_id if proto_ver == "v3" else latest.get("FmID", "미등록")
+    is_v4_proto = (proto_ver == "v4")
+    is_modern_proto = proto_ver in ("v3", "v4")
+    farmer_id_display = resolved_lot_id if is_modern_proto else latest.get("FmID", "미등록")
     if farmer_id_display == "미등록" or farmer_id_display == "Unregistered" or not farmer_id_display:
         farmer_id_display = LANG_DICT[st.session_state.lang]['no_qty']
-    farmer_id_lbl = ("16자리 고유코드 (LotID)" if st.session_state.lang == "KO" else "16-Digit Lot ID") if proto_ver == "v3" else LANG_DICT[st.session_state.lang]['farmer_id']
+    if is_v4_proto:
+        farmer_id_lbl = "17자리 고유코드 (LotID)" if st.session_state.lang == "KO" else "17-Digit Lot ID"
+    elif proto_ver == "v3":
+        farmer_id_lbl = "16자리 고유코드 (LotID)" if st.session_state.lang == "KO" else "16-Digit Lot ID"
+    else:
+        farmer_id_lbl = LANG_DICT[st.session_state.lang]['farmer_id']
     farmer_contact = mask_contact(latest.get("Ct", ""), st.session_state.lang)
     
     st.markdown(f"""
@@ -1570,44 +1622,64 @@ with tab1:
 with tab2:
     st.markdown(f"<h3 style='font-size:1.3rem; font-weight:700; margin-bottom:15px;'>{LANG_DICT[st.session_state.lang]['timeline_title']}</h3>", unsafe_allow_html=True)
     
-    # 단계 설정 (v3: A00~D10 분기 공정, v2 레거시: A00~A16 호환)
-    stage_names = {
-        "A00": (LANG_DICT[st.session_state.lang]["stage_A00_title"], LANG_DICT[st.session_state.lang]["stage_A00_desc"], "event_at"),
-        "A01": (LANG_DICT[st.session_state.lang]["stage_A01_title"], LANG_DICT[st.session_state.lang]["stage_A01_desc"], "event_at"),
-        "A02": (LANG_DICT[st.session_state.lang]["stage_A02_title"], LANG_DICT[st.session_state.lang]["stage_A02_desc"], "event_at"),
-        "B10": (LANG_DICT[st.session_state.lang]["stage_B10_title"], LANG_DICT[st.session_state.lang]["stage_B10_desc"], "event_at"),
-        "B12_PRE": (LANG_DICT[st.session_state.lang]["stage_B12_PRE_title"], LANG_DICT[st.session_state.lang]["stage_B12_PRE_desc"], "event_at"),
-        "B11": (LANG_DICT[st.session_state.lang]["stage_B11_title"], LANG_DICT[st.session_state.lang]["stage_B11_desc"], "event_at"),
-        "B12_POST": (LANG_DICT[st.session_state.lang]["stage_B12_POST_title"], LANG_DICT[st.session_state.lang]["stage_B12_POST_desc"], "event_at"),
-        "B13": (LANG_DICT[st.session_state.lang]["stage_B13_title"], LANG_DICT[st.session_state.lang]["stage_B13_desc"], "event_at"),
-        "C10": (LANG_DICT[st.session_state.lang]["stage_C10_title"], LANG_DICT[st.session_state.lang]["stage_C10_desc"], "event_at"),
-        "C11": (LANG_DICT[st.session_state.lang]["stage_C11_title"], LANG_DICT[st.session_state.lang]["stage_C11_desc"], "event_at"),
-        "D10": (LANG_DICT[st.session_state.lang]["stage_D10_title"], LANG_DICT[st.session_state.lang]["stage_D10_desc"], "event_at"),
-        "A10": (LANG_DICT[st.session_state.lang]["stage_A10_title"], LANG_DICT[st.session_state.lang]["stage_A10_desc"], "event_at"),
-        "A11": (LANG_DICT[st.session_state.lang]["stage_A11_title"], LANG_DICT[st.session_state.lang]["stage_A11_desc"], "event_at"),
-        "A12": (LANG_DICT[st.session_state.lang]["stage_A12_title"], LANG_DICT[st.session_state.lang]["stage_A12_desc"], "event_at"),
-        "A13": (LANG_DICT[st.session_state.lang]["stage_A13_title"], LANG_DICT[st.session_state.lang]["stage_A13_desc"], "event_at"),
-        "A14": (LANG_DICT[st.session_state.lang]["stage_A14_title"], LANG_DICT[st.session_state.lang]["stage_A14_desc"], "event_at"),
-        "A15": (LANG_DICT[st.session_state.lang]["stage_A15_title"], LANG_DICT[st.session_state.lang]["stage_A15_desc"], "event_at"),
-        "A16": (LANG_DICT[st.session_state.lang]["stage_A16_title"], LANG_DICT[st.session_state.lang]["stage_A16_desc"], "event_at")
-    }
+    # 단계 설정 (v4: A01~B05·C10~D10, v3: A00~D10, v2 레거시: A00~A16 호환)
+    L_st = LANG_DICT[st.session_state.lang]
+    if proto_ver == "v4":
+        stage_names = {
+            "A01": (L_st["v4_stage_A01_title"], L_st["v4_stage_A01_desc"], "event_at"),
+            "A02": (L_st["v4_stage_A02_title"], L_st["v4_stage_A02_desc"], "event_at"),
+            "A03": (L_st["v4_stage_A03_title"], L_st["v4_stage_A03_desc"], "event_at"),
+            "A04": (L_st["v4_stage_A04_title"], L_st["v4_stage_A04_desc"], "event_at"),
+            "B01": (L_st["v4_stage_B01_title"], L_st["v4_stage_B01_desc"], "event_at"),
+            "B02": (L_st["v4_stage_B02_title"], L_st["v4_stage_B02_desc"], "event_at"),
+            "B03": (L_st["v4_stage_B03_title"], L_st["v4_stage_B03_desc"], "event_at"),
+            "B04": (L_st["v4_stage_B04_title"], L_st["v4_stage_B04_desc"], "event_at"),
+            "B05": (L_st["v4_stage_B05_title"], L_st["v4_stage_B05_desc"], "event_at"),
+            "C10": (L_st["stage_C10_title"], L_st["stage_C10_desc"], "event_at"),
+            "C11": (L_st["stage_C11_title"], L_st["stage_C11_desc"], "event_at"),
+            "D10": (L_st["stage_D10_title"], L_st["stage_D10_desc"], "event_at"),
+        }
+        timeline_order = ["A01", "A02", "A03", "A04", "B01", "B02", "B03", "B04", "B05", "C10", "C11", "D10"]
+        optional_stages = {"A02", "A03", "B03", "B04"}
+        storage_stages = {"A02", "A03", "B03", "B04", "C10"}
+    else:
+        stage_names = {
+            "A00": (L_st["stage_A00_title"], L_st["stage_A00_desc"], "event_at"),
+            "A01": (L_st["stage_A01_title"], L_st["stage_A01_desc"], "event_at"),
+            "A02": (L_st["stage_A02_title"], L_st["stage_A02_desc"], "event_at"),
+            "B10": (L_st["stage_B10_title"], L_st["stage_B10_desc"], "event_at"),
+            "B12_PRE": (L_st["stage_B12_PRE_title"], L_st["stage_B12_PRE_desc"], "event_at"),
+            "B11": (L_st["stage_B11_title"], L_st["stage_B11_desc"], "event_at"),
+            "B12_POST": (L_st["stage_B12_POST_title"], L_st["stage_B12_POST_desc"], "event_at"),
+            "B13": (L_st["stage_B13_title"], L_st["stage_B13_desc"], "event_at"),
+            "C10": (L_st["stage_C10_title"], L_st["stage_C10_desc"], "event_at"),
+            "C11": (L_st["stage_C11_title"], L_st["stage_C11_desc"], "event_at"),
+            "D10": (L_st["stage_D10_title"], L_st["stage_D10_desc"], "event_at"),
+            "A10": (L_st["stage_A10_title"], L_st["stage_A10_desc"], "event_at"),
+            "A11": (L_st["stage_A11_title"], L_st["stage_A11_desc"], "event_at"),
+            "A12": (L_st["stage_A12_title"], L_st["stage_A12_desc"], "event_at"),
+            "A13": (L_st["stage_A13_title"], L_st["stage_A13_desc"], "event_at"),
+            "A14": (L_st["stage_A14_title"], L_st["stage_A14_desc"], "event_at"),
+            "A15": (L_st["stage_A15_title"], L_st["stage_A15_desc"], "event_at"),
+            "A16": (L_st["stage_A16_title"], L_st["stage_A16_desc"], "event_at"),
+        }
+        timeline_order = (
+            ["A00", "A01", "A02", "B10", "B12_PRE", "B11", "B12_POST", "B13", "C10", "C11", "D10"]
+            if proto_ver == "v3"
+            else ["A00", "A01", "A02", "A10", "A11", "A12", "A13", "A14", "A15", "A16"]
+        )
+        optional_stages = {"A01", "B12_PRE", "B12_POST"} if proto_ver == "v3" else set()
+        storage_stages = {"A01", "B12_PRE", "B12_POST", "C10", "A14"}
 
     completed_stages = {r.get("Lo"): r for r in records}
-    timeline_order = (
-        ["A00", "A01", "A02", "B10", "B12_PRE", "B11", "B12_POST", "B13", "C10", "C11", "D10"]
-        if proto_ver == "v3"
-        else ["A00", "A01", "A02", "A10", "A11", "A12", "A13", "A14", "A15", "A16"]
-    )
-    optional_v3 = {"A01", "B12_PRE", "B12_POST"}
-    storage_stages = {"A01", "B12_PRE", "B12_POST", "C10", "A14"}
     max_done_idx = max([i for i, c in enumerate(timeline_order) if c in completed_stages], default=-1)
 
     st.markdown('<div class="timeline-container">', unsafe_allow_html=True)
     for idx_t, code in enumerate(timeline_order):
-        if proto_ver == "v3" and code in optional_v3 and code not in completed_stages:
+        if code in optional_stages and code not in completed_stages:
             if idx_t < max_done_idx:
                 continue
-            if code == "B12_PRE" or (code == "B12_POST" and "B11" not in completed_stages):
+            if proto_ver == "v3" and (code == "B12_PRE" or (code == "B12_POST" and "B11" not in completed_stages)):
                 continue
         title, default_desc, time_col = stage_names[code]
         if code in completed_stages:
@@ -1711,10 +1783,15 @@ with tab3:
         origin_pt = origin_coords.get(ac_code)
 
     # 2) 단계별 체크포인트 테이블 데이터 구성 & APC 거점 / 도착점 좌표 추출
+    is_v4_map = (proto_ver == "v4")
+    is_modern_map = proto_ver in ("v3", "v4")
+    harvest_code_map = "A01" if is_v4_map else "A00"
+    harvest_title_map = L['v4_stage_A01_title'] if is_v4_map else L['stage_A00_title']
+
     map_data = []
     if origin_pt:
         map_data.append({
-            "단계": L['stage_A00_title'],
+            "단계": harvest_title_map,
             "latitude": origin_pt[0],
             "longitude": origin_pt[1],
             "시간": str(latest.get("HD", "") or "")
@@ -1729,17 +1806,17 @@ with tab3:
 
     for r in records:
         stage_code = r.get("Lo")
-        if stage_code == "A00":
+        if stage_code == harvest_code_map:
             continue
         c_pt = _valid_coord(r.get("Lat"), r.get("lon"))
         stage_name = stage_names.get(stage_code, (stage_code, "", ""))[0]
         time_col = stage_names.get(stage_code, ("", "", ""))[2]
         stage_time = str(r.get(time_col, "") or "")
 
-        if stage_code in ("A01", "A02"):
+        if stage_code in ("A01", "A02", "A03", "A04"):
             if c_pt and not origin_pt:
                 origin_pt = c_pt
-        elif stage_code in ("B10", "B11", "B12_PRE", "B12_POST", "B13", "A10", "A11", "A12", "A13", "A14", "A15"):
+        elif stage_code in ("B01", "B02", "B03", "B04", "B05", "B10", "B11", "B12_PRE", "B12_POST", "B13", "A10", "A11", "A12", "A13", "A14", "A15"):
             if stage_time:
                 last_apc_time = stage_time
             if c_pt:
@@ -1770,7 +1847,7 @@ with tab3:
             apc_hub_pt = (float(leg2_sensor_pts[0]["lat"]), float(leg2_sensor_pts[0]["lng"]))
 
     dist_hub_pt = dist_pts[-1] if dist_pts else None
-    if proto_ver == "v3" and not dist_hub_pt:
+    if is_modern_map and not dist_hub_pt:
         if leg2_sensor_pts:
             dist_hub_pt = (float(leg2_sensor_pts[-1]["lat"]), float(leg2_sensor_pts[-1]["lng"]))
         elif leg3_sensor_pts:
@@ -1792,7 +1869,7 @@ with tab3:
         if apc_hub_pt:
             leg1_path = leg1_path + [[apc_hub_pt[1], apc_hub_pt[0]]]
 
-    leg2_end_pt = (dist_hub_pt or retail_pt) if proto_ver == "v3" else retail_pt
+    leg2_end_pt = (dist_hub_pt or retail_pt) if is_modern_map else retail_pt
     leg2_path = [[float(p["lng"]), float(p["lat"])] for p in leg2_sensor_pts]
     if len(leg2_path) < 2 and apc_hub_pt and leg2_end_pt:
         leg2_path = [[apc_hub_pt[1], apc_hub_pt[0]], [leg2_end_pt[1], leg2_end_pt[0]]]
@@ -1803,7 +1880,7 @@ with tab3:
             leg2_path = leg2_path + [[leg2_end_pt[1], leg2_end_pt[0]]]
 
     leg3_path = []
-    if proto_ver == "v3":
+    if is_modern_map:
         leg3_start_pt = dist_hub_pt or apc_hub_pt
         leg3_path = [[float(p["lng"]), float(p["lat"])] for p in leg3_sensor_pts]
         if len(leg3_path) < 2 and leg3_start_pt and retail_pt:
@@ -1817,7 +1894,7 @@ with tab3:
     hub_markers = []
     if origin_pt:
         hub_markers.append({
-            "name": L['stage_A00_title'],
+            "name": harvest_title_map,
             "time": str(latest.get("HD", "") or "-"),
             "lat": origin_pt[0],
             "lng": origin_pt[1],
@@ -1825,15 +1902,16 @@ with tab3:
             "fill": [46, 204, 113, 230],
         })
     if apc_hub_pt:
+        apc_hub_name = L['route_apc_hub_v4'] if is_v4_map else (L['route_apc_hub'] if proto_ver == "v3" else L['route_apc_hub_legacy'])
         hub_markers.append({
-            "name": L['route_apc_hub'] if proto_ver == "v3" else L['route_apc_hub_legacy'],
+            "name": apc_hub_name,
             "time": last_apc_time or "-",
             "lat": apc_hub_pt[0],
             "lng": apc_hub_pt[1],
             "icon": "🏢",
             "fill": [243, 156, 18, 235],
         })
-    if proto_ver == "v3" and dist_hub_pt:
+    if is_modern_map and dist_hub_pt:
         hub_markers.append({
             "name": L['route_dist_hub'],
             "time": dist_time or "-",
@@ -1844,12 +1922,12 @@ with tab3:
         })
     if retail_pt:
         hub_markers.append({
-            "name": L['stage_D10_title'] if proto_ver == "v3" else L['stage_A16_title'],
+            "name": L['stage_D10_title'] if is_modern_map else L['stage_A16_title'],
             "time": retail_time or "-",
             "lat": retail_pt[0],
             "lng": retail_pt[1],
             "icon": "🏪",
-            "fill": [124, 58, 237, 235] if proto_ver == "v3" else [0, 122, 255, 235],
+            "fill": [124, 58, 237, 235] if is_modern_map else [0, 122, 255, 235],
         })
     elif leg3_sensor_pts or leg2_sensor_pts:
         last_live = leg3_sensor_pts[-1] if leg3_sensor_pts else leg2_sensor_pts[-1]
@@ -1896,13 +1974,13 @@ with tab3:
         """, unsafe_allow_html=True)
 
     if all_coords:
-        leg2_lbl = L['route_leg2'] if proto_ver == "v3" else L['route_leg2_legacy']
+        leg2_lbl = L['route_leg2'] if is_modern_map else L['route_leg2_legacy']
         leg3_badge_html = (
             f"""<span style="display:inline-flex; align-items:center; gap:6px;">
                 <span style="width:18px; height:4px; background:#7c3aed; border-radius:2px; display:inline-block;"></span>
                 {L['route_leg3']}
             </span>"""
-            if proto_ver == "v3"
+            if is_modern_map
             else ""
         )
         st.markdown(f"""

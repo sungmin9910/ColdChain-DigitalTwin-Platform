@@ -15,7 +15,7 @@ import sys
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
-from cloud_backend.supply_chain_spec import get_crop_code, is_v3_lot_id
+from cloud_backend.supply_chain_spec import get_crop_code, is_v3_lot_id, is_v4_lot_id, is_modern_lot_id
 
 # --- [추가] 보안을 위한 dotenv 환경 변수 로드 ---
 from dotenv import load_dotenv
@@ -77,7 +77,7 @@ def save_to_blockchain(data_hash, metadata):
 # --- GUI 설정 ---
 root = tk.Tk()
 style = Style("flatly")
-root.title("B11 APC 선별 및 유색 QR 자동 발급 (16자리 LotID / PC 관리자용)")
+root.title("B02 APC 선별 및 유색 QR 자동 발급 (17자리 LotID / PC 관리자용)")
 root.geometry("1100x1200")
 
 prev_data = {}
@@ -86,7 +86,7 @@ prev_data = {}
 for r in range(7): root.grid_rowconfigure(r, weight=1)
 for c in range(2): root.grid_columnconfigure(c, weight=1)
 
-scan_label = ttk.Label(root, text="B11 APC 선별 및 등급별 유색 QR 변경", font=("나눔고딕", 24, "bold"))
+scan_label = ttk.Label(root, text="B02 APC 선별 및 등급별 유색 QR 변경", font=("나눔고딕", 24, "bold"))
 scan_label.grid(row=0, column=0, columnspan=2, pady=10)
 
 # UX 개선: 스캔을 위한 명시적인 입력창 (포커스 분실 방지)
@@ -158,16 +158,16 @@ def handle_qr_data(event=None):
             lot_id = parsed_url.path.split('/')[-1] if '/' in qr_data else qr_data
 
         if not lot_id or lot_id == "":
-            status_label.config(text="QR에서 16자리 LotID/FmID를 찾을 수 없음", foreground="red"); return
+            status_label.config(text="QR에서 17자리 LotID/FmID를 찾을 수 없음", foreground="red"); return
 
         conn = get_db_connection()
         try:
             cursor = conn.cursor(pymysql.cursors.DictCursor)
-            # v3: B10(APC 입고) 또는 B12(선별 전 APC 창고) 허용 + 레거시 A11 호환
+            # v4: B01(APC 입고) 허용 + 레거시 v3(B10/B12) & v2(A11) 호환
             cursor.execute(
                 f"SELECT * FROM {TABLE_NAME} "
                 f"WHERE (LotID=%s OR (LotID IS NULL AND FmID=%s)) "
-                f"AND Lo IN ('B12', 'B10', 'A11') AND (pkg_grade IS NULL OR pkg_grade = '') "
+                f"AND Lo IN ('B01', 'B12', 'B10', 'A11') AND (pkg_grade IS NULL OR pkg_grade = '') "
                 f"ORDER BY id DESC LIMIT 1",
                 (lot_id, lot_id),
             )
@@ -176,7 +176,7 @@ def handle_qr_data(event=None):
             conn.close()
 
         if not row:
-            status_label.config(text="DB에서 APC 입고(B10) 또는 창고(B12) 데이터를 찾을 수 없음", foreground="red"); return
+            status_label.config(text="DB에서 APC 입고(B01) 데이터를 찾을 수 없음", foreground="red"); return
 
         prev_data = dict(row)
         display_lot = prev_data.get("LotID") or prev_data.get("FmID") or lot_id
@@ -247,8 +247,9 @@ def save_and_generate():
 
     try:
         lot_key = str(prev_data.get("LotID") or prev_data.get("FmID") or "").strip()
-        is_legacy = (prev_data.get("Lo") == "A11" and not is_v3_lot_id(lot_key))
-        sort_stage = "A12" if is_legacy else "B11"
+        is_v4 = (is_v4_lot_id(lot_key) or prev_data.get("Lo") == "B01")
+        is_legacy = (not is_v4 and prev_data.get("Lo") == "A11" and not is_modern_lot_id(lot_key))
+        sort_stage = "B02" if is_v4 else ("A12" if is_legacy else "B11")
 
         data_dict = prev_data.copy()
         data_dict.update({

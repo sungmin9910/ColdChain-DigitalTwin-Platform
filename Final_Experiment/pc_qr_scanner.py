@@ -8,7 +8,7 @@ import pymysql
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
-from cloud_backend.supply_chain_spec import is_v3_lot_id
+from cloud_backend.supply_chain_spec import parse_lot_id
 
 # ANSI 색상 코드 정의
 COLOR_GREEN = "\033[92m"
@@ -26,12 +26,14 @@ DB_NAME = "lab225"
 DB_PORT = 3306
 
 MODES = {
-    "AUTO": "🤖 AUTO (지능형 자동 판단 — 무색: A01→A02→B10→B12 / 유색: B12→B13→C10→C11→D10)",
-    "A01": "A01 - 농가 창고 보관 (선택 · 무색 QR)",
-    "A02": "A02 - 농가 출하 (1구간 출발 · 무색 QR)",
-    "B10": "B10 - APC 입고 (1구간 도착 · 무색 QR)",
-    "B12": "B12 - APC 창고 (선별 전 무색 QR / 선별 후 유색 QR)",
-    "B13": "B13 - APC 출하 (2구간 출발 · 유색 QR · 창고 생략 직행 가능)",
+    "AUTO": "🤖 AUTO (지능형 자동 판단 — 무색: A02→A03→A04→B01 / 유색: B03→B04→B05→C10→C11→D10)",
+    "A02": "A02 - 농가 저장고 들어감 (선택 · 무색 QR)",
+    "A03": "A03 - 농가 저장고 나옴 (선택 · 무색 QR)",
+    "A04": "A04 - 농가 출하 / APC로 출발 (1구간 출발 · 무색 QR)",
+    "B01": "B01 - APC 입고 (1구간 도착 · 무색 QR)",
+    "B03": "B03 - APC 저장고 들어감 (선택 · 유색 QR)",
+    "B04": "B04 - APC 저장고 나옴 (선택 · 유색 QR)",
+    "B05": "B05 - APC 출하 (2구간 출발 · 유색 QR · 저장고 생략 직행 가능)",
     "C10": "C10 - 유통 창고 저장 (2구간 도착 · 유색 QR)",
     "C11": "C11 - 유통 출하 / 판매처 출발 (3구간 출발 · 유색 QR)",
     "D10": "D10 - 판매처 도착 (3구간 도착 · 유색 QR)",
@@ -40,14 +42,16 @@ MODES = {
 MODE_KEYS = {
     "a": "AUTO",
     "A": "AUTO",
-    "1": "A01",
-    "2": "A02",
-    "3": "B10",
-    "4": "B12",
-    "5": "B13",
-    "6": "C10",
-    "7": "C11",
-    "8": "D10",
+    "1": "A02",
+    "2": "A03",
+    "3": "A04",
+    "4": "B01",
+    "5": "B03",
+    "6": "B04",
+    "7": "B05",
+    "8": "C10",
+    "9": "C11",
+    "0": "D10",
 }
 
 current_mode = "AUTO"
@@ -59,18 +63,18 @@ def clear_console():
 
 def print_header():
     clear_console()
-    print("=" * 72)
-    print(f" {COLOR_CYAN}🚚 콜드체인 PC QR 스캐너 v3 (16자리 LotID / A00~D10 분기 지원) {COLOR_RESET}")
-    print("=" * 72)
+    print("=" * 76)
+    print(f" {COLOR_CYAN}🚚 콜드체인 PC QR 스캐너 v4 (17자리 LotID · 3자리 FmID / A01~B05·C10~D10) {COLOR_RESET}")
+    print("=" * 76)
     print(f" DB Host     : {COLOR_BLUE}{DB_HOST}:{DB_PORT} ({DB_NAME}){COLOR_RESET}")
     print(f" 현재 단계   : {COLOR_YELLOW}★ {MODES[current_mode]} ★{COLOR_RESET}")
-    print("-" * 72)
+    print("-" * 76)
     print(" [조작 가이드]")
     print("  - 키 입력 + Enter: 스캔 단계 전환")
-    print("    (A: AUTO | 1: A01 농가창고 | 2: A02 농가출하 | 3: B10 APC입고)")
-    print("    (4: B12 APC창고 | 5: B13 APC출하 | 6: C10 유통창고 | 7: C11 유통출하 | 8: D10 판매처)")
-    print("  - QR URL 또는 'MODE:A02' 특수 QR을 스캔/입력하세요. 종료: Ctrl+C")
-    print("=" * 72)
+    print("    (A: AUTO | 1: A02 농가저장입고 | 2: A03 농가저장출고 | 3: A04 농가출하 | 4: B01 APC입고)")
+    print("    (5: B03 APC저장입고 | 6: B04 APC저장출고 | 7: B05 APC출하 | 8: C10 유통창고 | 9: C11 유통출하 | 0: D10 판매처)")
+    print("  - QR URL 또는 'MODE:A04' 특수 QR을 스캔/입력하세요. 종료: Ctrl+C")
+    print("=" * 76)
     print()
 
 
@@ -185,13 +189,14 @@ def process_scan(scanned_data):
     clean_ac = get_raw_param(scanned_data, "AC")
     clean_fm = get_raw_param(scanned_data, "FmID")
     clean_cc = get_raw_param(scanned_data, "CC")
-    if is_v3_lot_id(clean_lot):
+    parsed_lot = parse_lot_id(clean_lot)
+    if parsed_lot:
         if not clean_ac:
-            clean_ac = clean_lot[0:5]
+            clean_ac = parsed_lot["area_code"]
         if not clean_fm:
-            clean_fm = clean_lot[5:7]
+            clean_fm = parsed_lot["farmer_code"]
         if not clean_cc:
-            clean_cc = clean_lot[7:10]
+            clean_cc = parsed_lot["crop_code"]
     elif not clean_fm:
         clean_fm = clean_lot
 
@@ -231,7 +236,7 @@ def process_scan(scanned_data):
                 if scanned_grade:
                     cur.execute(
                         f"SELECT Lo FROM lab225.qr WHERE {lot_where_plain} "
-                        f"AND Lo IN ('B12','B13','C10','C11','D10') AND pkg_grade = '{scanned_grade}' "
+                        f"AND Lo IN ('B03','B04','B05','C10','C11','D10') AND pkg_grade = '{scanned_grade}' "
                         f"ORDER BY id DESC LIMIT 1"
                     )
                     r = cur.fetchone()
@@ -240,18 +245,20 @@ def process_scan(scanned_data):
                     if last_lo == "NONE":
                         cur.execute(
                             f"SELECT Lo FROM lab225.qr WHERE {lot_where_plain} "
-                            f"AND Lo IN ('B10','B11','B12') AND (pkg_grade IS NULL OR pkg_grade = '') "
+                            f"AND Lo IN ('B01','B02') AND (pkg_grade IS NULL OR pkg_grade = '') "
                             f"ORDER BY id DESC LIMIT 1"
                         )
                         r2 = cur.fetchone()
                         if r2 and r2[0]:
                             last_lo = str(r2[0]).strip().upper()
 
-                    if last_lo in ("NONE", "B11", "B10"):
-                        target_mode = "B12"
-                    elif last_lo == "B12":
-                        target_mode = "B13"
-                    elif last_lo == "B13":
+                    if last_lo in ("NONE", "B02", "B01"):
+                        target_mode = "B03"
+                    elif last_lo == "B03":
+                        target_mode = "B04"
+                    elif last_lo == "B04":
+                        target_mode = "B05"
+                    elif last_lo == "B05":
                         target_mode = "C10"
                     elif last_lo == "C10":
                         target_mode = "C11"
@@ -269,19 +276,19 @@ def process_scan(scanned_data):
                     if r and r[0]:
                         last_lo = str(r[0]).strip().upper()
 
-                    if last_lo in ("NONE", "A00"):
-                        target_mode = "A01"
-                    elif last_lo == "A01":
+                    if last_lo in ("NONE", "A01"):
                         target_mode = "A02"
                     elif last_lo == "A02":
-                        target_mode = "B10"
-                    elif last_lo == "B10":
-                        target_mode = "B12"
-                    elif last_lo == "B12":
-                        print(f"{COLOR_YELLOW}[!] 선별 전 APC 창고(B12) 보관 중입니다. 포털에서 B11 선별 후 유색 QR을 스캔하세요.{COLOR_RESET}\n")
+                        target_mode = "A03"
+                    elif last_lo == "A03":
+                        target_mode = "A04"
+                    elif last_lo == "A04":
+                        target_mode = "B01"
+                    elif last_lo == "B01":
+                        print(f"{COLOR_YELLOW}[!] APC 입고(B01) 완료 상태입니다. 포털에서 B02 선별 후 유색 QR을 스캔하세요.{COLOR_RESET}\n")
                         return
                     else:
-                        print(f"{COLOR_YELLOW}[!] 이미 선별(B11) 이후 단계입니다. 유색 QR을 스캔하세요.{COLOR_RESET}\n")
+                        print(f"{COLOR_YELLOW}[!] 이미 선별(B02) 이후 단계입니다. 유색 QR을 스캔하세요.{COLOR_RESET}\n")
                         return
                 print(f"[*] 🎯 [AUTO 판단] 최근={last_lo} -> 다음 단계: {COLOR_GREEN}★ {target_mode} ★{COLOR_RESET}")
 
@@ -291,79 +298,91 @@ def process_scan(scanned_data):
             eff_grade_sql = f"'{scanned_grade}'" if scanned_grade else "'A'"
             query = ""
 
-            if target_mode == "A01":
+            if target_mode == "A02":
                 if base_exists:
                     query = (
                         f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Tp, Hm, Lat, lon, truck_device) "
-                        f"SELECT 'A01', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, NOW(), {tp}, {hm}, {lat}, {lon}, COALESCE({dev}, Q.truck_device) "
-                        f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo = 'A00' ORDER BY Q.id DESC LIMIT 1"
+                        f"SELECT 'A02', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, NOW(), {tp}, {hm}, {lat}, {lon}, COALESCE({dev}, Q.truck_device) "
+                        f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo = 'A01' ORDER BY Q.id DESC LIMIT 1"
                     )
                 else:
                     query = (
                         f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Tp, Hm, Lat, lon, truck_device) "
-                        f"VALUES ('A01', {sql_ac}, {sql_fm}, {sql_lot}, {sql_cc}, {frt}, {vt}, {ct}, {hd}, {dd}, {qt}, {mt}, {hn}, {std}, NOW(), {tp}, {hm}, {lat}, {lon}, {dev})"
+                        f"VALUES ('A02', {sql_ac}, {sql_fm}, {sql_lot}, {sql_cc}, {frt}, {vt}, {ct}, {hd}, {dd}, {qt}, {mt}, {hn}, {std}, NOW(), {tp}, {hm}, {lat}, {lon}, {dev})"
                     )
-            elif target_mode == "A02":
+            elif target_mode == "A03":
                 if base_exists:
                     query = (
-                        f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, Tp, Hm, Lat, lon, truck_device) "
-                        f"SELECT 'A02', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, NOW(), Q.Tp, Q.Hm, {lat}, {lon}, COALESCE({dev}, Q.truck_device) "
-                        f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo IN ('A01','A00') ORDER BY Q.id DESC LIMIT 1"
+                        f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Tp, Hm, Lat, lon, truck_device) "
+                        f"SELECT 'A03', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, NOW(), {tp}, {hm}, {lat}, {lon}, COALESCE({dev}, Q.truck_device) "
+                        f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo IN ('A02','A01') ORDER BY Q.id DESC LIMIT 1"
+                    )
+                else:
+                    query = (
+                        f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StOut, Tp, Hm, Lat, lon, truck_device) "
+                        f"VALUES ('A03', {sql_ac}, {sql_fm}, {sql_lot}, {sql_cc}, {frt}, {vt}, {ct}, {hd}, {dd}, {qt}, {mt}, {hn}, {std}, NOW(), {tp}, {hm}, {lat}, {lon}, {dev})"
+                    )
+            elif target_mode == "A04":
+                if base_exists:
+                    query = (
+                        f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, Tp, Hm, Lat, lon, truck_device) "
+                        f"SELECT 'A04', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, NOW(), Q.Tp, Q.Hm, {lat}, {lon}, COALESCE({dev}, Q.truck_device) "
+                        f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo IN ('A03','A02','A01') ORDER BY Q.id DESC LIMIT 1"
                     )
                 else:
                     query = (
                         f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_DD, Lat, lon, truck_device) "
-                        f"VALUES ('A02', {sql_ac}, {sql_fm}, {sql_lot}, {sql_cc}, {frt}, {vt}, {ct}, {hd}, {dd}, {qt}, {mt}, {hn}, {std}, NOW(), {lat}, {lon}, {dev})"
+                        f"VALUES ('A04', {sql_ac}, {sql_fm}, {sql_lot}, {sql_cc}, {frt}, {vt}, {ct}, {hd}, {dd}, {qt}, {mt}, {hn}, {std}, NOW(), {lat}, {lon}, {dev})"
                     )
-            elif target_mode == "B10":
+            elif target_mode == "B01":
                 if base_exists:
                     query = (
-                        f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, Lat, lon, truck_device) "
-                        f"SELECT 'B10', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, NOW(), {lat}, {lon}, COALESCE(Q.truck_device, {dev}) "
-                        f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo IN ('A02','A01','A00') ORDER BY Q.id DESC LIMIT 1"
+                        f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, Lat, lon, truck_device) "
+                        f"SELECT 'B01', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, NOW(), {lat}, {lon}, COALESCE(Q.truck_device, {dev}) "
+                        f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo IN ('A04','A03','A02','A01') ORDER BY Q.id DESC LIMIT 1"
                     )
                 else:
                     query = (
                         f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, APC_AD, Lat, lon, truck_device) "
-                        f"VALUES ('B10', {sql_ac}, {sql_fm}, {sql_lot}, {sql_cc}, {frt}, {vt}, {ct}, {hd}, {dd}, {qt}, {mt}, {hn}, {std}, NOW(), {lat}, {lon}, {dev})"
+                        f"VALUES ('B01', {sql_ac}, {sql_fm}, {sql_lot}, {sql_cc}, {frt}, {vt}, {ct}, {hd}, {dd}, {qt}, {mt}, {hn}, {std}, NOW(), {lat}, {lon}, {dev})"
                     )
-            elif target_mode == "B12":
-                if not scanned_grade:
-                    query = (
-                        f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_StD, Tp, Hm, Lat, lon, truck_device, pkg_grade) "
-                        f"SELECT 'B12', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, NOW(), {tp}, {hm}, {lat}, {lon}, COALESCE({dev}, Q.truck_device), NULL "
-                        f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo = 'B10' ORDER BY Q.id DESC LIMIT 1"
-                    )
-                else:
-                    query = (
-                        f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_RT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) "
-                        f"SELECT 'B12', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, Q.APC_RT, NOW(), {tp}, {hm}, {lat}, {lon}, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE({dev}, Q.truck_device), {eff_grade_sql} "
-                        f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo = 'B11' ORDER BY Q.id DESC LIMIT 1"
-                    )
-            elif target_mode == "B13":
+            elif target_mode == "B03":
                 query = (
-                    f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_RT, APC_StD, APC_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) "
-                    f"SELECT 'B13', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, NOW(), Q.Tp, Q.Hm, {lat}, {lon}, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE({dev}, Q.truck_device), {eff_grade_sql} "
-                    f"FROM lab225.qr Q WHERE {lot_where} AND ((Q.Lo = 'B12' AND Q.pkg_grade = {eff_grade_sql}) OR Q.Lo = 'B11') "
-                    f"ORDER BY CASE WHEN Q.Lo = 'B12' AND Q.pkg_grade = {eff_grade_sql} THEN 0 ELSE 1 END, Q.id DESC LIMIT 1"
+                    f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) "
+                    f"SELECT 'B03', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, NOW(), {tp}, {hm}, {lat}, {lon}, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE({dev}, Q.truck_device), {eff_grade_sql} "
+                    f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo = 'B02' ORDER BY Q.id DESC LIMIT 1"
+                )
+            elif target_mode == "B04":
+                query = (
+                    f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, APC_StOut, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) "
+                    f"SELECT 'B04', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, NOW(), {tp}, {hm}, {lat}, {lon}, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE({dev}, Q.truck_device), {eff_grade_sql} "
+                    f"FROM lab225.qr Q WHERE {lot_where} AND ((Q.Lo = 'B03' AND Q.pkg_grade = {eff_grade_sql}) OR Q.Lo = 'B02') "
+                    f"ORDER BY CASE WHEN Q.Lo = 'B03' AND Q.pkg_grade = {eff_grade_sql} THEN 0 ELSE 1 END, Q.id DESC LIMIT 1"
+                )
+            elif target_mode == "B05":
+                query = (
+                    f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, APC_StOut, APC_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) "
+                    f"SELECT 'B05', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_StOut, NOW(), Q.Tp, Q.Hm, {lat}, {lon}, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE({dev}, Q.truck_device), {eff_grade_sql} "
+                    f"FROM lab225.qr Q WHERE {lot_where} AND ((Q.Lo IN ('B04','B03') AND Q.pkg_grade = {eff_grade_sql}) OR Q.Lo = 'B02') "
+                    f"ORDER BY CASE WHEN Q.Lo = 'B04' AND Q.pkg_grade = {eff_grade_sql} THEN 0 WHEN Q.Lo = 'B03' AND Q.pkg_grade = {eff_grade_sql} THEN 1 ELSE 2 END, Q.id DESC LIMIT 1"
                 )
             elif target_mode == "C10":
                 query = (
-                    f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_RT, APC_StD, APC_OP, Dist_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) "
-                    f"SELECT 'C10', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_OP, NOW(), {tp}, {hm}, {lat}, {lon}, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, {dev}), {eff_grade_sql} "
-                    f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo = 'B13' AND COALESCE(Q.pkg_grade, 'A') = {eff_grade_sql} ORDER BY Q.id DESC LIMIT 1"
+                    f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, APC_StOut, APC_OP, Dist_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) "
+                    f"SELECT 'C10', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_StOut, Q.APC_OP, NOW(), {tp}, {hm}, {lat}, {lon}, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, {dev}), {eff_grade_sql} "
+                    f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo IN ('B05','B13') AND COALESCE(Q.pkg_grade, 'A') = {eff_grade_sql} ORDER BY Q.id DESC LIMIT 1"
                 )
             elif target_mode == "C11":
                 query = (
-                    f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_RT, APC_StD, APC_OP, Dist_StD, Dist_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) "
-                    f"SELECT 'C11', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_OP, Q.Dist_StD, NOW(), Q.Tp, Q.Hm, {lat}, {lon}, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE({dev}, Q.truck_device), {eff_grade_sql} "
-                    f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo IN ('C10','B13') AND COALESCE(Q.pkg_grade, 'A') = {eff_grade_sql} ORDER BY Q.id DESC LIMIT 1"
+                    f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, APC_StOut, APC_OP, Dist_StD, Dist_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) "
+                    f"SELECT 'C11', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_StOut, Q.APC_OP, Q.Dist_StD, NOW(), Q.Tp, Q.Hm, {lat}, {lon}, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE({dev}, Q.truck_device), {eff_grade_sql} "
+                    f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo IN ('C10','B05','B13') AND COALESCE(Q.pkg_grade, 'A') = {eff_grade_sql} ORDER BY Q.id DESC LIMIT 1"
                 )
             elif target_mode == "D10":
                 query = (
-                    f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_RT, APC_StD, APC_OP, Dist_StD, Dist_OP, Retail_AD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) "
-                    f"SELECT 'D10', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_OP, Q.Dist_StD, Q.Dist_OP, NOW(), Q.Tp, Q.Hm, {lat}, {lon}, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, {dev}), {eff_grade_sql} "
-                    f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo IN ('C11','C10','B13') AND COALESCE(Q.pkg_grade, 'A') = {eff_grade_sql} ORDER BY Q.id DESC LIMIT 1"
+                    f"INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, APC_StOut, APC_OP, Dist_StD, Dist_OP, Retail_AD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) "
+                    f"SELECT 'D10', Q.AC, Q.FmID, {sql_lot}, COALESCE(Q.CropCode, {sql_cc}), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_StOut, Q.APC_OP, Q.Dist_StD, Q.Dist_OP, NOW(), Q.Tp, Q.Hm, {lat}, {lon}, Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, {dev}), {eff_grade_sql} "
+                    f"FROM lab225.qr Q WHERE {lot_where} AND Q.Lo IN ('C11','C10','B05','B13') AND COALESCE(Q.pkg_grade, 'A') = {eff_grade_sql} ORDER BY Q.id DESC LIMIT 1"
                 )
 
             affected = cur.execute(query)
@@ -393,7 +412,7 @@ def main():
 
     while True:
         try:
-            prompt = f"{COLOR_BLUE}[{current_mode}]{COLOR_RESET} 스캔 대기 중 (또는 A, 1~8 입력): "
+            prompt = f"{COLOR_BLUE}[{current_mode}]{COLOR_RESET} 스캔 대기 중 (또는 A, 0~9 입력): "
             user_input = input(prompt).strip()
             if not user_input:
                 continue

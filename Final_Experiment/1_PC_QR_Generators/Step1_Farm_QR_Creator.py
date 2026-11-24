@@ -20,8 +20,8 @@ if PROJECT_ROOT not in sys.path:
 from cloud_backend.supply_chain_spec import (
     get_crop_code,
     normalize_area_code,
-    normalize_fmid_2digit,
-    build_lot_id_16,
+    normalize_fmid_3digit,
+    build_lot_id_17,
 )
 
 # --- [추가] 무결성 검증을 위한 라이브러리 ---
@@ -109,9 +109,9 @@ def get_selected_deliver_date(): return deliver_date_picker.get_date()
 def get_selected_storage_date(): return storage_date_picker.get_date()
 
 def generate_filename(area_code, farmer_id, harvest_date, fruit_type="Apples", variety=""):
-    return build_lot_id_16(area_code, farmer_id, fruit_type, variety, harvest_date)
+    return build_lot_id_17(area_code, farmer_id, fruit_type, variety, harvest_date)
 
-# QR 코드 생성 함수 (v3 16자리 LotID + aT 3자리 작물코드 지원)
+# QR 코드 생성 함수 (v4 17자리 LotID + 3자리 FmID + aT 3자리 작물코드 지원)
 def generate_qr_code(data, filename):
     key_map = {
         "Lot ID": "LotID", "Area Code": "AC", "Farmer ID": "FmID", "Crop Code": "CC",
@@ -190,17 +190,17 @@ def save_all_formats():
         status_label_main_section.config(text="Please fill all required fields!", foreground="red")
         return
 
-    # 3. 16자리 LotID 및 aT 3자리 작물코드 생성 (AreaCode5 + FmID2 + CropCode3 + YYMMDD6)
+    # 3. 17자리 LotID 및 aT 3자리 작물코드 생성 (AreaCode5 + FmID3 + CropCode3 + YYMMDD6)
     ac5 = normalize_area_code(area_code)
-    fm2 = normalize_fmid_2digit(farmer_id)
+    fm3 = normalize_fmid_3digit(farmer_id)
     cc3 = get_crop_code(fruit_type, variety)
-    lot_id_16 = build_lot_id_16(ac5, fm2, fruit_type, variety, harvest_date, crop_code=cc3)
+    lot_id_17 = build_lot_id_17(ac5, fm3, fruit_type, variety, harvest_date, crop_code=cc3)
 
     now = datetime.datetime.now()
     harvest_datetime = datetime.datetime.combine(harvest_date, now.time()).strftime('%Y-%m-%d %H:%M:%S')
     
     data = {
-        "Lot ID": lot_id_16, "Area Code": ac5, "Farmer ID": fm2, "Crop Code": cc3,
+        "Lot ID": lot_id_17, "Area Code": ac5, "Farmer ID": fm3, "Crop Code": cc3,
         "Contact Info": contact_info, "Fruit Type": fruit_type, "Variety": variety,
         "Harvest Date": harvest_date.strftime('%Y-%m-%d'),
         "Deliver Date": deliver_date.strftime('%Y-%m-%d'), "Storage Date": storage_date.strftime('%Y-%m-%d'),
@@ -210,7 +210,7 @@ def save_all_formats():
     
     # --- [핵심] 무결성 보안 처리 구간 ---
     integrity_hash = calculate_hash(data)
-    save_to_blockchain(integrity_hash, {"LotID": lot_id_16, "FarmerID": fm2, "CropCode": cc3, "Date": data["Harvest Date"]})
+    save_to_blockchain(integrity_hash, {"LotID": lot_id_17, "FarmerID": fm3, "CropCode": cc3, "Date": data["Harvest Date"]})
     current_data_cache = data.copy()
 
     try:
@@ -222,7 +222,7 @@ def save_all_formats():
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         db_data = (
-            "A00", ac5, fm2, lot_id_16, cc3, fruit_type, variety, contact_info,
+            "A01", ac5, fm3, lot_id_17, cc3, fruit_type, variety, contact_info,
             harvest_datetime, deliver_date.strftime('%Y-%m-%d'),
             quantity, farming_method, harvesting_number, 
             storage_date.strftime('%Y-%m-%d'), ag_practice or None
@@ -234,12 +234,12 @@ def save_all_formats():
         db_connection.close()
         
         status_label_main_section.config(
-            text=f"✅ A00 저장 완료 (LotID: {lot_id_16} / CC: {cc3})", 
+            text=f"✅ A01 저장 완료 (LotID: {lot_id_17} / FmID: {fm3} / CC: {cc3})", 
             foreground="green"
         )
         
-        generate_qr_code(data, lot_id_16)
-        messagebox.showinfo("성공", f"A00 데이터가 저장되었습니다.\n16자리 LotID: {lot_id_16}\n작물코드: {cc3}\n(다음: QR 스캐너로 A01 창고 또는 A02 출하 스캔)")
+        generate_qr_code(data, lot_id_17)
+        messagebox.showinfo("성공", f"A01(농가 수확) 데이터가 저장되었습니다.\n17자리 LotID: {lot_id_17}\n농가번호(FmID): {fm3} / 작물코드: {cc3}\n(다음: QR 스캐너로 A02 저장고 입고 또는 A04 농가 출하 스캔)")
         
     except mysql.connector.Error as err:
         status_label_main_section.config(text=f"Database error: {err}", foreground="red")
@@ -283,7 +283,7 @@ def verify_data():
 
 
 # --- Validator Functions ---
-def on_farmer_id_validate(char, entry_content): return char.isdigit() and len(entry_content) < 3
+def on_farmer_id_validate(char, entry_content): return (char.isdigit() or char == "") and len(entry_content) <= 3
 def validate_contact_info(char, current_text): return char.isdigit() or char == ""
 def validate_numeric_input(char, current_text): return char.isdigit() or char == ""
 
@@ -300,7 +300,7 @@ def on_fruit_type_change(event):
 
 # --- GUI Setup ---
 root = tk.Tk()
-root.title("A00 Farm Data Collection (with Integrity Layer)")
+root.title("A01 Farm Data Collection (17-Digit LotID / 3-Digit FmID)")
 root.geometry("1120x880")
 root.configure(bg="#f3f4f6")
 root.resizable(True, True)

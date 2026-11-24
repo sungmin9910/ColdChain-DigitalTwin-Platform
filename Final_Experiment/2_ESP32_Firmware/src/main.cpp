@@ -41,11 +41,11 @@ WiFiMulti wifiMulti;
 WebServer server(80); // 80번 포트에 웹서버 생성
 
 // ==========================================
-// 공급망 v3 단계 및 모드 설정 (A00 ~ D10 분기 지원)
+// 공급망 v4 단계 및 모드 설정 (17자리 LotID · 3자리 FmID / A01~B05·C10~D10)
 // ==========================================
 bool isAutoMode = true;
-String manualMode = "A01";
-const char* MANUAL_MODES[] = {"A01", "A02", "B10", "B12", "B13", "C10", "C11", "D10"};
+String manualMode = "A02";
+const char* MANUAL_MODES[] = {"A02", "A03", "A04", "B01", "B03", "B04", "B05", "C10", "C11", "D10"};
 const int NUM_MANUAL_MODES = sizeof(MANUAL_MODES) / sizeof(MANUAL_MODES[0]);
 
 // ==========================================
@@ -62,11 +62,13 @@ unsigned long last_total_latency = 0;  // 최근 측정된 Total Latency (ms)
 unsigned long scan_counter = 0;        // 총 스캔 측정 횟수
 
 String getStageDescKo(String code) {
-  if (code == "A01") return "농가 창고 (선택)";
-  if (code == "A02") return "농가 출하 (1구간 출발)";
-  if (code == "B10") return "APC 입고 (1구간 도착)";
-  if (code == "B12") return "APC 창고 (선별 전/후)";
-  if (code == "B13") return "APC 출하 (2구간 출발)";
+  if (code == "A02") return "농가 저장고 들어감 (선택)";
+  if (code == "A03") return "농가 저장고 나옴 (선택)";
+  if (code == "A04") return "농가 출하 · APC 출발 (1구간)";
+  if (code == "B01") return "APC 입고 (1구간 도착)";
+  if (code == "B03") return "APC 저장고 들어감 (유색)";
+  if (code == "B04") return "APC 저장고 나옴 (유색)";
+  if (code == "B05") return "APC 출하 (2구간 출발)";
   if (code == "C10") return "유통 창고 저장 (2구간 도착)";
   if (code == "C11") return "유통 출하 (3구간 출발)";
   if (code == "D10") return "판매처 도착 (3구간 도착)";
@@ -80,15 +82,21 @@ bool isValidManualMode(String code) {
   return false;
 }
 
-// OLED용 16자리 LotID 축약 표시 (21자 제한 대응)
+// OLED용 17자리(v4) / 16자리(v3) LotID 축약 표시 (21자 제한 대응)
 String formatShortOledId(String labelId) {
   String s = labelId;
   s.replace("'", "");
   if (s.length() <= 16) return s;
-  // 예: 5563207411261122-A -> 07-411-261122-A
-  if (s.length() >= 16) {
-    String suffix = (s.length() > 16) ? s.substring(16) : "";
-    return s.substring(5, 7) + "-" + s.substring(7, 10) + "-" + s.substring(10, 16) + suffix;
+  int dashIdx = s.indexOf('-');
+  String base = (dashIdx > 0) ? s.substring(0, dashIdx) : s;
+  String suffix = (dashIdx > 0) ? s.substring(dashIdx) : "";
+  if (base.length() == 17) {
+    // 예: 55630001411261124-A -> 001-411-261124-A
+    return base.substring(5, 8) + "-" + base.substring(8, 11) + "-" + base.substring(11, 17) + suffix;
+  }
+  if (base.length() == 16) {
+    // 예: 5563207411261122-A -> 07-411-261122-A
+    return base.substring(5, 7) + "-" + base.substring(7, 10) + "-" + base.substring(10, 16) + suffix;
   }
   return s.substring(s.length() - 16);
 }
@@ -113,7 +121,7 @@ void updateOLED(String msg = "", String lotLabel = "", String activeMode = "", u
   display.setCursor(0, 13);
   if (isAutoMode) {
     display.setTextSize(1);
-    display.print("Mode: [ AUTO v3 ]");
+    display.print("Mode: [ AUTO v4 ]");
     if (activeMode != "" && lotLabel != "") {
       display.setCursor(0, 23);
       display.println(formatShortOledId(lotLabel));
@@ -124,7 +132,7 @@ void updateOLED(String msg = "", String lotLabel = "", String activeMode = "", u
     } else {
       display.setCursor(0, 26);
       display.setTextSize(1);
-      display.println("Ready (A01~D10)...");
+      display.println("Ready (A02~D10)...");
     }
   } else {
     display.setTextSize(1);
@@ -165,12 +173,12 @@ void handleRoot() {
   html += ".sec-lbl{font-size:12px;color:#64748b;font-weight:700;text-align:left;margin:10px 0 4px 2px;} ";
   html += "</style></head><body>";
 
-  html += "<h2 style='margin:6px 0;'>🚚 콜드체인 QR 스캐너 v3</h2>";
+  html += "<h2 style='margin:6px 0;'>🚚 콜드체인 QR 스캐너 v4</h2>";
 
   html += "<div class='card'>";
   if (isAutoMode) {
     html += "<div style='font-size:28px;font-weight:900;color:#10b981;'>🤖 AUTO (자동 판단)</div>";
-    html += "<p style='font-size:13px;color:#64748b;margin:6px 0 0 0;'>무색 QR: A01→A02→B10→B12 | 유색 QR: B12→B13→C10→C11→D10</p>";
+    html += "<p style='font-size:13px;color:#64748b;margin:6px 0 0 0;'>무색: A02→A03→A04→B01 | 유색: B03→B04→B05→C10→C11→D10</p>";
   } else {
     html += "<div style='font-size:28px;font-weight:900;color:#ef4444;'>✋ MANUAL (" + manualMode + ")</div>";
     html += "<p style='font-size:14px;color:#374151;margin:6px 0 0 0;'>" + getStageDescKo(manualMode) + "</p>";
@@ -185,14 +193,16 @@ void handleRoot() {
   html += "</div>";
 
   html += "<div class='sec-lbl'>🌱 농가 (무색 QR)</div><div class='grid'>";
-  html += String("<a class='btn btn-farm") + (!isAutoMode && manualMode == "A01" ? " btn-active" : "") + "' href='/set?mode=A01'>A01 농가창고</a>";
-  html += String("<a class='btn btn-farm") + (!isAutoMode && manualMode == "A02" ? " btn-active" : "") + "' href='/set?mode=A02'>A02 농가출하</a>";
+  html += String("<a class='btn btn-farm") + (!isAutoMode && manualMode == "A02" ? " btn-active" : "") + "' href='/set?mode=A02'>A02 저장고 입고</a>";
+  html += String("<a class='btn btn-farm") + (!isAutoMode && manualMode == "A03" ? " btn-active" : "") + "' href='/set?mode=A03'>A03 저장고 출고</a>";
+  html += String("<a class='btn btn-farm") + (!isAutoMode && manualMode == "A04" ? " btn-active" : "") + "' href='/set?mode=A04' style='grid-column:span 2;'>A04 농가 출하 (APC 출발 · 직행 가능)</a>";
   html += "</div>";
 
-  html += "<div class='sec-lbl'>🏢 APC (무색 B10·B12 / 유색 B12·B13)</div><div class='grid'>";
-  html += String("<a class='btn btn-apc") + (!isAutoMode && manualMode == "B10" ? " btn-active" : "") + "' href='/set?mode=B10'>B10 APC입고</a>";
-  html += String("<a class='btn btn-apc") + (!isAutoMode && manualMode == "B12" ? " btn-active" : "") + "' href='/set?mode=B12'>B12 APC창고</a>";
-  html += String("<a class='btn btn-apc") + (!isAutoMode && manualMode == "B13" ? " btn-active" : "") + "' href='/set?mode=B13' style='grid-column:span 2;'>B13 APC출하 (창고 생략 직행 가능)</a>";
+  html += "<div class='sec-lbl'>🏢 APC (무색 B01 / 유색 B03~B05)</div><div class='grid'>";
+  html += String("<a class='btn btn-apc") + (!isAutoMode && manualMode == "B01" ? " btn-active" : "") + "' href='/set?mode=B01' style='grid-column:span 2;'>B01 APC 입고 (무색 QR)</a>";
+  html += String("<a class='btn btn-apc") + (!isAutoMode && manualMode == "B03" ? " btn-active" : "") + "' href='/set?mode=B03'>B03 저장고 입고</a>";
+  html += String("<a class='btn btn-apc") + (!isAutoMode && manualMode == "B04" ? " btn-active" : "") + "' href='/set?mode=B04'>B04 저장고 출고</a>";
+  html += String("<a class='btn btn-apc") + (!isAutoMode && manualMode == "B05" ? " btn-active" : "") + "' href='/set?mode=B05' style='grid-column:span 2;'>B05 APC 출하 (저장고 생략 직행 가능)</a>";
   html += "</div>";
 
   html += "<div class='sec-lbl'>🏬 유통 · 🏪 판매처 (유색 QR)</div><div class='grid'>";
@@ -219,7 +229,7 @@ void setScannerMode(String modeVal) {
   if (modeVal == "AUTO") {
     isAutoMode = true;
     Serial.println("\n🔄 모드 전환됨 -> 🤖 AUTO (지능형 자동 판단)");
-    updateOLED("Mode: AUTO v3");
+    updateOLED("Mode: AUTO v4");
   } else if (isValidManualMode(modeVal)) {
     isAutoMode = false;
     manualMode = modeVal;
@@ -272,7 +282,7 @@ void setup() {
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 20);
-  display.println("Booting Scanner v3...");
+  display.println("Booting Scanner v4...");
   display.display();
 
   // 시리얼 초기화 (GM77 기본 속도 9600bps)
@@ -305,11 +315,11 @@ void setup() {
   server.on("/next", handleNext);
   server.begin();
 
-  Serial.println("========================================================");
-  Serial.println(" ColdChain Smart QR Scanner v3 (16-Digit LotID / A00~D10)");
-  Serial.println(" - Modes: AUTO, A01, A02, B10, B12, B13, C10, C11, D10  ");
+  Serial.println("=============================================================");
+  Serial.println(" ColdChain Smart QR Scanner v4 (17-Digit LotID / A01~B05·D10)");
+  Serial.println(" - Modes: AUTO, A02, A03, A04, B01, B03, B04, B05, C10~D10  ");
   Serial.println(" - CSV: CSV_ROW,ScanID,LotID,Mode,Decode_ms,DB_ms,Total_ms");
-  Serial.println("========================================================");
+  Serial.println("=============================================================");
 
   // 스캐너 호스트 모드 설정
   ScannerSerial.write(0x00);
@@ -321,7 +331,7 @@ void setup() {
     ScannerSerial.read();
   }
 
-  updateOLED("System Ready v3");
+  updateOLED("System Ready v4");
 }
 
 // URL 퍼센트 인코딩(%XX) 및 공백(+) 디코딩 헬퍼 함수
@@ -464,7 +474,11 @@ void processScan(String rawData) {
   String cleanAc = getRawQueryParam(rawData, "AC");
   String cleanFm = getRawQueryParam(rawData, "FmID");
   String cleanCc = getRawQueryParam(rawData, "CC");
-  if (cleanLotId.length() == 16) {
+  if (cleanLotId.length() == 17) {
+    if (cleanAc.length() == 0) cleanAc = cleanLotId.substring(0, 5);
+    if (cleanFm.length() == 0) cleanFm = cleanLotId.substring(5, 8);
+    if (cleanCc.length() == 0) cleanCc = cleanLotId.substring(8, 11);
+  } else if (cleanLotId.length() == 16) {
     if (cleanAc.length() == 0) cleanAc = cleanLotId.substring(0, 5);
     if (cleanFm.length() == 0) cleanFm = cleanLotId.substring(5, 7);
     if (cleanCc.length() == 0) cleanCc = cleanLotId.substring(7, 10);
@@ -516,24 +530,25 @@ void processScan(String rawData) {
     String targetMode = "";
     if (isAutoMode) {
       if (scannedGrade.length() > 0) {
-        // 유색 QR(A/B/C): 해당 등급 패키지 진행 상태 조회 (B12 -> B13 -> C10 -> C11 -> D10)
+        // 유색 QR(A/B/C): 해당 등급 패키지 진행 상태 조회 (B03 -> B04 -> B05 -> C10 -> C11 -> D10)
         String pkgCheck =
           "SELECT Lo FROM lab225.qr WHERE " + lotWherePlain +
-          " AND Lo IN ('B12','B13','C10','C11','D10') AND pkg_grade = '" + scannedGrade +
+          " AND Lo IN ('B03','B04','B05','C10','C11','D10') AND pkg_grade = '" + scannedGrade +
           "' ORDER BY id DESC LIMIT 1";
         String lastLo = fetchSingleString(query_executor, pkgCheck);
 
         if (lastLo == "NONE") {
           String baseCheck =
             "SELECT Lo FROM lab225.qr WHERE " + lotWherePlain +
-            " AND Lo IN ('B10','B11','B12') AND (pkg_grade IS NULL OR pkg_grade = '') ORDER BY id DESC LIMIT 1";
+            " AND Lo IN ('B01','B02') AND (pkg_grade IS NULL OR pkg_grade = '') ORDER BY id DESC LIMIT 1";
           lastLo = fetchSingleString(query_executor, baseCheck);
         }
 
         Serial.println("💡 [유색 QR] DB 최신 이력: " + lastLo + " (" + displayPkgId + ")");
-        if (lastLo == "NONE" || lastLo == "B11" || lastLo == "B10") targetMode = "B12";
-        else if (lastLo == "B12") targetMode = "B13";
-        else if (lastLo == "B13") targetMode = "C10";
+        if (lastLo == "NONE" || lastLo == "B02" || lastLo == "B01") targetMode = "B03";
+        else if (lastLo == "B03") targetMode = "B04";
+        else if (lastLo == "B04") targetMode = "B05";
+        else if (lastLo == "B05") targetMode = "C10";
         else if (lastLo == "C10") targetMode = "C11";
         else if (lastLo == "C11") targetMode = "D10";
         else if (lastLo == "D10") {
@@ -544,25 +559,25 @@ void processScan(String rawData) {
           return;
         }
       } else {
-        // 무색 농가 QR: A00 -> A01 -> A02 -> B10 -> B12(선별 전)
+        // 무색 농가 QR: A01(수확) -> A02(저장입고) -> A03(저장출고) -> A04(농가출하) -> B01(APC입고)
         String rawCheck =
           "SELECT Lo FROM lab225.qr WHERE " + lotWherePlain +
           " AND (pkg_grade IS NULL OR pkg_grade = '') ORDER BY id DESC LIMIT 1";
         String lastLo = fetchSingleString(query_executor, rawCheck);
 
         Serial.println("💡 [무색 QR] DB 최신 이력: " + lastLo + " (" + cleanLotId + ")");
-        if (lastLo == "NONE" || lastLo == "A00") targetMode = "A01";
-        else if (lastLo == "A01") targetMode = "A02";
-        else if (lastLo == "A02") targetMode = "B10";
-        else if (lastLo == "B10") targetMode = "B12";
-        else if (lastLo == "B12") {
-          Serial.println("ℹ️ 선별 전 APC 창고(B12) 보관 중입니다. 포털에서 B11 선별 후 유색 QR을 스캔하세요.");
-          updateOLED("Do B11 Sorting!", cleanLotId, "B12");
+        if (lastLo == "NONE" || lastLo == "A01") targetMode = "A02";
+        else if (lastLo == "A02") targetMode = "A03";
+        else if (lastLo == "A03") targetMode = "A04";
+        else if (lastLo == "A04") targetMode = "B01";
+        else if (lastLo == "B01") {
+          Serial.println("ℹ️ APC 입고(B01) 완료 상태입니다. 포털에서 B02 선별 후 유색 QR을 스캔하세요.");
+          updateOLED("Do B02 Sorting!", cleanLotId, "B01");
           conn.close();
           t_trigger_start = 0;
           return;
         } else {
-          Serial.println("ℹ️ 이미 APC 선별(B11) 이후 단계입니다. 유색 QR을 스캔하세요.");
+          Serial.println("ℹ️ 이미 APC 선별(B02) 이후 단계입니다. 유색 QR을 스캔하세요.");
           updateOLED("Use Colored QR!", cleanLotId, lastLo);
           conn.close();
           t_trigger_start = 0;
@@ -611,76 +626,87 @@ void processScan(String rawData) {
     String effColoredGrade = (scannedGrade.length() > 0) ? ("'" + scannedGrade + "'") : "'A'";
 
     String query = "";
-    if (targetMode == "A01") {
-      // 농가 창고 보관 (온습도 + Farm_StD)
+    if (targetMode == "A02") {
+      // 농가 저장고 들어감 (온습도 + Farm_StD)
       if (baseExists) {
         query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Tp, Hm, Lat, lon, truck_device) ";
-        query += "SELECT 'A01', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", COALESCE(" + sDev + ", Q.truck_device) ";
-        query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo = 'A00' ORDER BY Q.id DESC LIMIT 1";
+        query += "SELECT 'A02', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", COALESCE(" + sDev + ", Q.truck_device) ";
+        query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo = 'A01' ORDER BY Q.id DESC LIMIT 1";
       } else {
         query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Tp, Hm, Lat, lon, truck_device) ";
-        query += "VALUES ('A01', " + sqlAc + ", " + sqlFmId + ", " + sqlLotId + ", " + sqlCc + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", " + sDev + ")";
+        query += "VALUES ('A02', " + sqlAc + ", " + sqlFmId + ", " + sqlLotId + ", " + sqlCc + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", " + sDev + ")";
       }
     }
-    else if (targetMode == "A02") {
-      // 농가 출하 (A01 또는 A00 직행 허용, 1구간 출발)
+    else if (targetMode == "A03") {
+      // 농가 저장고 나옴 (온습도 + Farm_StOut)
       if (baseExists) {
-        query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, Tp, Hm, Lat, lon, truck_device) ";
-        query += "SELECT 'A02', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", COALESCE(" + sDev + ", Q.truck_device) ";
-        query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo IN ('A01','A00') ORDER BY Q.id DESC LIMIT 1";
+        query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Tp, Hm, Lat, lon, truck_device) ";
+        query += "SELECT 'A03', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", COALESCE(" + sDev + ", Q.truck_device) ";
+        query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo IN ('A02','A01') ORDER BY Q.id DESC LIMIT 1";
+      } else {
+        query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StOut, Tp, Hm, Lat, lon, truck_device) ";
+        query += "VALUES ('A03', " + sqlAc + ", " + sqlFmId + ", " + sqlLotId + ", " + sqlCc + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", " + sDev + ")";
+      }
+    }
+    else if (targetMode == "A04") {
+      // 농가 출하 · APC로 출발 (A03/A02 또는 A01 직행 허용, 1구간 출발)
+      if (baseExists) {
+        query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, Tp, Hm, Lat, lon, truck_device) ";
+        query += "SELECT 'A04', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", COALESCE(" + sDev + ", Q.truck_device) ";
+        query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo IN ('A03','A02','A01') ORDER BY Q.id DESC LIMIT 1";
       } else {
         query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_DD, Lat, lon, truck_device) ";
-        query += "VALUES ('A02', " + sqlAc + ", " + sqlFmId + ", " + sqlLotId + ", " + sqlCc + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", NOW(), " + sLat + ", " + sLng + ", " + sDev + ")";
+        query += "VALUES ('A04', " + sqlAc + ", " + sqlFmId + ", " + sqlLotId + ", " + sqlCc + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", NOW(), " + sLat + ", " + sLng + ", " + sDev + ")";
       }
     }
-    else if (targetMode == "B10") {
-      // APC 입고 (A02/A01/A00 복사, 1구간 도착)
+    else if (targetMode == "B01") {
+      // APC 입고 (A04/A03/A02/A01 복사, 1구간 도착)
       if (baseExists) {
-        query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, Lat, lon, truck_device) ";
-        query += "SELECT 'B10', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, NOW(), " + sLat + ", " + sLng + ", COALESCE(Q.truck_device, " + sDev + ") ";
-        query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo IN ('A02','A01','A00') ORDER BY Q.id DESC LIMIT 1";
+        query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, Lat, lon, truck_device) ";
+        query += "SELECT 'B01', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, NOW(), " + sLat + ", " + sLng + ", COALESCE(Q.truck_device, " + sDev + ") ";
+        query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo IN ('A04','A03','A02','A01') ORDER BY Q.id DESC LIMIT 1";
       } else {
         query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, APC_AD, Lat, lon, truck_device) ";
-        query += "VALUES ('B10', " + sqlAc + ", " + sqlFmId + ", " + sqlLotId + ", " + sqlCc + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", NOW(), " + sLat + ", " + sLng + ", " + sDev + ")";
+        query += "VALUES ('B01', " + sqlAc + ", " + sqlFmId + ", " + sqlLotId + ", " + sqlCc + ", " + frt + ", " + vt + ", " + ct + ", " + hd + ", " + dd + ", " + qt + ", " + mt + ", " + hn + ", " + std + ", NOW(), " + sLat + ", " + sLng + ", " + sDev + ")";
       }
     }
-    else if (targetMode == "B12") {
-      if (scannedGrade.length() == 0) {
-        // 선별 전 APC 창고 (무색 QR, B10 이후, pkg_grade=NULL)
-        query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_StD, Tp, Hm, Lat, lon, truck_device, pkg_grade) ";
-        query += "SELECT 'B12', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", COALESCE(" + sDev + ", Q.truck_device), NULL ";
-        query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo = 'B10' ORDER BY Q.id DESC LIMIT 1";
-      } else {
-        // 선별 후 APC 창고 (유색 QR, B11 이후, pkg_grade='A'/'B'/'C')
-        query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_RT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
-        query += "SELECT 'B12', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, Q.APC_RT, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(" + sDev + ", Q.truck_device), " + sqlGradeVal + " ";
-        query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo = 'B11' ORDER BY Q.id DESC LIMIT 1";
-      }
+    else if (targetMode == "B03") {
+      // APC 저장고 들어감 (유색 QR, B02 이후, pkg_grade='A'/'B'/'C')
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
+      query += "SELECT 'B03', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(" + sDev + ", Q.truck_device), " + effColoredGrade + " ";
+      query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo = 'B02' ORDER BY Q.id DESC LIMIT 1";
     }
-    else if (targetMode == "B13") {
-      // APC 출하 (유색 QR: 선별 후 B12 또는 B11 직행 모두 허용 -> 2구간 출발)
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_RT, APC_StD, APC_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
-      query += "SELECT 'B13', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(" + sDev + ", Q.truck_device), " + effColoredGrade + " ";
-      query += "FROM lab225.qr Q WHERE " + lotWhere + " AND ((Q.Lo = 'B12' AND Q.pkg_grade = " + effColoredGrade + ") OR Q.Lo = 'B11') ";
-      query += "ORDER BY CASE WHEN Q.Lo = 'B12' AND Q.pkg_grade = " + effColoredGrade + " THEN 0 ELSE 1 END, Q.id DESC LIMIT 1";
+    else if (targetMode == "B04") {
+      // APC 저장고 나옴 (유색 QR, B03 이후, pkg_grade='A'/'B'/'C')
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, APC_StOut, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
+      query += "SELECT 'B04', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(" + sDev + ", Q.truck_device), " + effColoredGrade + " ";
+      query += "FROM lab225.qr Q WHERE " + lotWhere + " AND ((Q.Lo = 'B03' AND Q.pkg_grade = " + effColoredGrade + ") OR Q.Lo = 'B02') ";
+      query += "ORDER BY CASE WHEN Q.Lo = 'B03' AND Q.pkg_grade = " + effColoredGrade + " THEN 0 ELSE 1 END, Q.id DESC LIMIT 1";
+    }
+    else if (targetMode == "B05") {
+      // APC 출하 (유색 QR: B04/B03 또는 B02 직행 모두 허용 -> 2구간 출발)
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, APC_StOut, APC_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
+      query += "SELECT 'B05', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_StOut, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(" + sDev + ", Q.truck_device), " + effColoredGrade + " ";
+      query += "FROM lab225.qr Q WHERE " + lotWhere + " AND ((Q.Lo IN ('B04','B03') AND Q.pkg_grade = " + effColoredGrade + ") OR Q.Lo = 'B02') ";
+      query += "ORDER BY CASE WHEN Q.Lo = 'B04' AND Q.pkg_grade = " + effColoredGrade + " THEN 0 WHEN Q.Lo = 'B03' AND Q.pkg_grade = " + effColoredGrade + " THEN 1 ELSE 2 END, Q.id DESC LIMIT 1";
     }
     else if (targetMode == "C10") {
-      // 유통 창고 저장 (유색 QR: B13 이후 -> 2구간 도착 + 온습도)
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_RT, APC_StD, APC_OP, Dist_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
-      query += "SELECT 'C10', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_OP, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + "), " + effColoredGrade + " ";
-      query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo = 'B13' AND COALESCE(Q.pkg_grade, 'A') = " + effColoredGrade + " ORDER BY Q.id DESC LIMIT 1";
+      // 유통 창고 저장 (유색 QR: B05 또는 레거시 B13 이후 -> 2구간 도착 + 온습도)
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, APC_StOut, APC_OP, Dist_StD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
+      query += "SELECT 'C10', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_StOut, Q.APC_OP, NOW(), " + sTemp + ", " + sHumi + ", " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + "), " + effColoredGrade + " ";
+      query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo IN ('B05','B13') AND COALESCE(Q.pkg_grade, 'A') = " + effColoredGrade + " ORDER BY Q.id DESC LIMIT 1";
     }
     else if (targetMode == "C11") {
-      // 유통 출하 / 판매처 출발 (유색 QR: C10 또는 B13 직송 허용 -> 3구간 출발)
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_RT, APC_StD, APC_OP, Dist_StD, Dist_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
-      query += "SELECT 'C11', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_OP, Q.Dist_StD, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(" + sDev + ", Q.truck_device), " + effColoredGrade + " ";
-      query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo IN ('C10','B13') AND COALESCE(Q.pkg_grade, 'A') = " + effColoredGrade + " ORDER BY Q.id DESC LIMIT 1";
+      // 유통 출하 / 판매처 출발 (유색 QR: C10 또는 B05/B13 직송 허용 -> 3구간 출발)
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, APC_StOut, APC_OP, Dist_StD, Dist_OP, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
+      query += "SELECT 'C11', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_StOut, Q.APC_OP, Q.Dist_StD, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(" + sDev + ", Q.truck_device), " + effColoredGrade + " ";
+      query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo IN ('C10','B05','B13') AND COALESCE(Q.pkg_grade, 'A') = " + effColoredGrade + " ORDER BY Q.id DESC LIMIT 1";
     }
     else if (targetMode == "D10") {
-      // 판매처 도착 (유색 QR: C11 또는 C10/B13 직송 허용 -> 3구간 도착)
-      query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_DD, APC_AD, APC_RT, APC_StD, APC_OP, Dist_StD, Dist_OP, Retail_AD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
-      query += "SELECT 'D10', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_OP, Q.Dist_StD, Q.Dist_OP, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + "), " + effColoredGrade + " ";
-      query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo IN ('C11','C10','B13') AND COALESCE(Q.pkg_grade, 'A') = " + effColoredGrade + " ORDER BY Q.id DESC LIMIT 1";
+      // 판매처 도착 (유색 QR: C11 또는 C10/B05/B13 직송 허용 -> 3구간 도착)
+      query = "INSERT INTO lab225.qr (Lo, AC, FmID, LotID, CropCode, FrT, Vt, Ct, HD, DD, Qt, Mt, HN, Std, Farm_StD, Farm_StOut, Farm_DD, APC_AD, APC_RT, APC_StD, APC_StOut, APC_OP, Dist_StD, Dist_OP, Retail_AD, Tp, Hm, Lat, lon, AGrade, BGrade, CGrade, DefectRate, truck_device, pkg_grade) ";
+      query += "SELECT 'D10', Q.AC, Q.FmID, " + sqlLotId + ", COALESCE(Q.CropCode, " + sqlCc + "), Q.FrT, Q.Vt, Q.Ct, Q.HD, Q.DD, Q.Qt, Q.Mt, Q.HN, Q.Std, Q.Farm_StD, Q.Farm_StOut, Q.Farm_DD, Q.APC_AD, Q.APC_RT, Q.APC_StD, Q.APC_StOut, Q.APC_OP, Q.Dist_StD, Q.Dist_OP, NOW(), Q.Tp, Q.Hm, " + sLat + ", " + sLng + ", Q.AGrade, Q.BGrade, Q.CGrade, Q.DefectRate, COALESCE(Q.truck_device, " + sDev + "), " + effColoredGrade + " ";
+      query += "FROM lab225.qr Q WHERE " + lotWhere + " AND Q.Lo IN ('C11','C10','B05','B13') AND COALESCE(Q.pkg_grade, 'A') = " + effColoredGrade + " ORDER BY Q.id DESC LIMIT 1";
     }
 
     bool isSuccess = false;
