@@ -395,12 +395,33 @@ void handleSerialCommand(String cmd) {
   } else if (lower == "dump" || lower == "read") {
     cmdDumpCsv();
   } else if (lower == "clear" || lower == "reset") {
-    if (fs_ready && LittleFS.exists(csv_log_path)) {
-      LittleFS.remove(csv_log_path);
+    int removed = 0;
+    if (fs_ready) {
+      File root = LittleFS.open("/");
+      if (root && root.isDirectory()) {
+        // Collect paths first so removing does not invalidate iterator
+        String to_del[64];
+        int n_del = 0;
+        File entry = root.openNextFile();
+        while (entry && n_del < 64) {
+          String nm = String(entry.name());
+          if (!nm.startsWith("/")) nm = "/" + nm;
+          entry.close();
+          if (nm != "/wifi_extra.txt") {
+            to_del[n_del++] = nm;
+          }
+          entry = root.openNextFile();
+        }
+        root.close();
+        for (int i = 0; i < n_del; i++) {
+          if (LittleFS.remove(to_del[i])) removed++;
+        }
+      }
     }
     saved_rows = 0;
     ensureCsvHeader();
-    Serial.println("[OK] /chamber_cal.csv cleared (0 rows). Auto-logging remains ACTIVE.");
+    Serial.printf("[OK] LittleFS purged (%d files removed, /wifi_extra.txt kept). /chamber_cal.csv reset (0 rows). used=%u/%u B\n",
+                  removed, (unsigned int)LittleFS.usedBytes(), (unsigned int)LittleFS.totalBytes());
   } else if (lower == "pause" || lower == "stop") {
     logging_active = false;
     Serial.println("[OK] Chamber logging PAUSED.");
