@@ -157,6 +157,26 @@ def analyze_single_drop(df: pd.DataFrame, height_cm: float) -> dict:
     }
 
 
+def parse_id_selection(spec: str, available: list[int]) -> list[int]:
+    """Parse specs like '31-35' or '31,32,35'."""
+    selected: list[int] = []
+    avail_set = set(available)
+    for token in spec.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        if "-" in token:
+            a, b = token.split("-", 1)
+            for i in range(int(a), int(b) + 1):
+                if i in avail_set and i not in selected:
+                    selected.append(i)
+        else:
+            i = int(token)
+            if i in avail_set and i not in selected:
+                selected.append(i)
+    return selected
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Extract 400Hz wireless drops from LittleFS & run QC")
     parser.add_argument("--port", default=None, help="시리얼 포트 (예: COM38)")
@@ -164,7 +184,10 @@ def main() -> None:
     parser.add_argument("--device", default=None, help="장치 ID (미지정 시 MAC 자동 식별)")
     parser.add_argument("--height", type=float, required=True, help="이번에 수행한 낙하 높이 (cm, 예: 10)")
     parser.add_argument("--rebound", type=float, default=0.0, help="240fps 영상 반발 높이 h' (cm, 나중에 CSV에서 수정 가능)")
+    parser.add_argument("--ids", default=None, help="추출할 ID 지정 (예: 31-35 또는 31,32,33). 미지정 시 FREEFALL/고충격 자동 필터 가능")
+    parser.add_argument("--only-freefall", action="store_true", help="FREEFALL 트리거(자유낙하 >= 40ms)만 자동 추출")
     parser.add_argument("--clear", action="store_true", help="추출 완료 후 보드 LittleFS 자동 초기화")
+    parser.add_argument("--no-clear-prompt", action="store_true", help="추출 후 clear 여부 묻지 않고 종료")
     parser.add_argument("--out-root", default="data/accel_calibration")
     args = parser.parse_args()
 
@@ -188,7 +211,7 @@ def main() -> None:
         print(f"  - 정적 교정 : {'적용됨' if params else '미적용(원시값 사용 - step1 먼저 권장)'}")
 
         list_lines = send_and_read_until(ser, "list", "---DROP_LIST_END---", timeout=8.0)
-        drop_ids = []
+        drop_records = []
         in_tbl = False
         print("\n[보드 내 저장된 낙하 이벤트 목록]")
         for ln in list_lines:
@@ -201,12 +224,26 @@ def main() -> None:
             if in_tbl:
                 print("  " + ln)
                 parts = ln.split(",")
-                if parts and parts[0].isdigit():
-                    drop_ids.append(int(parts[0]))
+                if len(parts) >= 8 and parts[0].isdigit():
+                    drop_records.append({
+                        "id": int(parts[0]),
+                        "trigger": parts[1],
+                        "freefall_ms": float(parts[6]),
+                    })
+
+        all_ids = [r["id"] for r in drop_records]
+        if args.ids:
+            drop_ids = parse_id_selection(args.ids, all_ids)
+        elif args.only_freefall:
+            drop_ids = [r["id"] for r in drop_records if r["trigger"] == "FREEFALL" and r["freefall_ms"] >= 40.0]
+        else:
+            drop_ids = all_ids
 
         if not drop_ids:
-            print("\n[INFO] 저장된 낙하 이벤트가 없습니다.")
+            print("\n[INFO] 조건에 해당하는 낙하 이벤트가 없습니다.")
             return
+
+        print(f"\n[선택된 추출 대상 ID ({len(drop_ids)}건)]: {drop_ids}")
 
         meta_path = device_dir / "drop_metadata.csv"
         existing_meta = pd.read_csv(meta_path) if meta_path.exists() else pd.DataFrame()
@@ -285,7 +322,7 @@ def main() -> None:
                 print("  [주의!] 15.5 G 이상 포화가 감지되었습니다! 더 높은 낙하는 중단하세요.")
 
         do_clear = args.clear
-        if not do_clear:
+        if not do_clear and not args.no_clear_prompt:
             ans = input("\n보드 LittleFS 낙하 데이터를 비우고 다음 높이 실험을 준비할까요? (y/N): ").strip().lower()
             do_clear = ans == "y"
         if do_clear:
