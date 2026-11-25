@@ -109,9 +109,29 @@
 
 ---
 
-## 6. 현장 체크리스트 요약
+## 6. 최종 확정 운영 구성, EC2/RDS 격리 검증 및 현장 체크리스트
 
-1. **대여 전 확인**: 챔버 **KOLAS 교정성적서 사본**, **1초 단위 자체 로그(CSV) 추출 가능 여부**, **가습용 증류수(정제수) 물통 100% 만수 여부** 확인.
-2. **투입 전 세팅**: 4대 모두 `[env:beetle_c6_chamber_cal]` 업로드 + `5,000mAh` 배터리 `4.1~4.2 V` 완충 → `step1_live_mqtt_and_prep.py --prep` 으로 시각 동기화·현장 `2.4 GHz` Wi-Fi 등록·`clear` 수행 → **USB 케이블 분리 후 배터리 스위치 ON 상태로 챔버 중앙 선반(벽면 10 cm 이상 이격) 배치**.
-3. **운전 중**: 챔버 도어 열선 ON, 내부 조명 OFF, 투시창 앞 노트북에서 `step1_live_mqtt_and_prep.py --listen` 실행.
-4. **종료 후**: 각 보드 USB 연결 → `step2_dump_littlefs_csv.py` 로 20시간 원본 CSV 추출 → 챔버 1초 CSV와 함께 `step3_analyze_chamber_cal.py` 실행하여 `env_calibration_params.json` 및 논문용 그래프 생성.
+### 6.1 최종 확정 실험 구성 (온습도 집중 + 대조군 분리)
+- **조도(`BH1750`) 제외, 온습도(`SHT45`) 집중 검증**: 조도 광창 보정은 차후 별도 진행하고, 이번 20시간 챔버 실험은 `0 ~ 30 °C` 온도 및 다온도 습도 교정에 집중한다.
+- **4대 배치 전략 (하우징 3대 + 노출 Bare 1대)**:
+  - `carrier-c6-02`, `03`, `04` (3대): `v24` 사과 하우징 완전 체결 → 실차 동일 조건 보정 + `N = 3` 기기 간 재현성(편차) 검증
+  - `carrier-c6-01` (1대): 하우징 미장착 노출(Bare) 대조군 → PCB 자체발열 vs `v24` 하우징 열 영향 분리 입증 *(주의: 금속 선반 합선 방지를 위해 반드시 M3 플라스틱 스탠드오프 또는 절연 패드 위에 띄워 배치)*
+
+### 6.2 전용 MQTT 토픽 분리 및 AWS RDS 실전 검증 결과 (2026-11-25 완료)
+- **전용 토픽**: `coldchain/chamber/carrier-c6-01 ~ 04` (실제 운영 테이블 `lab225.sensor_data` / `lab225_v2.sensor_telemetry`와 100% 격리)
+- **전용 AWS RDS 테이블**: `lab225_v2.chamber_calibration_logs` (`UNIQUE KEY (device_id, timestamp_kst, uptime_ms)` + `INSERT IGNORE`로 EC2 데몬과 노트북 수집기 동시 가동 시에도 중복 0건)
+- **EC2 실전 E2E 검증 완료**: `coldchain-daemon.service` 업데이트·재시작 후 테스트 패킷 1건 발행 → `lab225_v2.chamber_calibration_logs` 자동 생성 및 3초 내 5초 정밀값 적재 확인 (`PROD_V1_CONTAMINATION_CNT = 0`, 테스트 행 삭제 완료, 기존 `carrier-c6-02` 무중단 유지 확인).
+- **최대 연속 기록 시간**: `5,000mAh` 완충 시 내장 플래시(`MAX_CSV_BYTES = 1.32 MB`, 약 `38~40시간`) 및 저온 배터리(`40~45시간`) 기준 **약 `38 ~ 40시간` 무손실 보장** (중간 Wi-Fi 단절 시 유실 0%, 배터리 방전 시 직전 5초까지 안전 보존).
+
+### 6.3 데스크탑 PC 복귀 후 바로 실행할 순서
+1. **최신 코드 동기화 및 4대 보드 공통 플래싱** *(COM 포트만 바꿔 4회 반복)*:
+   ```powershell
+   git pull origin main
+   cd Hardware_Prototypes/code26/test
+   pio run -e beetle_c6_chamber_cal -t upload --upload-port COM포트번호
+   ```
+2. **대여 전 확인**: 챔버 **KOLAS 교정성적서 사본**, **1초 단위 자체 로그(CSV) 추출 가능 여부**, **가습용 증류수(정제수) 물통 100% 만수 여부** 확인.
+3. **현장 투입 전 세팅**: 4대 모두 `5,000mAh` 배터리 `4.1~4.2 V` 완충 → `step1_live_mqtt_and_prep.py --prep --port COMxx --wifi-ssid "현장2.4G" --wifi-pass "비번" --clear` 로 시각 동기화·Wi-Fi 등록·초기화 수행 → **USB 케이블 분리 후 배터리 스위치 ON 상태로 챔버 중앙 선반(벽면 10 cm 이상 이격) 배치**.
+4. **운전 중**: 챔버 도어 열선 ON, 내부 조명 OFF. *(EC2가 이미 24시간 자동 적재 중이며, 필요 시 노트북에서 `step1_live_mqtt_and_prep.py --listen` 병행 가능)*
+5. **종료 후**: 각 보드 USB 연결 → `step2_dump_littlefs_csv.py --port COMxx` 로 20시간 원본 CSV 추출 → 업체 1초 CSV와 함께 `step3_analyze_chamber_cal.py` 실행하여 `env_calibration_params.json` 및 논문용 그래프 생성.
+
