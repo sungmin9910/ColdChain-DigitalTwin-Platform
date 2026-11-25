@@ -605,9 +605,9 @@ void loop() {
     doc["uptime_ms"] = now_ms;
     doc["epoch_s"] = (long)ep_s;
     doc["timestamp_str"] = kst_str;
-    doc["temperature"] = isnan(temp_c) ? 0.0 : serialized(String(temp_c, 3));
-    doc["humidity"] = isnan(rh_pct) ? 0.0 : serialized(String(rh_pct, 3));
-    doc["lux"] = (lux_val < 0.0f) ? 0.0 : serialized(String(lux_val, 1));
+    doc["temperature"] = serialized(String(isnan(temp_c) ? 0.0f : temp_c, 3));
+    doc["humidity"] = serialized(String(isnan(rh_pct) ? 0.0f : rh_pct, 3));
+    doc["lux"] = serialized(String((lux_val < 0.0f) ? 0.0f : lux_val, 1));
     doc["g_force"] = serialized(String(max_g_force, 3));
     doc["lat"] = serialized(String(0.0, 6));
     doc["lng"] = serialized(String(0.0, 6));
