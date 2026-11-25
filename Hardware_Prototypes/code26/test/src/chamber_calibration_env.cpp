@@ -89,7 +89,7 @@ bool fs_ready     = false;
 
 char mac_str[20]      = "UNKNOWN";
 char device_id[24]    = "carrier-c6-01";
-char mqtt_topic[48]   = "coldchain/truck01/sensor";
+char mqtt_topic[48]   = "coldchain/chamber/carrier-c6-01";
 
 String extra_ssid = "";
 String extra_pass = "";
@@ -149,19 +149,20 @@ void detectBoardByMac() {
 
 #ifdef DEVICE_ID
   snprintf(device_id, sizeof(device_id), "%s", DEVICE_ID);
+  snprintf(mqtt_topic, sizeof(mqtt_topic), "coldchain/chamber/%s", device_id);
 #else
   if (strcmp(mac_str, "F0:F5:BD:2C:48:5C") == 0) {
     snprintf(device_id, sizeof(device_id), "carrier-c6-02");
-    snprintf(mqtt_topic, sizeof(mqtt_topic), "coldchain/truck02/sensor");
+    snprintf(mqtt_topic, sizeof(mqtt_topic), "coldchain/chamber/carrier-c6-02");
   } else if (strcmp(mac_str, "CC:8D:A2:FA:84:EC") == 0) {
     snprintf(device_id, sizeof(device_id), "carrier-c6-03");
-    snprintf(mqtt_topic, sizeof(mqtt_topic), "coldchain/truck03/sensor");
+    snprintf(mqtt_topic, sizeof(mqtt_topic), "coldchain/chamber/carrier-c6-03");
   } else if (strcmp(mac_str, "CC:8D:A2:FA:9F:BC") == 0) {
     snprintf(device_id, sizeof(device_id), "carrier-c6-04");
-    snprintf(mqtt_topic, sizeof(mqtt_topic), "coldchain/truck04/sensor");
+    snprintf(mqtt_topic, sizeof(mqtt_topic), "coldchain/chamber/carrier-c6-04");
   } else {
     snprintf(device_id, sizeof(device_id), "carrier-c6-01");
-    snprintf(mqtt_topic, sizeof(mqtt_topic), "coldchain/truck01/sensor");
+    snprintf(mqtt_topic, sizeof(mqtt_topic), "coldchain/chamber/carrier-c6-01");
   }
 #endif
 

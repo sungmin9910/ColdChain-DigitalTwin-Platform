@@ -41,6 +41,10 @@ TRUCK_MAPPING = {
     "coldchain/truck04/sensor": {"truck_id": "truck04", "device_id": "carrier-c6-04"},
 }
 
+# 항온항습 챔버 교정 전용 토픽 (실제 운영 테이블과 완전 분리 -> lab225_v2.chamber_calibration_logs)
+CHAMBER_TOPIC = "coldchain/chamber/+"
+CHAMBER_TABLE = "chamber_calibration_logs"
+
 KST = timezone(timedelta(hours=9))
 
 def get_kst_now():
@@ -230,9 +234,34 @@ def get_db_conn(db_name=MYSQL_DATABASE):
         autocommit=True
     )
 
+def ensure_chamber_table(cur, dst_db=MYSQL_V2_DATABASE):
+    cur.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS `{dst_db}`.`{CHAMBER_TABLE}` (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            session_date DATE NOT NULL,
+            device_id VARCHAR(32) NOT NULL,
+            mac VARCHAR(24) DEFAULT NULL,
+            timestamp_kst VARCHAR(32) NOT NULL,
+            epoch_s BIGINT DEFAULT 0,
+            uptime_ms BIGINT DEFAULT 0,
+            temperature DOUBLE NOT NULL,
+            humidity DOUBLE NOT NULL,
+            lux DOUBLE DEFAULT 0.0,
+            g_force DOUBLE DEFAULT 1.0,
+            rssi INT DEFAULT -127,
+            created_at DATETIME NOT NULL,
+            UNIQUE KEY uk_dev_ts_up (device_id, timestamp_kst, uptime_ms),
+            KEY idx_session_dev (session_date, device_id),
+            KEY idx_dev_ts (device_id, timestamp_kst)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """
+    )
+
 def db_worker_thread():
     print(f"[DB Worker] Dual-Write 스레드 시작 ({MYSQL_DATABASE} + {MYSQL_V2_DATABASE})", flush=True)
     conn = None
+    chamber_table_ready = False
 
     while True:
         record = db_queue.get()
@@ -248,6 +277,39 @@ def db_worker_thread():
                     conn.ping(reconnect=True)
 
                 with conn.cursor() as cur:
+                    if record.get("_kind") == "chamber_cal":
+                        if not chamber_table_ready:
+                            ensure_chamber_table(cur, MYSQL_V2_DATABASE)
+                            chamber_table_ready = True
+                        cur.execute(
+                            f"""
+                            INSERT IGNORE INTO `{MYSQL_V2_DATABASE}`.`{CHAMBER_TABLE}`
+                            (session_date, device_id, mac, timestamp_kst, epoch_s, uptime_ms,
+                             temperature, humidity, lux, g_force, rssi, created_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            """,
+                            (
+                                record["session_date"],
+                                record["device_id"],
+                                record["mac"],
+                                record["timestamp_kst"],
+                                record["epoch_s"],
+                                record["uptime_ms"],
+                                record["temperature"],
+                                record["humidity"],
+                                record["lux"],
+                                record["g_force"],
+                                record["rssi"],
+                                record["created_at"],
+                            ),
+                        )
+                        print(
+                            f"  [CHAMBER INSERT] [{record['device_id']}] ts={record['timestamp_kst']} "
+                            f"T={record['temperature']:.3f}C RH={record['humidity']:.3f}% -> {MYSQL_V2_DATABASE}.{CHAMBER_TABLE}",
+                            flush=True,
+                        )
+                        break
+
                     # 1) 기존 v1 DB (lab225.sensor_data) 호환 적재 (무손실 롤백 안전망 유지)
                     sql_v1 = f"""
                     INSERT INTO `{MYSQL_DATABASE}`.`sensor_data`
@@ -338,6 +400,8 @@ def on_connect(client, userdata, flags, rc, properties=None):
         for topic in TRUCK_MAPPING.keys():
             client.subscribe(topic)
             print(f"  + Subscribed: {topic}", flush=True)
+        client.subscribe(CHAMBER_TOPIC)
+        print(f"  + Subscribed: {CHAMBER_TOPIC} (전용 테이블: {MYSQL_V2_DATABASE}.{CHAMBER_TABLE})", flush=True)
         print(f" [DAEMON READY] 24/7 Dual-Write ({MYSQL_DATABASE} + {MYSQL_V2_DATABASE}) 대기 중...\n", flush=True)
     else:
         print(f" [HiveMQ Connect FAIL] rc={rc}", flush=True)
@@ -347,6 +411,36 @@ def on_message(client, userdata, msg):
         topic = msg.topic
         payload_str = msg.payload.decode('utf-8', errors='replace').strip()
         data = json.loads(payload_str)
+
+        # 챔버 교정 전용 토픽은 운영 테이블과 완전 분리하여 5초 원본 전량 저장
+        if topic.startswith("coldchain/chamber/"):
+            raw_ts = str(data.get("timestamp_str") or "").strip()
+            if len(raw_ts) >= 19 and not raw_ts.startswith("00:00"):
+                ts_kst = raw_ts[:19]
+            else:
+                ts_kst = get_kst_now().strftime("%Y-%m-%d %H:%M:%S")
+            try:
+                dt_utc = datetime.strptime(ts_kst, "%Y-%m-%d %H:%M:%S") - timedelta(hours=9)
+                created_at_str = dt_utc.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                created_at_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+
+            db_queue.put({
+                "_kind": "chamber_cal",
+                "session_date": ts_kst[:10],
+                "device_id": str(data.get("device") or topic.split("/")[-1]),
+                "mac": str(data.get("mac") or ""),
+                "timestamp_kst": ts_kst,
+                "epoch_s": int(data.get("epoch_s") or 0),
+                "uptime_ms": int(data.get("uptime_ms") or 0),
+                "temperature": float(data.get("temperature", 0.0)),
+                "humidity": float(data.get("humidity", 0.0)),
+                "lux": float(data.get("lux", 0.0)),
+                "g_force": float(data.get("g_force", 1.0)),
+                "rssi": int(data.get("rssi", -127)),
+                "created_at": created_at_str,
+            })
+            return
 
         mapping = TRUCK_MAPPING.get(topic)
         if not mapping:

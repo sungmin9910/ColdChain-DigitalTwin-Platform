@@ -15,13 +15,21 @@ Usage Examples:
 import argparse
 import csv
 import json
+import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import serial
 import serial.tools.list_ports
+
+MYSQL_HOST = os.environ.get("MYSQL_HOST", "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com")
+MYSQL_PORT = int(os.environ.get("MYSQL_PORT", 3306))
+MYSQL_USER = os.environ.get("MYSQL_USER", "admin")
+MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "12345678")
+MYSQL_V2_DATABASE = os.environ.get("MYSQL_V2_DATABASE", "lab225_v2")
+CHAMBER_TABLE = "chamber_calibration_logs"
 
 
 def detect_port(preferred: str | None) -> str:
@@ -120,6 +128,49 @@ def run_mqtt_listener(args: argparse.Namespace) -> None:
     writer.writeheader()
     csv_file.flush()
 
+    db_conn = None
+    if not args.no_db:
+        try:
+            import pymysql
+
+            db_conn = pymysql.connect(
+                host=MYSQL_HOST,
+                port=MYSQL_PORT,
+                user=MYSQL_USER,
+                password=MYSQL_PASSWORD,
+                database=MYSQL_V2_DATABASE,
+                charset="utf8mb4",
+                connect_timeout=8,
+                autocommit=True,
+            )
+            with db_conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    CREATE TABLE IF NOT EXISTS `{MYSQL_V2_DATABASE}`.`{CHAMBER_TABLE}` (
+                        id BIGINT AUTO_INCREMENT PRIMARY KEY,
+                        session_date DATE NOT NULL,
+                        device_id VARCHAR(32) NOT NULL,
+                        mac VARCHAR(24) DEFAULT NULL,
+                        timestamp_kst VARCHAR(32) NOT NULL,
+                        epoch_s BIGINT DEFAULT 0,
+                        uptime_ms BIGINT DEFAULT 0,
+                        temperature DOUBLE NOT NULL,
+                        humidity DOUBLE NOT NULL,
+                        lux DOUBLE DEFAULT 0.0,
+                        g_force DOUBLE DEFAULT 1.0,
+                        rssi INT DEFAULT -127,
+                        created_at DATETIME NOT NULL,
+                        UNIQUE KEY uk_dev_ts_up (device_id, timestamp_kst, uptime_ms),
+                        KEY idx_session_dev (session_date, device_id),
+                        KEY idx_dev_ts (device_id, timestamp_kst)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                    """
+                )
+            print(f"[DB] AWS RDS 전용 테이블 준비 완료 -> {MYSQL_V2_DATABASE}.{CHAMBER_TABLE}")
+        except Exception as exc:
+            print(f"[DB WARN] AWS RDS 연결 생략 (로컬 CSV만 저장합니다): {exc}")
+            db_conn = None
+
     counts: dict[str, int] = {}
 
     def on_connect(client, userdata, flags, rc, *extra):
@@ -127,6 +178,7 @@ def run_mqtt_listener(args: argparse.Namespace) -> None:
         client.subscribe(args.topic)
 
     def on_message(client, userdata, msg):
+        nonlocal db_conn
         now_dt = datetime.now()
         try:
             payload = json.loads(msg.payload.decode("utf-8", errors="replace"))
@@ -135,12 +187,14 @@ def run_mqtt_listener(args: argparse.Namespace) -> None:
 
         dev = str(payload.get("device", "unknown"))
         counts[dev] = counts.get(dev, 0) + 1
+        raw_ts = str(payload.get("timestamp_str") or "").strip()
+        ts_kst = raw_ts[:19] if (len(raw_ts) >= 19 and not raw_ts.startswith("00:00")) else now_dt.strftime("%Y-%m-%d %H:%M:%S")
         row = {
             "pc_time_kst": now_dt.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3],
             "pc_epoch_s": f"{now_dt.timestamp():.3f}",
             "device": dev,
             "mac": payload.get("mac", ""),
-            "board_time_kst": payload.get("timestamp_str", ""),
+            "board_time_kst": ts_kst,
             "board_epoch_s": payload.get("epoch_s", 0),
             "uptime_ms": payload.get("uptime_ms", 0),
             "temp_c": payload.get("temperature", ""),
@@ -152,9 +206,42 @@ def run_mqtt_listener(args: argparse.Namespace) -> None:
         }
         writer.writerow(row)
         csv_file.flush()
+
+        db_tag = "CSV"
+        if db_conn is not None:
+            try:
+                db_conn.ping(reconnect=True)
+                dt_utc = datetime.strptime(ts_kst, "%Y-%m-%d %H:%M:%S") - timedelta(hours=9)
+                with db_conn.cursor() as cur:
+                    cur.execute(
+                        f"""
+                        INSERT IGNORE INTO `{MYSQL_V2_DATABASE}`.`{CHAMBER_TABLE}`
+                        (session_date, device_id, mac, timestamp_kst, epoch_s, uptime_ms,
+                         temperature, humidity, lux, g_force, rssi, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            ts_kst[:10],
+                            dev,
+                            str(row["mac"]),
+                            ts_kst,
+                            int(row["board_epoch_s"] or 0),
+                            int(row["uptime_ms"] or 0),
+                            float(row["temp_c"] or 0.0),
+                            float(row["rh_pct"] or 0.0),
+                            float(row["lux"] or 0.0),
+                            float(row["g_force"] or 1.0),
+                            int(row["rssi"] or -127),
+                            dt_utc.strftime("%Y-%m-%d %H:%M:%S"),
+                        ),
+                    )
+                db_tag = "CSV+RDS"
+            except Exception as exc:
+                db_tag = f"CSV(DB_ERR:{exc})"
+
         print(
-            f"[{row['pc_time_kst']}] {dev} (#{counts[dev]}) | "
-            f"T={row['temp_c']} C | RH={row['rh_pct']} % | Lux={row['lux']} lx | RSSI={row['rssi']}"
+            f"[{row['pc_time_kst']}] {dev} (#{counts[dev]}) [{db_tag}] | "
+            f"T={row['temp_c']} C | RH={row['rh_pct']} % | RSSI={row['rssi']}"
         )
 
     try:
@@ -174,12 +261,17 @@ def run_mqtt_listener(args: argparse.Namespace) -> None:
         print(f"\n[DONE] 수신 종료. 누적 저장: {counts} -> {csv_path}")
     finally:
         csv_file.close()
+        if db_conn is not None:
+            try:
+                db_conn.close()
+            except Exception:
+                pass
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Chamber Calibration Board Prep & Live MQTT Logger")
     parser.add_argument("--prep", action="store_true", help="USB 연결된 보드 시각 동기화/Wi-Fi 등록/초기화 수행")
-    parser.add_argument("--listen", action="store_true", help="노트북에서 4개 보드 MQTT 패킷 실시간 CSV 저장")
+    parser.add_argument("--listen", action="store_true", help="노트북에서 4개 보드 MQTT 패킷 실시간 CSV + AWS RDS 전용 테이블 저장")
     parser.add_argument("--port", default=None, help="시리얼 포트 (예: COM38)")
     parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--wifi-ssid", default=None, help="현장 2.4GHz Wi-Fi SSID 등록")
@@ -187,7 +279,8 @@ def main() -> None:
     parser.add_argument("--clear", action="store_true", help="보드 내 기존 /chamber_cal.csv 초기화")
     parser.add_argument("--broker", default="broker.hivemq.com")
     parser.add_argument("--port-mqtt", type=int, default=1883)
-    parser.add_argument("--topic", default="coldchain/+/sensor")
+    parser.add_argument("--topic", default="coldchain/chamber/+")
+    parser.add_argument("--no-db", action="store_true", help="AWS RDS DB 저장을 끄고 로컬 CSV만 저장")
     parser.add_argument("--out-dir", default="data/chamber_calibration/mqtt_live")
     args = parser.parse_args()
 

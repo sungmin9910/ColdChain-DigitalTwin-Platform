@@ -6,7 +6,7 @@
 
 ## 1. 실험 전 보드 펌웨어 업로드 (4대 공통 단일 타깃)
 
-`chamber_calibration_env.cpp`는 보드의 Wi-Fi STA MAC 주소를 읽어 `carrier-c6-01 ~ 04` 및 토픽(`coldchain/truck01~04/sensor`)을 **자동 식별**합니다.
+`chamber_calibration_env.cpp`는 보드의 Wi-Fi STA MAC 주소를 읽어 `carrier-c6-01 ~ 04` 및 **교정 전용 MQTT 토픽(`coldchain/chamber/carrier-c6-01~04`)** 을 자동 할당합니다. 실제 콜드체인 운영 DB 테이블(`sensor_data`, `sensor_telemetry`)에는 전혀 섞이지 않고, 전용 테이블 **`lab225_v2.chamber_calibration_logs`** 에만 5초 원본 전량이 분리 저장됩니다.
 
 ```powershell
 cd Hardware_Prototypes/code26/test
