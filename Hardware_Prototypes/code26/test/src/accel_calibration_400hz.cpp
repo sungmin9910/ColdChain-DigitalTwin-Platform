@@ -102,7 +102,7 @@ char mac_str[20] = "UNKNOWN";
 
 void initMacString() {
   uint8_t mac[6] = {0};
-  esp_efuse_mac_get_default(mac);
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);
   snprintf(mac_str, sizeof(mac_str), "%02X:%02X:%02X:%02X:%02X:%02X",
            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
@@ -142,22 +142,41 @@ inline float sampleGyroMag(const CalSample &s) {
   return sqrtf(s.gx_dps * s.gx_dps + s.gy_dps * s.gy_dps + s.gz_dps * s.gz_dps);
 }
 
+void scanDropPresence(bool present[MAX_DROP_FILES + 1]) {
+  for (int i = 0; i <= MAX_DROP_FILES; i++) present[i] = false;
+  if (!fs_ready) return;
+  File root = LittleFS.open("/");
+  if (!root || !root.isDirectory()) return;
+  File entry = root.openNextFile();
+  while (entry) {
+    String name = String(entry.name());
+    int slash = name.lastIndexOf('/');
+    if (slash >= 0) name = name.substring(slash + 1);
+    if (name.startsWith("drop_") && name.endsWith(".bin")) {
+      int idx = name.substring(5, 8).toInt();
+      if (idx >= 1 && idx <= MAX_DROP_FILES) present[idx] = true;
+    }
+    entry.close();
+    entry = root.openNextFile();
+  }
+  root.close();
+}
+
 int countDropFiles() {
-  if (!fs_ready) return 0;
+  bool present[MAX_DROP_FILES + 1];
+  scanDropPresence(present);
   int count = 0;
   for (int i = 1; i <= MAX_DROP_FILES; i++) {
-    char path[24];
-    snprintf(path, sizeof(path), "/drop_%03d.bin", i);
-    if (LittleFS.exists(path)) count++;
+    if (present[i]) count++;
   }
   return count;
 }
 
 int nextDropIndex() {
+  bool present[MAX_DROP_FILES + 1];
+  scanDropPresence(present);
   for (int i = 1; i <= MAX_DROP_FILES; i++) {
-    char path[24];
-    snprintf(path, sizeof(path), "/drop_%03d.bin", i);
-    if (!LittleFS.exists(path)) return i;
+    if (!present[i]) return i;
   }
   return -1;
 }
@@ -288,10 +307,12 @@ void cmdListDrops() {
   Serial.println("---DROP_LIST_START---");
   Serial.println("id,trigger,boot_ms,samples,peak_g,min_g,freefall_ms,max_gyro_dps");
   if (fs_ready) {
+    bool present[MAX_DROP_FILES + 1];
+    scanDropPresence(present);
     for (int i = 1; i <= MAX_DROP_FILES; i++) {
+      if (!present[i]) continue;
       char path[24];
       snprintf(path, sizeof(path), "/drop_%03d.bin", i);
-      if (!LittleFS.exists(path)) continue;
       File f = LittleFS.open(path, FILE_READ);
       if (!f) continue;
       DropHeader hdr;
@@ -354,13 +375,13 @@ void cmdDumpDrop(int id) {
 void cmdClearDrops() {
   int removed = 0;
   if (fs_ready) {
+    bool present[MAX_DROP_FILES + 1];
+    scanDropPresence(present);
     for (int i = 1; i <= MAX_DROP_FILES; i++) {
+      if (!present[i]) continue;
       char path[24];
       snprintf(path, sizeof(path), "/drop_%03d.bin", i);
-      if (LittleFS.exists(path)) {
-        LittleFS.remove(path);
-        removed++;
-      }
+      if (LittleFS.remove(path)) removed++;
     }
   }
   Serial.printf("[OK] Cleared %d drop files.\n", removed);
