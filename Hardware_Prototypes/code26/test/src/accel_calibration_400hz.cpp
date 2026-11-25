@@ -282,10 +282,15 @@ void cmdStaticCapture(float seconds) {
   if (n > STATIC_MAX_SAMPLES) n = STATIC_MAX_SAMPLES;
 
   Serial.printf("---STATIC_START samples=%d rate=%d---\n", n, SAMPLE_RATE_HZ);
+  Serial.flush();
   unsigned long t_next = micros();
   for (int i = 0; i < n; i++) {
+    long rem = (long)(t_next - micros());
+    if (rem > 1400L) {
+      delay(1);  // Feed FreeRTOS IDLE task (prevents single-core ESP32-C6 WDT reset & keeps USB CDC alive)
+    }
     while ((long)(micros() - t_next) < 0) {
-      // tight wait for clean 2500 us cadence
+      // fine wait for exact 2500 us (400 Hz) cadence
     }
     t_next += SAMPLE_PERIOD_US;
     readSample(static_buf[i]);
@@ -299,8 +304,12 @@ void cmdStaticCapture(float seconds) {
                   t_ms,
                   static_buf[i].ax_g, static_buf[i].ay_g, static_buf[i].az_g,
                   static_buf[i].gx_dps, static_buf[i].gy_dps, static_buf[i].gz_dps);
+    if ((i & 63) == 63) {
+      delay(1);
+    }
   }
   Serial.println("---STATIC_END---");
+  Serial.flush();
 }
 
 void cmdListDrops() {
@@ -367,9 +376,13 @@ void cmdDumpDrop(int id) {
     float t_ms = (s.t_us - t0) / 1000.0f;
     Serial.printf("%.3f,%.5f,%.5f,%.5f,%.2f,%.2f,%.2f\n",
                   t_ms, s.ax_g, s.ay_g, s.az_g, s.gx_dps, s.gy_dps, s.gz_dps);
+    if ((i & 63) == 63) {
+      delay(1);
+    }
   }
   f.close();
   Serial.printf("---DROP_DUMP_END id=%d---\n", id);
+  Serial.flush();
 }
 
 void cmdClearDrops() {

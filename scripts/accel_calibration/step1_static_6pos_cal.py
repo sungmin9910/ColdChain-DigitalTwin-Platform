@@ -148,13 +148,17 @@ def main() -> None:
             remaining = [k for k in needed_keys if k not in captured]
             print(f"\n[진행 {len(captured)}/6] 아직 필요한 방향: {', '.join(remaining)}")
 
-            # Show brief current reading to help orientation
-            cur_info = parse_info(send_and_read_until(ser, "info", "=== END_INFO ===", timeout=4.0))
-            print(f"  현재 센서값: {cur_info['live']}")
-            user_in = input("  -> 수평으로 정지시켰으면 [Enter] (종료: q): ").strip().lower()
-            if user_in == "q":
-                print("사용자에 의해 중단되었습니다.")
-                sys.exit(0)
+            # Show current reading and allow 'r' refresh until level
+            while True:
+                cur_info = parse_info(send_and_read_until(ser, "info", "=== END_INFO ===", timeout=4.0))
+                print(f"  현재 센서값: {cur_info['live']}")
+                user_in = input("  -> 수평 맞췄으면 [Enter] | 값 다시보기 [r] | 종료 [q]: ").strip().lower()
+                if user_in == "q":
+                    print("사용자에 의해 중단되었습니다.")
+                    sys.exit(0)
+                if user_in == "r":
+                    continue
+                break
 
             print(f"  수집 중 ({args.duration:.1f}초, 움직이지 마세요)...")
             df = capture_static_csv(ser, args.duration)
