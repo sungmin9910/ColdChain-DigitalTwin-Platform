@@ -251,14 +251,31 @@ def interactive_dump_loop() -> None:
             break
 
 
-def query_rds_history(hours: int = 24, export_csv: bool = False) -> None:
+def normalize_unit_choice(raw: str) -> str | None:
+    """Convert '1'..'4' or '01'..'04' or 'carrier-c6-02' to 'carrier-c6-0X', or None for all."""
+    s = raw.strip().lower()
+    if not s or s in ("all", "a", "전체"):
+        return None
+    if s in ("1", "01", "1호차", "carrier-c6-01"):
+        return "carrier-c6-01"
+    if s in ("2", "02", "2호차", "carrier-c6-02"):
+        return "carrier-c6-02"
+    if s in ("3", "03", "3호차", "carrier-c6-03"):
+        return "carrier-c6-03"
+    if s in ("4", "04", "4호차", "carrier-c6-04"):
+        return "carrier-c6-04"
+    return s
+
+
+def query_rds_history(hours: int = 24, export_csv: bool = False, device_filter: str | None = None) -> None:
     try:
         import pymysql
     except ImportError:
         print("[ERR] pymysql 패키지가 필요합니다: pip install pymysql")
         return
 
-    print(f"\n[RDS 원격 조회] 최근 {hours}시간 누적 데이터 조회 중 ({MYSQL_V2_DATABASE}.{CHAMBER_TABLE})...")
+    target_label = device_filter if device_filter else "전체 (01~04호차)"
+    print(f"\n[RDS 원격 조회] 대상={target_label} | 최근 {hours}시간 ({MYSQL_V2_DATABASE}.{CHAMBER_TABLE})...")
     conn = pymysql.connect(
         host=MYSQL_HOST,
         port=MYSQL_PORT,
@@ -270,6 +287,12 @@ def query_rds_history(hours: int = 24, export_csv: bool = False) -> None:
     )
     try:
         with conn.cursor() as cur:
+            where_sql = "WHERE created_at >= (UTC_TIMESTAMP() - INTERVAL %s HOUR)"
+            params: list = [hours]
+            if device_filter:
+                where_sql += " AND device_id = %s"
+                params.append(device_filter)
+
             cur.execute(
                 f"""
                 SELECT
@@ -282,16 +305,16 @@ def query_rds_history(hours: int = 24, export_csv: bool = False) -> None:
                     MIN(humidity) AS min_rh,
                     MAX(humidity) AS max_rh
                 FROM `{CHAMBER_TABLE}`
-                WHERE created_at >= (UTC_TIMESTAMP() - INTERVAL %s HOUR)
+                {where_sql}
                 GROUP BY device_id
                 ORDER BY device_id
                 """,
-                (hours,),
+                tuple(params),
             )
             summary = cur.fetchall()
 
             if not summary:
-                print(f"  (최근 {hours}시간 이내에 RDS에 적재된 챔버 교정 데이터가 아직 없습니다.)")
+                print(f"  (최근 {hours}시간 이내에 [{target_label}] 데이터가 없습니다.)")
                 return
 
             print("\n================ [기기별 누적 현황 (시작 시점 ~ 현재)] ================")
@@ -302,37 +325,53 @@ def query_rds_history(hours: int = 24, export_csv: bool = False) -> None:
                     f"      온도: {min_t:6.2f} ~ {max_t:6.2f} °C | 습도: {min_rh:5.1f} ~ {max_rh:5.1f} %RH"
                 )
 
-            print("\n---------------- [기기별 가장 최근 수신값] ----------------")
-            for row in summary:
-                dev = row[0]
+            if device_filter:
+                print(f"\n---------------- [{device_filter} 최근 10건 상세 기록] ----------------")
                 cur.execute(
                     f"""
                     SELECT timestamp_kst, temperature, humidity, lux, rssi
                     FROM `{CHAMBER_TABLE}`
                     WHERE device_id = %s
-                    ORDER BY id DESC LIMIT 1
+                    ORDER BY id DESC LIMIT 10
                     """,
-                    (dev,),
+                    (device_filter,),
                 )
-                latest = cur.fetchone()
-                if latest:
-                    ts, t_c, rh, lx, rssi = latest
-                    print(f"  {dev} | {ts} | T={t_c:.3f}°C | RH={rh:.3f}% | Lux={lx:.1f}lx | RSSI={rssi}")
+                recent = list(reversed(cur.fetchall()))
+                for ts, t_c, rh, lx, rssi in recent:
+                    print(f"  {ts} | T={t_c:6.3f}°C | RH={rh:6.3f}% | Lux={lx:6.1f}lx | RSSI={rssi}")
+            else:
+                print("\n---------------- [기기별 가장 최근 수신값] ----------------")
+                for row in summary:
+                    dev = row[0]
+                    cur.execute(
+                        f"""
+                        SELECT timestamp_kst, temperature, humidity, lux, rssi
+                        FROM `{CHAMBER_TABLE}`
+                        WHERE device_id = %s
+                        ORDER BY id DESC LIMIT 1
+                        """,
+                        (dev,),
+                    )
+                    latest = cur.fetchone()
+                    if latest:
+                        ts, t_c, rh, lx, rssi = latest
+                        print(f"  {dev} | {ts} | T={t_c:.3f}°C | RH={rh:.3f}% | Lux={lx:.1f}lx | RSSI={rssi}")
 
             if export_csv:
                 out_dir = REPO_ROOT / "data" / "chamber_calibration" / "rds_exports"
                 out_dir.mkdir(parents=True, exist_ok=True)
                 tag = datetime.now().strftime("%Y%m%d_%H%M%S")
-                out_path = out_dir / f"rds_chamber_last{hours}h_{tag}.csv"
+                dev_tag = device_filter if device_filter else "all"
+                out_path = out_dir / f"rds_chamber_{dev_tag}_last{hours}h_{tag}.csv"
                 cur.execute(
                     f"""
                     SELECT device_id, mac, timestamp_kst, epoch_s, uptime_ms,
                            temperature, humidity, lux, g_force, rssi
                     FROM `{CHAMBER_TABLE}`
-                    WHERE created_at >= (UTC_TIMESTAMP() - INTERVAL %s HOUR)
+                    {where_sql}
                     ORDER BY device_id, timestamp_kst, uptime_ms
                     """,
-                    (hours,),
+                    tuple(params),
                 )
                 all_rows = cur.fetchall()
                 with open(out_path, "w", newline="", encoding="utf-8-sig") as f:
@@ -405,7 +444,14 @@ def interactive_menu() -> None:
         if choice == "1":
             interactive_prep_loop()
         elif choice == "2":
-            subprocess.run([sys.executable, str(STEP1_SCRIPT), "--listen"], cwd=str(REPO_ROOT))
+            unit_in = input("모니터링할 호차 선택 [Enter=전체 / 1 / 2 / 3 / 4]: ").strip()
+            dev_filter = normalize_unit_choice(unit_in)
+            topic = f"coldchain/chamber/{dev_filter}" if dev_filter else "coldchain/chamber/+"
+            print(f"[실시간 모니터링 대상]: {dev_filter or '전체 (01~04호차)'} -> 토픽 {topic}")
+            subprocess.run(
+                [sys.executable, str(STEP1_SCRIPT), "--listen", "--topic", topic],
+                cwd=str(REPO_ROOT),
+            )
         elif choice == "3":
             interactive_dump_loop()
         elif choice == "4":
@@ -421,11 +467,13 @@ def interactive_menu() -> None:
                 except Exception as exc:
                     print(f"  [ERR] 조회 실패: {exc}")
         elif choice == "5":
+            unit_in = input("조회할 호차 선택 [Enter=전체 / 1 / 2 / 3 / 4]: ").strip()
+            dev_filter = normalize_unit_choice(unit_in)
             hrs_in = input("최근 몇 시간 데이터를 조회할까요? (기본 24시간, 그냥 Enter): ").strip()
             hrs = int(hrs_in) if hrs_in.isdigit() and int(hrs_in) > 0 else 24
-            exp_in = input("조회된 전체 데이터를 CSV 파일로도 저장할까요? (y/N): ").strip().lower()
+            exp_in = input("조회된 데이터를 CSV 파일로도 저장할까요? (y/N): ").strip().lower()
             try:
-                query_rds_history(hours=hrs, export_csv=(exp_in == "y"))
+                query_rds_history(hours=hrs, export_csv=(exp_in == "y"), device_filter=dev_filter)
             except Exception as exc:
                 print(f"  [ERR] RDS 조회 실패: {exc}")
         elif choice == "6":
@@ -445,6 +493,7 @@ def main() -> None:
     parser.add_argument("--auto", action="store_true", help="비대화형 자동 모드: 현재 연결된 모든 보드에 즉시 세팅 적용")
     parser.add_argument("--check", action="store_true", help="현재 연결된 모든 보드의 상태(info)만 빠르게 확인")
     parser.add_argument("--rds", action="store_true", help="AWS RDS에서 시작 시점~현재 누적 현황 원격 조회")
+    parser.add_argument("--unit", default=None, help="호차 필터 (예: 2, 3, 4 또는 carrier-c6-02)")
     parser.add_argument("--clear-rds", action="store_true", help="AWS RDS 챔버 교정 전용 테이블(chamber_calibration_logs)만 초기화")
     parser.add_argument("--yes", action="store_true", help="--clear-rds 확인 생략")
     parser.add_argument("--hours", type=int, default=24, help="--rds 조회 범위 (기본 24시간)")
@@ -461,7 +510,8 @@ def main() -> None:
         return
 
     if args.rds:
-        query_rds_history(hours=args.hours, export_csv=args.export_csv)
+        dev_filter = normalize_unit_choice(args.unit) if args.unit else None
+        query_rds_history(hours=args.hours, export_csv=args.export_csv, device_filter=dev_filter)
         return
 
     if args.check:
