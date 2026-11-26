@@ -634,11 +634,14 @@ void loop() {
   }
 
   // Exact 5.0 s Chamber Calibration Measurement, CSV Backup & MQTT Publish
-  if (logging_active && (now_ms - last_tx_ms >= TX_INTERVAL_MS)) {
-    last_tx_ms += TX_INTERVAL_MS;
-    if ((long)(now_ms - last_tx_ms) > (long)TX_INTERVAL_MS) {
-      last_tx_ms = now_ms;
-    }
+  // Use signed difference so last_tx_ms > now_ms can NEVER underflow into a 15 Hz flood
+  long elapsed_tx_ms = (long)(now_ms - last_tx_ms);
+  if (elapsed_tx_ms < 0) {
+    last_tx_ms = now_ms;
+    elapsed_tx_ms = 0;
+  }
+  if (logging_active && (elapsed_tx_ms >= (long)TX_INTERVAL_MS)) {
+    last_tx_ms = now_ms;
 
     float temp_c, rh_pct, lux_val;
     readEnvSensors(temp_c, rh_pct, lux_val);
