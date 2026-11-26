@@ -18,9 +18,21 @@ pio run -e beetle_c6_chamber_cal -t upload --upload-port COM38
 
 ---
 
-## 2. 현장에서 Wi-Fi 추가 및 시각 동기화 (`step1_live_mqtt_and_prep.py`)
+## 2. 현장에서 Wi-Fi 추가 · 시각 동기화 · 충전 중 메모리 초기화 (원클릭 실행기)
 
-현장 `2.4 GHz` 공유기 정보를 코드(`default_wifi_list[]`)에 추가해 재업로드하거나, **재컴파일 없이** 아래 명령 한 줄로 보드에 Wi-Fi 등록·시각 동기화·초기화를 한 번에 수행할 수 있습니다:
+현장 노트북에서 **`scripts/chamber_calibration/챔버_현장준비_실행.bat`** 을 더블클릭하면 COM 포트를 자동 감지해 **현장 Wi-Fi 연결 + KST 시각 동기화 + 충전 중 쌓인 메모리 초기화(`clear`)** 를 보드별로 연속 실행할 수 있습니다.
+
+또는 터미널에서 비대화형 원샷 명령으로 바로 실행할 수도 있습니다:
+
+```powershell
+# 연결된 모든 보드에 현장 Wi-Fi 등록 + 시각 동기화 + 메모리 초기화 일괄 적용
+python scripts/chamber_calibration/chamber_field_wizard.py --auto --ssid "현장공유기2.4G" --password "비밀번호"
+
+# Wi-Fi 없이 시각 동기화 + 메모리 초기화만 적용
+python scripts/chamber_calibration/chamber_field_wizard.py --auto
+```
+
+기존 개별 명령(`step1_live_mqtt_and_prep.py`)을 직접 쓸 경우:
 
 ```powershell
 python scripts/chamber_calibration/step1_live_mqtt_and_prep.py --prep --port COM38 --wifi-ssid "현장공유기2.4G" --wifi-pass "비밀번호" --clear
