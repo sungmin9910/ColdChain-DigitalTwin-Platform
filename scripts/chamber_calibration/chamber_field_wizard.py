@@ -345,19 +345,62 @@ def query_rds_history(hours: int = 24, export_csv: bool = False) -> None:
         conn.close()
 
 
+def clear_rds_chamber_table(force: bool = False) -> None:
+    try:
+        import pymysql
+    except ImportError:
+        print("[ERR] pymysql 패키지가 필요합니다: pip install pymysql")
+        return
+
+    conn = pymysql.connect(
+        host=MYSQL_HOST,
+        port=MYSQL_PORT,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_V2_DATABASE,
+        charset="utf8mb4",
+        connect_timeout=8,
+        autocommit=True,
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT COUNT(*), MIN(timestamp_kst), MAX(timestamp_kst) FROM `{CHAMBER_TABLE}`")
+            cnt, min_ts, max_ts = cur.fetchone()
+            print(f"\n[RDS 챔버 전용 테이블 현황] {MYSQL_V2_DATABASE}.{CHAMBER_TABLE}")
+            print(f"  - 현재 행 수 : {cnt:,}건")
+            print(f"  - 저장 기간  : {min_ts} ~ {max_ts}")
+            print("  * 주의: 운영 테이블(qr, sensor_data, sensor_telemetry 등)은 전혀 건드리지 않습니다.")
+
+            if cnt == 0:
+                print("  [INFO] 이미 0건으로 비어 있습니다.")
+                return
+
+            if not force:
+                confirm = input("\n정말 챔버 교정 테이블만 0건으로 초기화(TRUNCATE)할까요? 진행하려면 YES 입력: ").strip()
+                if confirm != "YES":
+                    print("  [취소됨] 데이터를 삭제하지 않았습니다.")
+                    return
+
+            cur.execute(f"TRUNCATE TABLE `{CHAMBER_TABLE}`")
+            print(f"  [OK] {MYSQL_V2_DATABASE}.{CHAMBER_TABLE} 초기화 완료! (0건, id=1부터 새로 기록됩니다)")
+    finally:
+        conn.close()
+
+
 def interactive_menu() -> None:
     while True:
         print("\n============================================================")
         print("  FDT 항온항습 챔버 교정 — 현장 통합 실행기")
         print("============================================================")
-        print("  1) [투입 전] 현장 Wi-Fi 연결 + 시각 동기화 + 충전 중 메모리 초기화")
+        print("  1) [투입 전] 현장 Wi-Fi 연결 + 시각 동기화 + 충전 중 보드 메모리 초기화")
         print("  2) [운전 중] 실시간 MQTT 모니터링 & 백업 시작 (지금 시점부터 생방송)")
         print("  3) [종료 후] 보드 내장 LittleFS 20시간 CSV 무손실 추출")
         print("  4) [점검용] USB 연결된 보드 상태 빠른 확인 (info)")
         print("  5) [집/원격] 시작 시점~현재 AWS RDS 전체 누적 현황 조회 (+ CSV 저장)")
+        print("  6) [DB 정리] 실전 시작 직전 AWS RDS 챔버 전용 테이블만 비우기 (TRUNCATE)")
         print("  0) 종료")
         print("============================================================")
-        choice = input("원하는 번호를 입력하세요 (1~5, 0=종료): ").strip()
+        choice = input("원하는 번호를 입력하세요 (1~6, 0=종료): ").strip()
 
         if choice == "1":
             interactive_prep_loop()
@@ -385,11 +428,16 @@ def interactive_menu() -> None:
                 query_rds_history(hours=hrs, export_csv=(exp_in == "y"))
             except Exception as exc:
                 print(f"  [ERR] RDS 조회 실패: {exc}")
+        elif choice == "6":
+            try:
+                clear_rds_chamber_table(force=False)
+            except Exception as exc:
+                print(f"  [ERR] RDS 테이블 초기화 실패: {exc}")
         elif choice == "0":
             print("프로그램을 종료합니다.")
             break
         else:
-            print("[ERR] 0~5 사이의 번호를 입력해 주세요.")
+            print("[ERR] 0~6 사이의 번호를 입력해 주세요.")
 
 
 def main() -> None:
@@ -397,6 +445,8 @@ def main() -> None:
     parser.add_argument("--auto", action="store_true", help="비대화형 자동 모드: 현재 연결된 모든 보드에 즉시 세팅 적용")
     parser.add_argument("--check", action="store_true", help="현재 연결된 모든 보드의 상태(info)만 빠르게 확인")
     parser.add_argument("--rds", action="store_true", help="AWS RDS에서 시작 시점~현재 누적 현황 원격 조회")
+    parser.add_argument("--clear-rds", action="store_true", help="AWS RDS 챔버 교정 전용 테이블(chamber_calibration_logs)만 초기화")
+    parser.add_argument("--yes", action="store_true", help="--clear-rds 확인 생략")
     parser.add_argument("--hours", type=int, default=24, help="--rds 조회 범위 (기본 24시간)")
     parser.add_argument("--export-csv", action="store_true", help="--rds 결과를 CSV로 저장")
     parser.add_argument("--port", default=None, help="특정 COM 포트만 지정 (예: COM17)")
@@ -405,6 +455,10 @@ def main() -> None:
     parser.add_argument("--no-clear", action="store_true", help="메모리 초기화(clear) 생략")
     parser.add_argument("--wait-wifi", type=float, default=10.0, help="Wi-Fi 연결 확인 대기 시간(초)")
     args = parser.parse_args()
+
+    if args.clear_rds:
+        clear_rds_chamber_table(force=args.yes)
+        return
 
     if args.rds:
         query_rds_history(hours=args.hours, export_csv=args.export_csv)
