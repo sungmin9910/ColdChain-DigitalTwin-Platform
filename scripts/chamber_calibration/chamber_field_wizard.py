@@ -10,6 +10,8 @@ Climatic Chamber Field Launch Wizard (All-in-One)
 """
 
 import argparse
+import csv
+import os
 import subprocess
 import sys
 import time
@@ -22,6 +24,13 @@ import serial.tools.list_ports
 REPO_ROOT = Path(__file__).resolve().parents[2]
 STEP1_SCRIPT = Path(__file__).resolve().parent / "step1_live_mqtt_and_prep.py"
 STEP2_SCRIPT = Path(__file__).resolve().parent / "step2_dump_littlefs_csv.py"
+
+MYSQL_HOST = os.environ.get("MYSQL_HOST", "labdb.cn26yq6q0mu6.ap-northeast-2.rds.amazonaws.com")
+MYSQL_PORT = int(os.environ.get("MYSQL_PORT", 3306))
+MYSQL_USER = os.environ.get("MYSQL_USER", "admin")
+MYSQL_PASSWORD = os.environ.get("MYSQL_PASSWORD", "12345678")
+MYSQL_V2_DATABASE = os.environ.get("MYSQL_V2_DATABASE", "lab225_v2")
+CHAMBER_TABLE = "chamber_calibration_logs"
 
 
 def find_esp32_ports() -> list[tuple[str, str]]:
@@ -242,18 +251,113 @@ def interactive_dump_loop() -> None:
             break
 
 
+def query_rds_history(hours: int = 24, export_csv: bool = False) -> None:
+    try:
+        import pymysql
+    except ImportError:
+        print("[ERR] pymysql 패키지가 필요합니다: pip install pymysql")
+        return
+
+    print(f"\n[RDS 원격 조회] 최근 {hours}시간 누적 데이터 조회 중 ({MYSQL_V2_DATABASE}.{CHAMBER_TABLE})...")
+    conn = pymysql.connect(
+        host=MYSQL_HOST,
+        port=MYSQL_PORT,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_V2_DATABASE,
+        charset="utf8mb4",
+        connect_timeout=8,
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT
+                    device_id,
+                    COUNT(*) AS cnt,
+                    MIN(timestamp_kst) AS first_ts,
+                    MAX(timestamp_kst) AS last_ts,
+                    MIN(temperature) AS min_t,
+                    MAX(temperature) AS max_t,
+                    MIN(humidity) AS min_rh,
+                    MAX(humidity) AS max_rh
+                FROM `{CHAMBER_TABLE}`
+                WHERE created_at >= (UTC_TIMESTAMP() - INTERVAL %s HOUR)
+                GROUP BY device_id
+                ORDER BY device_id
+                """,
+                (hours,),
+            )
+            summary = cur.fetchall()
+
+            if not summary:
+                print(f"  (최근 {hours}시간 이내에 RDS에 적재된 챔버 교정 데이터가 아직 없습니다.)")
+                return
+
+            print("\n================ [기기별 누적 현황 (시작 시점 ~ 현재)] ================")
+            for row in summary:
+                dev, cnt, first_ts, last_ts, min_t, max_t, min_rh, max_rh = row
+                print(
+                    f"  {dev} | 누적 {cnt:5d}건 | {first_ts} ~ {last_ts}\n"
+                    f"      온도: {min_t:6.2f} ~ {max_t:6.2f} °C | 습도: {min_rh:5.1f} ~ {max_rh:5.1f} %RH"
+                )
+
+            print("\n---------------- [기기별 가장 최근 수신값] ----------------")
+            for row in summary:
+                dev = row[0]
+                cur.execute(
+                    f"""
+                    SELECT timestamp_kst, temperature, humidity, lux, rssi
+                    FROM `{CHAMBER_TABLE}`
+                    WHERE device_id = %s
+                    ORDER BY id DESC LIMIT 1
+                    """,
+                    (dev,),
+                )
+                latest = cur.fetchone()
+                if latest:
+                    ts, t_c, rh, lx, rssi = latest
+                    print(f"  {dev} | {ts} | T={t_c:.3f}°C | RH={rh:.3f}% | Lux={lx:.1f}lx | RSSI={rssi}")
+
+            if export_csv:
+                out_dir = REPO_ROOT / "data" / "chamber_calibration" / "rds_exports"
+                out_dir.mkdir(parents=True, exist_ok=True)
+                tag = datetime.now().strftime("%Y%m%d_%H%M%S")
+                out_path = out_dir / f"rds_chamber_last{hours}h_{tag}.csv"
+                cur.execute(
+                    f"""
+                    SELECT device_id, mac, timestamp_kst, epoch_s, uptime_ms,
+                           temperature, humidity, lux, g_force, rssi
+                    FROM `{CHAMBER_TABLE}`
+                    WHERE created_at >= (UTC_TIMESTAMP() - INTERVAL %s HOUR)
+                    ORDER BY device_id, timestamp_kst, uptime_ms
+                    """,
+                    (hours,),
+                )
+                all_rows = cur.fetchall()
+                with open(out_path, "w", newline="", encoding="utf-8-sig") as f:
+                    w = csv.writer(f)
+                    w.writerow(["device_id", "mac", "timestamp_kst", "epoch_s", "uptime_ms",
+                                "temperature", "humidity", "lux", "g_force", "rssi"])
+                    w.writerows(all_rows)
+                print(f"\n[CSV 저장 완료] 총 {len(all_rows)}건 -> {out_path}")
+    finally:
+        conn.close()
+
+
 def interactive_menu() -> None:
     while True:
         print("\n============================================================")
         print("  FDT 항온항습 챔버 교정 — 현장 통합 실행기")
         print("============================================================")
         print("  1) [투입 전] 현장 Wi-Fi 연결 + 시각 동기화 + 충전 중 메모리 초기화")
-        print("  2) [운전 중] 실시간 MQTT 모니터링 & 백업 시작 (--listen)")
+        print("  2) [운전 중] 실시간 MQTT 모니터링 & 백업 시작 (지금 시점부터 생방송)")
         print("  3) [종료 후] 보드 내장 LittleFS 20시간 CSV 무손실 추출")
-        print("  4) [점검용] 연결된 보드 상태 빠른 확인 (info)")
+        print("  4) [점검용] USB 연결된 보드 상태 빠른 확인 (info)")
+        print("  5) [집/원격] 시작 시점~현재 AWS RDS 전체 누적 현황 조회 (+ CSV 저장)")
         print("  0) 종료")
         print("============================================================")
-        choice = input("원하는 번호를 입력하세요 (1~4, 0=종료): ").strip()
+        choice = input("원하는 번호를 입력하세요 (1~5, 0=종료): ").strip()
 
         if choice == "1":
             interactive_prep_loop()
@@ -273,23 +377,38 @@ def interactive_menu() -> None:
                         print(f"  {k:9s}: {v}")
                 except Exception as exc:
                     print(f"  [ERR] 조회 실패: {exc}")
+        elif choice == "5":
+            hrs_in = input("최근 몇 시간 데이터를 조회할까요? (기본 24시간, 그냥 Enter): ").strip()
+            hrs = int(hrs_in) if hrs_in.isdigit() and int(hrs_in) > 0 else 24
+            exp_in = input("조회된 전체 데이터를 CSV 파일로도 저장할까요? (y/N): ").strip().lower()
+            try:
+                query_rds_history(hours=hrs, export_csv=(exp_in == "y"))
+            except Exception as exc:
+                print(f"  [ERR] RDS 조회 실패: {exc}")
         elif choice == "0":
             print("프로그램을 종료합니다.")
             break
         else:
-            print("[ERR] 0~4 사이의 번호를 입력해 주세요.")
+            print("[ERR] 0~5 사이의 번호를 입력해 주세요.")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="FDT Chamber Calibration Field Wizard")
     parser.add_argument("--auto", action="store_true", help="비대화형 자동 모드: 현재 연결된 모든 보드에 즉시 세팅 적용")
     parser.add_argument("--check", action="store_true", help="현재 연결된 모든 보드의 상태(info)만 빠르게 확인")
+    parser.add_argument("--rds", action="store_true", help="AWS RDS에서 시작 시점~현재 누적 현황 원격 조회")
+    parser.add_argument("--hours", type=int, default=24, help="--rds 조회 범위 (기본 24시간)")
+    parser.add_argument("--export-csv", action="store_true", help="--rds 결과를 CSV로 저장")
     parser.add_argument("--port", default=None, help="특정 COM 포트만 지정 (예: COM17)")
     parser.add_argument("--ssid", default="", help="현장 2.4GHz Wi-Fi SSID")
     parser.add_argument("--password", default="", help="현장 2.4GHz Wi-Fi 비밀번호")
     parser.add_argument("--no-clear", action="store_true", help="메모리 초기화(clear) 생략")
     parser.add_argument("--wait-wifi", type=float, default=10.0, help="Wi-Fi 연결 확인 대기 시간(초)")
     args = parser.parse_args()
+
+    if args.rds:
+        query_rds_history(hours=args.hours, export_csv=args.export_csv)
+        return
 
     if args.check:
         ports = [(args.port, "manual")] if args.port else find_esp32_ports()
