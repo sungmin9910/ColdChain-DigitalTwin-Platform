@@ -61,11 +61,17 @@ PCB_Z_CENTER = 3.0
 PCB_Y_MOUNT = 0.0
 PCB_Y_BACK = PCB_Y_MOUNT - PCB_T  # Y = -1.6 mm
 
-# 후면 5000mAh 배터리 베이 (JRF PL105568: 55 x 68 x 10 mm + 2mm 벨크로)
-BATTERY_FLOOR_Y = -26.0           # 기존 -24.5 -> -26.0 mm (외벽 최소 2.30 mm 유지, 후면 여유 +1.5mm)
+# 후면 5000mAh 배터리 베이 (JRF PL105568: 55 x 68 x 10 mm + 2~3.5mm 벨크로 매립 포켓)
+BATTERY_FLOOR_Y = -27.5           # 1단 배터리 본체 바닥 (-26.0 -> -27.5 mm, 3D 최소 외벽 1.12 mm 균형)
 BATTERY_BAY_W = 56.4
 BATTERY_BAY_H = 70.4
-BATTERY_BAY_Z_CENTER = -0.5
+BATTERY_BAY_FILLET = 2.5          # 55x68 직각 모서리 여유 +0.28 mm 확보
+BATTERY_BAY_Z_CENTER = -0.4       # 상·하단 외벽 두께 균형점 (top 1.17 mm / bot 1.12 mm)
+VELCRO_RECESS_W = 44.0            # 2단 중앙 벨크로 매립 포켓 폭 (벨크로 두께 100% 상쇄!)
+VELCRO_RECESS_H = 58.0            # 2단 중앙 벨크로 매립 포켓 높이
+VELCRO_RECESS_DEPTH = 3.5         # Y = -27.5 -> -31.0 mm (실제 3D 외벽 두께 5.6 mm+ 유지)
+CABLE_NOTCH_W = 24.0              # 상·하단 중앙 배터리 보호회로/리드선 여유 홈 폭
+CABLE_NOTCH_H = 76.0              # Z = -38.4 ~ +37.6 mm (리드선 꺾임·들뜸 방지)
 
 # 4x 외곽 육각 렌치 볼트 보스 좌표 (|X| - r_boss = 35.0 - 6.5 = 28.50 > 28.20 배터리 베이!)
 BOLT_PTS: list[tuple[float, float]] = [
@@ -261,7 +267,7 @@ def build_rear_shell(
     rear_half_box = cq.Workplane("XY").transformed(offset=(0.0, -70.0, 0.0)).box(140.0, 140.0, 140.0)
     shell_body = hollow_apple.intersect(rear_half_box)
 
-    # 평면 벨크로 배터리 바닥 플랫폼 (Y = -52.0 ~ BATTERY_FLOOR_Y = -26.0 mm)
+    # 평면 배터리 바닥 플랫폼 (Y = -53.5 ~ BATTERY_FLOOR_Y = -27.5 mm)
     platform_h = 26.0
     platform_cy = BATTERY_FLOOR_Y - platform_h / 2.0
     velcro_platform = cq.Workplane("XY").transformed(offset=(0.0, platform_cy, 0.0)).box(140.0, platform_h, 140.0)
@@ -284,18 +290,38 @@ def build_rear_shell(
     # 사과 외벽 안쪽으로 정밀 트리밍
     rear = outer.intersect(internal_union)
 
-    # 5000mAh 배터리 수납 사각 베이 절삭 (Y = +0.5 -> BATTERY_FLOOR_Y + 0.02 = -25.98 mm)
-    bay_depth = abs(BATTERY_FLOOR_Y) + 0.48  # 26.48 mm
+    # 1단: 5000mAh 배터리 본체 수납 사각 베이 절삭 (Y = +0.5 -> BATTERY_FLOOR_Y + 0.02 = -27.48 mm)
+    bay_depth = abs(BATTERY_FLOOR_Y) + 0.48
     battery_bay_cut = (
         cq.Workplane("XZ")
         .workplane(offset=-0.5)  # offset=-0.5 on XZ(-Y normal) -> Y = +0.5 mm
         .center(0.0, BATTERY_BAY_Z_CENTER)
         .rect(BATTERY_BAY_W, BATTERY_BAY_H)
-        .extrude(bay_depth)      # Y = +0.5 -> -25.98 mm
+        .extrude(bay_depth)      # Y = +0.5 -> -27.48 mm
         .edges("|Y")
-        .fillet(2.2)
+        .fillet(BATTERY_BAY_FILLET)
     )
-    rear = rear.cut(battery_bay_cut)
+    # 2단: 중앙 벨크로 매립 포켓 (44 x 58 mm, Y = -27.0 -> -31.0 mm -> 벨크로 두께 2~3.5mm 완전 매립!)
+    velcro_recess_cut = (
+        cq.Workplane("XZ")
+        .workplane(offset=abs(BATTERY_FLOOR_Y) - 0.5)  # Y = -27.0 mm
+        .center(0.0, BATTERY_BAY_Z_CENTER)
+        .rect(VELCRO_RECESS_W, VELCRO_RECESS_H)
+        .extrude(VELCRO_RECESS_DEPTH + 0.5)            # -> Y = -31.0 mm
+        .edges("|Y")
+        .fillet(3.0)
+    )
+    # 3단: 상·하단 중앙 배터리 보호회로/리드선 여유 홈 (24 x 76 mm, Y = +0.5 -> -27.48 mm)
+    cable_notch_cut = (
+        cq.Workplane("XZ")
+        .workplane(offset=-0.5)
+        .center(0.0, BATTERY_BAY_Z_CENTER)
+        .rect(CABLE_NOTCH_W, CABLE_NOTCH_H)
+        .extrude(bay_depth)
+        .edges("|Y")
+        .fillet(3.0)
+    )
+    rear = rear.cut(battery_bay_cut).cut(velcro_recess_cut).cut(cable_notch_cut)
 
     # 4x 육각 렌치 볼트 통과홀(Y = 0..-10) + 카운터보어 터널(Y = -10..-38)
     # Dome-Up 출력 시 Z_print=0..10이 좁은 통과홀, Z_print=10..30이 넓은 카운터보어 -> 오버행 0%, 서포트 0%!
@@ -544,9 +570,10 @@ def measure_exact_mesh_bounds(part: cq.Workplane) -> tuple[float, float, float, 
 def build_hardware_mockup(bolt_spec: str = BOLT_SPEC) -> dict[str, tuple[cq.Workplane, str]]:
     spec = BOLT_SPECS[bolt_spec]
 
-    # 1. 5000mAh 배터리 (55 x 68 x 10 mm) + 2mm 벨크로 층 (Y = -26.0 ~ -14.0 mm)
-    velcro_pad = cq.Workplane("XY").transformed(offset=(0.0, BATTERY_FLOOR_Y + 1.0, BATTERY_BAY_Z_CENTER)).box(52.0, 2.0, 64.0)
-    battery = cq.Workplane("XY").transformed(offset=(0.0, BATTERY_FLOOR_Y + 2.0 + 5.0, BATTERY_BAY_Z_CENTER)).box(55.0, 10.0, 68.0)
+    # 1. 5000mAh 배터리 (55 x 68 x 10 mm) + 3mm 벨크로 (2단 매립 포켓 Y = -31.0 ~ -28.0 mm에 수납!)
+    #    배터리 본체 Y = -27.5 ~ -17.5 mm -> PCB 뒷면(Y = -1.6 mm)까지 무려 15.9 mm 여유!
+    velcro_pad = cq.Workplane("XY").transformed(offset=(0.0, BATTERY_FLOOR_Y - 1.5, BATTERY_BAY_Z_CENTER)).box(40.0, 3.0, 54.0)
+    battery = cq.Workplane("XY").transformed(offset=(0.0, BATTERY_FLOOR_Y + 5.0, BATTERY_BAY_Z_CENTER)).box(55.0, 10.0, 68.0)
 
     # 2. CarrierBoard PCB 기판 (50 x 50 x 1.6 mm, Y = -1.6 ~ 0.0, Z = -22 ~ +28)
     pcb = cq.Workplane("XY").transformed(offset=(0.0, (PCB_Y_MOUNT + PCB_Y_BACK) / 2.0, PCB_Z_CENTER)).box(PCB_W, PCB_T, PCB_H)
