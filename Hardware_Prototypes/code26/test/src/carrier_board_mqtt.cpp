@@ -71,14 +71,114 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 
 bool mpu_ready = false;
+uint8_t mpu_addr = 0x68;
 bool bh1750_ready = false;
 bool sht45_ready = false;
 
 float max_g_force = 1.0;
+float baseline_g = 1.0f;           // 보드별 정지 중력 기준선 (EMA 자동 적응, 예: 1.00~1.26G)
+bool baseline_g_init = false;
+int mpu_i2c_err_streak = 0;        // 연속 MPU6050 I2C 오류 횟수
+int shock_storm_streak = 0;        // 연속 충격 폭주 감지기 (센서 이상 보호)
+unsigned long lastMpuHealthCheck = 0;
 unsigned long lastTxTime = 0;
 unsigned long lastSampleTime = 0;
 unsigned long lastShockTime = 0;
 unsigned long lastMqttAttempt = 0;
+
+// ==========================================
+// 2.5 MPU6050 무결성 검증 & 자가 복구 드라이버
+//   - Adafruit_MPU6050::_read()는 I2C 실패 시 미초기화 스택 버퍼를 그대로 파싱하여
+//     6.95G/10.60G 가짜 충격을 무한 발생하는 버그가 있음.
+//   - 직접 Wire I2C 반환값(6바이트 수신)과 PWR_MGMT_1/ACCEL_CONFIG 레지스터를 검증하고
+//     슬립/리셋/NACK 감지 시 즉시 자동 재초기화(Self-Healing) 수행.
+// ==========================================
+bool readMpuReg8(uint8_t reg, uint8_t &val) {
+  Wire.beginTransmission(mpu_addr);
+  Wire.write(reg);
+  if (Wire.endTransmission(false) != 0) return false;
+  if (Wire.requestFrom(mpu_addr, (uint8_t)1, (uint8_t)true) != 1) return false;
+  val = Wire.read();
+  return true;
+}
+
+bool verifyMpuRegisters() {
+  uint8_t who = 0, pwr1 = 0, acfg = 0;
+  if (!readMpuReg8(0x75, who) || who == 0x00 || who == 0xFF) return false;
+  if (!readMpuReg8(0x6B, pwr1)) return false;
+  if (pwr1 & 0x40) return false; // SLEEP bit unexpectedly set (brownout/reset)
+  if (!readMpuReg8(0x1C, acfg)) return false;
+  if ((acfg & 0x18) != 0x10) return false; // AFS_SEL must be 2 (±8G = 4096 LSB/g)
+  return true;
+}
+
+bool initMpuSafe() {
+  if (mpu.begin(0x68, &Wire)) {
+    mpu_addr = 0x68;
+  } else if (mpu.begin(0x69, &Wire)) {
+    mpu_addr = 0x69;
+  } else {
+    mpu_ready = false;
+    return false;
+  }
+  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  delay(10);
+  mpu_ready = verifyMpuRegisters();
+  mpu_i2c_err_streak = 0;
+  shock_storm_streak = 0;
+  return mpu_ready;
+}
+
+bool readMpuAccelSafe(float &g_out) {
+  Wire.beginTransmission(mpu_addr);
+  Wire.write(0x3B); // ACCEL_XOUT_H
+  if (Wire.endTransmission(false) != 0) return false;
+  if (Wire.requestFrom(mpu_addr, (uint8_t)6, (uint8_t)true) != 6) return false;
+
+  uint8_t b[6];
+  for (int i = 0; i < 6; i++) b[i] = Wire.read();
+
+  int16_t rx = (int16_t)((b[0] << 8) | b[1]);
+  int16_t ry = (int16_t)((b[2] << 8) | b[3]);
+  int16_t rz = (int16_t)((b[4] << 8) | b[5]);
+
+  // I2C 버스 고착 패턴 차단 (전 축 0x0000, 0xFFFF, ±32767 포화)
+  if ((rx == 0 && ry == 0 && rz == 0) ||
+      (rx == -1 && ry == -1 && rz == -1) ||
+      (abs((int)rx) >= 32760 && abs((int)ry) >= 32760 && abs((int)rz) >= 32760)) {
+    return false;
+  }
+
+  float ax = (float)rx / 4096.0f;
+  float ay = (float)ry / 4096.0f;
+  float az = (float)rz / 4096.0f;
+  float gf = sqrtf(ax * ax + ay * ay + az * az);
+  if (isnan(gf) || isinf(gf) || gf < 0.05f || gf > 11.5f) {
+    return false;
+  }
+  g_out = gf;
+  return true;
+}
+
+void healMpuIfNeeded(unsigned long now, bool force_reinit = false) {
+  if (!force_reinit && (now - lastMpuHealthCheck < 10000UL) && mpu_i2c_err_streak < 3) {
+    return;
+  }
+  lastMpuHealthCheck = now;
+  if (force_reinit || mpu_i2c_err_streak >= 3 || !verifyMpuRegisters()) {
+    Serial.printf("\n🔧 [MPU6050 자가복구] I2C/레지스터 이상 감지(err=%d, storm=%d) -> 재초기화 수행...\n",
+                  mpu_i2c_err_streak, shock_storm_streak);
+    Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
+    Wire.setClock(100000);
+    Wire.setTimeOut(50);
+    if (initMpuSafe()) {
+      Serial.printf("  ✅ [MPU6050 복구 완료] 주소: 0x%02X (±8G / 21Hz 정상)\n", mpu_addr);
+    } else {
+      Serial.println("  ⚠️ [MPU6050 복구 대기] 응답 없음 (3초 후 재시도)");
+    }
+  }
+}
 
 // ==========================================
 // 3. LittleFS 블랙박스 링버퍼 & 오프라인 버퍼 관리
@@ -96,16 +196,25 @@ unsigned long totalSavedRecords = 0;
 
 // 스마트 주행 감지 래치 (Smart Trip Latch & LKP)
 bool trip_active = false;      // 야외 출발 후 주행 상태 (터널/지하차도 통과 시에도 true 유지)
-bool manual_force_trip = false;// start 명령어로 시작된 수동 강제 실험 모드 (냉장고/정적 테스트용 3분 타임아웃 해제)
+bool manual_force_trip = false;// start 명령어로 시작된 수동 강제 실험 모드 (냉장고/정적 테스트용 타임아웃 해제)
 float last_valid_lat = 0.0;    // 직전 유효 위도 (터널 진입 시 데드레커닝 보존)
 float last_valid_lng = 0.0;    // 직전 유효 경도
+float indoor_anchor_lat = 0.0; // 정지 기준 GPS 위도 (실내 멀티패스 주행 오판 방지)
+float indoor_anchor_lng = 0.0; // 정지 기준 GPS 경도
+int gps_moving_streak = 0;     // 연속 실이동 패킷 수 (3회 이상 연속 이동 시 주행 전환)
 unsigned long lastMotionTime = 0;       // 마지막 IMU 진동/움직임 감지 시각
 unsigned long lastGpsFixTime = 0;       // 마지막 GPS Fix 성공 시각
 unsigned long lastStorageFsTime = 0;    // 실내 창고 보관 중 마지막 LittleFS 백업 시각
 float lastSavedTemp = -999.0;           // 실내 급변 감지용 직전 저장 온도
 float lastSavedHumi = -999.0;           // 실내 급변 감지용 직전 저장 습도
 float lastSavedLux  = -999.0;           // 실내 급변 감지용 직전 저장 조도
-#define TRIP_AUTO_STOP_MS   300000      // 5분(300초) 무진동 & GPS 단절 시 주행 자동 종료 (신호대기/정체 오판 방지)
+#define TRIP_AUTO_STOP_MS   900000      // 15분(900초) 무진동 & GPS 단절 시 주행 자동 종료 (일시 정차/신호대기 분할 방지)
+
+static float calcDistanceMeters(float lat1, float lng1, float lat2, float lng2) {
+  const float dLat = (lat2 - lat1) * 111320.0f;
+  const float dLng = (lng2 - lng1) * 111320.0f * cosf(lat1 * 0.0174532925f);
+  return sqrtf(dLat * dLat + dLng * dLng);
+}
 
 
 void logToLittleFS(const char* jsonStr, bool isOffline) {
@@ -259,28 +368,48 @@ time_t utcToEpoch(int y, int m, int d, int h, int min, int s) {
 
 // 핫스팟/인터넷(NTP) 없이도 GPS 위성 신호가 실시간으로 유효하게 잡히면 RTC 시스템 시각을 자동으로 UTC로 설정
 void syncTimeFromGPS() {
-  // TinyGPSPlus의 isValid()는 최초 1회 수신 후 신호가 끊겨도 계속 true를 유지하므로,
-  // 반드시 time.age() < 1500ms 및 location.age() < 3000ms 조건으로 '현재 실시간 수신 중'인지 검증해야
-  // 음영지역 진입 시 과거 멈춘 시각으로 ESP32 RTC가 30초마다 되감기는(Time-Rewind) 버그를 원천 차단함.
+  // 실내 약신호 GPS 멀티패스로 인해 정확한 NTP RTC 시각이 과거(-13분/-69분 등)로 되감기는 버그를 원천 차단:
+  // 1) 위성 4개 이상 + 신선한 Fix(age < 1500ms) + 양호한 HDOP(< 5.0) 필수
+  // 2) 이미 NTP/유효 RTC(epoch >= 1700000000)가 맞춰져 있고 Wi-Fi 연결 중이면 GPS로 덮어쓰지 않음
+  // 3) 오프라인 상태라도 기존 유효 RTC보다 과거(-2초 이상)로 되감기거나 +120초 이상 급점프하는 GPS 시각은 거부
   bool fresh_gps_time = gps.date.isValid() && gps.time.isValid() &&
                         (gps.time.age() < 1500) && (gps.date.age() < 1500) &&
                         gps.location.isValid() && (gps.location.age() < 3000) &&
-                        (gps.date.year() >= 2024);
+                        gps.satellites.isValid() && (gps.satellites.value() >= 4) &&
+                        (!gps.hdop.isValid() || gps.hdop.hdop() < 5.0) &&
+                        (gps.date.year() >= 2024 && gps.date.year() <= 2035);
   if (fresh_gps_time) {
     static unsigned long lastGpsSync = 0;
-    if (!gps_time_synced || (millis() - lastGpsSync > 30000)) {
-      lastGpsSync = millis();
-
+    if (!gps_time_synced || (millis() - lastGpsSync > 60000)) {
       time_t utc_epoch = utcToEpoch(gps.date.year(), gps.date.month(), gps.date.day(),
                                     gps.time.hour(), gps.time.minute(), gps.time.second());
-      if (utc_epoch > 1700000000) { // 2023년 이후 유효성 검증
-        struct timeval tv = { .tv_sec = utc_epoch, .tv_usec = 0 };
-        settimeofday(&tv, NULL);
-        gps_time_synced = true;
-        Serial.printf("  ⏰ [GPS 위성 시각 동기화 완료] %04d-%02d-%02d %02d:%02d:%02d UTC (KST 자동 적용)\n",
-                      gps.date.year(), gps.date.month(), gps.date.day(),
-                      gps.time.hour(), gps.time.minute(), gps.time.second());
+      if (utc_epoch <= 1700000000) return;
+
+      time_t cur_ep = 0;
+      time(&cur_ep);
+      if (cur_ep >= 1700000000) {
+        // Wi-Fi 연결 중에는 NTP를 1순위 권위 시각으로 신뢰 (실내 GPS 시각 오염 차단)
+        if (WiFi.status() == WL_CONNECTED) {
+          lastGpsSync = millis();
+          gps_time_synced = true;
+          return;
+        }
+        long long delta = (long long)utc_epoch - (long long)cur_ep;
+        if (delta < -2 || delta > 120) {
+          lastGpsSync = millis();
+          Serial.printf("  ⚠️ [GPS 시각 이상 거부] GPS-RTC 편차 %lld초 -> 기존 RTC 유지\n", delta);
+          return;
+        }
       }
+
+      lastGpsSync = millis();
+      struct timeval tv = { .tv_sec = utc_epoch, .tv_usec = 0 };
+      settimeofday(&tv, NULL);
+      gps_time_synced = true;
+      Serial.printf("  ⏰ [GPS 위성 시각 동기화 완료] %04d-%02d-%02d %02d:%02d:%02d UTC (sats=%lu)\n",
+                    gps.date.year(), gps.date.month(), gps.date.day(),
+                    gps.time.hour(), gps.time.minute(), gps.time.second(),
+                    (unsigned long)gps.satellites.value());
     }
   }
 }
@@ -358,37 +487,59 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
   String base_evt = String(status_str);
   String full_status = "";
 
-  // location.age() < 3000ms 검사를 추가하여 위성 신호 단절 시 과거 좌표가 [GPS N]으로 고착되는 현상 방지
-  bool gps_fix_ok = (gps.location.isValid() && (gps.location.age() < 3000) && gps.location.lat() != 0.0);
+  // location.age() < 3000ms + sats >= 4 검사를 추가하여 실내 약신호/캐시 좌표 고착 방지
+  bool gps_fix_ok = (gps.location.isValid() && (gps.location.age() < 3000) &&
+                     gps.location.lat() != 0.0 && sats >= 4);
   if (gps_fix_ok) {
-    lat = gps.location.lat();
-    lng = gps.location.lng();
-    speed = gps.speed.kmph();
-    last_valid_lat = lat;
-    last_valid_lng = lng;
-    lastGpsFixTime = millis();
-    trip_active = true; // 야외 GPS Fix 성공 -> 주행 활성 래치 ON
-    full_status = base_evt + " [GPS " + String(sats) + "]";
-  } else {
-    // 이동 속도 감지 (2.5 km/h 이상) 또는 충격 시 주행 시작으로 판정
-    if (gps.speed.isValid() && gps.speed.kmph() > 2.5) {
-      trip_active = true;
-      speed = gps.speed.kmph();
+    float cur_lat = gps.location.lat();
+    float cur_lng = gps.location.lng();
+    float cur_spd = gps.speed.isValid() ? gps.speed.kmph() : 0.0f;
+
+    // 정지 앵커 기준 실이동 거리 및 연속 이동 속도 검증 (냉장고/실내 멀티패스 드리프트 주행 오판 방지)
+    if (indoor_anchor_lat == 0.0f) {
+      indoor_anchor_lat = cur_lat;
+      indoor_anchor_lng = cur_lng;
     }
-    if (g_force_val >= 1.5) {
-      trip_active = true; // 차량 진동/충격 감지 시 주행 시작 래치 ON
+    float disp_m = calcDistanceMeters(indoor_anchor_lat, indoor_anchor_lng, cur_lat, cur_lng);
+
+    if (cur_spd >= 4.0f && cur_spd <= 180.0f) {
+      gps_moving_streak++;
+    } else {
+      gps_moving_streak = 0;
     }
 
-    // [방법 B: 스마트 정지 감지 (Stationary Auto-Timeout)]
-    // GPS가 끊겨 있고, 3분(180초) 동안 진동/움직임이 전혀 감지되지 않으면
-    // 터널 통과가 아니라 실내 도착/주차 상태로 자동 판정 -> 대기 모드로 복귀 (수동 강제 모드 제외)
+    if (trip_active || manual_force_trip || gps_moving_streak >= 3 || disp_m >= 50.0f) {
+      trip_active = true;
+      lat = cur_lat;
+      lng = cur_lng;
+      speed = cur_spd;
+      last_valid_lat = lat;
+      last_valid_lng = lng;
+      lastGpsFixTime = millis();
+      full_status = base_evt + " [GPS " + String(sats) + "]";
+    } else {
+      // 실내 정지 상태에서 약하게 GPS가 잡힌 경우: 보관 모드 유지 (FIELD_DRIVE 오분류 차단)
+      lat = 0.0;
+      lng = 0.0;
+      speed = 0.0;
+      full_status = "보관 [실내]";
+    }
+  } else {
+    gps_moving_streak = 0;
+
+    // [스마트 정지 감지 (Stationary Auto-Timeout)]
+    // GPS가 끊겨 있고, 15분(900초) 동안 진동/움직임이 감지되지 않으면 실내 보관 모드로 자동 복귀
     if (trip_active && !manual_force_trip) {
       unsigned long now_ms = millis();
       bool is_stationary = (now_ms - lastMotionTime >= TRIP_AUTO_STOP_MS);
       bool gps_lost_long = (now_ms - lastGpsFixTime >= TRIP_AUTO_STOP_MS);
       if (is_stationary && gps_lost_long) {
         trip_active = false;
-        Serial.println("🛑 [주행 자동 종료] GPS 신호 단절 및 3분간 정지 감지 -> 실내 대기 모드 자동 복귀 (LittleFS 저장 중단)");
+        last_valid_lat = 0.0;
+        last_valid_lng = 0.0;
+        indoor_anchor_lat = 0.0;
+        indoor_anchor_lng = 0.0;
+        Serial.println("🛑 [주행 자동 종료] GPS 신호 단절 및 15분간 정지 감지 -> 실내 보관 모드 자동 복귀");
       }
     }
 
@@ -398,7 +549,7 @@ void transmitTelemetry(float g_force_val, const char* status_str) {
       lng = last_valid_lng;
       full_status = base_evt + " [터널]";
     } else {
-      // 창고(A01/B12/C10) 실내 보관 또는 주행 대기 상태
+      // 창고(A02~A03/B04~B05/C01) 실내 보관 또는 주행 대기 상태
       lat = 0.0;
       lng = 0.0;
       full_status = "보관 [실내]";
@@ -528,18 +679,10 @@ void setup() {
     Serial.println("Fail");
   }
 
-  // 3. MPU6050 6축 IMU 초기화 (0x68 및 0x69 듀얼 시도)
+  // 3. MPU6050 6축 IMU 초기화 (0x68 및 0x69 듀얼 시도 + 레지스터 검증)
   Serial.print("📦 [3] GY-521 (MPU6050) IMU 초기화... ");
-  if (mpu.begin(0x68, &Wire)) {
-    mpu_ready = true;
-    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-    Serial.println("OK (주소: 0x68)");
-  } else if (mpu.begin(0x69, &Wire)) {
-    mpu_ready = true;
-    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-    Serial.println("OK (주소: 0x69)");
+  if (initMpuSafe()) {
+    Serial.printf("OK (주소: 0x%02X, ±8G / 21Hz 레지스터 검증 완료)\n", mpu_addr);
   } else {
     Serial.println("Fail (0x68/0x69 미응답)");
   }
@@ -850,47 +993,71 @@ void loop() {
   static unsigned long lastMpuRetry = 0;
   if (!mpu_ready && (now - lastMpuRetry >= 3000)) {
     lastMpuRetry = now;
-    if (mpu.begin(0x68, &Wire) || mpu.begin(0x69, &Wire)) {
-      mpu_ready = true;
-      mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
-      mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-      Serial.println("\n🎉 [MPU6050 실시간 감지 성공] IMU 충격 감지 센서가 활성화되었습니다!\n");
+    if (initMpuSafe()) {
+      Serial.printf("\n🎉 [MPU6050 실시간 감지 성공] 주소 0x%02X IMU 충격 감지 센서가 활성화되었습니다!\n", mpu_addr);
     }
   }
 
-  // 4) 고속 가속도 샘플링 (20ms 간격 = 50Hz)
+  // 4) 고속 가속도 샘플링 (20ms 간격 = 50Hz) + I2C 무결성 검증 & 자가 복구
   if (mpu_ready && (now - lastSampleTime >= SAMPLE_INTERVAL_MS)) {
     lastSampleTime = now;
-    sensors_event_t a = {0}, g = {0}, temp = {0};
-    if (mpu.getEvent(&a, &g, &temp)) {
-      float total_acc = sqrt(a.acceleration.x * a.acceleration.x +
-                             a.acceleration.y * a.acceleration.y +
-                             a.acceleration.z * a.acceleration.z);
-      float g_force = total_acc / 9.80665f;
+    float g_force = 1.0f;
+    if (readMpuAccelSafe(g_force)) {
+      mpu_i2c_err_streak = 0;
 
-      // 센서 범위(±8G) 초과 통신 노이즈 필터링 (물리적 한계 초과 노이즈 차단)
-      if (g_force <= 12.0f && g_force >= 0.1f) {
-        // 피크 홀드
-        if (g_force > max_g_force) {
-          max_g_force = g_force;
+      // 보드별 정지 중력 기준선(예: 1.00~1.26G) EMA 자동 적응
+      if (!baseline_g_init) {
+        if (g_force >= 0.80f && g_force <= 1.55f) {
+          baseline_g = g_force;
+          baseline_g_init = true;
         }
+      } else if (fabs(g_force - baseline_g) < 0.15f) {
+        baseline_g = baseline_g * 0.99f + g_force * 0.01f;
+      }
 
-        // 미세 움직임/진동 감지 시 lastMotionTime 갱신 (차량 주행/엔진 진동 vs 책상 위 완전 정지 구분)
-        if (fabs(g_force - 1.0f) > 0.08f) {
-          lastMotionTime = now;
-        }
+      // 1G 기준 정규화 충격량 (보드 고유 정지 오프셋 보정 -> carrier-c6-02의 1.26G 오프셋도 정지 시 ~1.00G)
+      float norm_g = (baseline_g_init && baseline_g > 0.5f) ? (g_force / baseline_g) : g_force;
 
-        // 급격한 충격 이벤트 발생 시 즉시 전송
-        if (g_force >= SHOCK_THRESHOLD_G) {
-          if (now - lastShockTime >= SHOCK_DEBOUNCE_MS) {
-            lastShockTime = now;
-            Serial.printf("\n🚨 [충격 감지!] 충격량: %.2f G\n", g_force);
-            transmitTelemetry(g_force, "충격");
-            max_g_force = 1.0;
+      // 피크 홀드
+      if (norm_g > max_g_force) {
+        max_g_force = norm_g;
+      }
+
+      // 미세 움직임/진동 감지 시 lastMotionTime 갱신 (오프셋 보정 후 0.10G 초과 시)
+      if (fabs(norm_g - 1.0f) > 0.10f) {
+        lastMotionTime = now;
+      }
+
+      // 급격한 충격 이벤트 발생 시 레지스터 즉시 재검증 후 전송 (I2C/브라운아웃 가짜 충격 100% 차단)
+      if (norm_g >= SHOCK_THRESHOLD_G) {
+        if (!verifyMpuRegisters()) {
+          // 레지스터가 슬립/±2G로 리셋되었거나 I2C 이상 -> 가짜 충격 폐기 및 즉시 복구
+          healMpuIfNeeded(now, true);
+          max_g_force = 1.0f;
+        } else if (now - lastShockTime >= SHOCK_DEBOUNCE_MS) {
+          lastShockTime = now;
+          shock_storm_streak++;
+          if (shock_storm_streak >= 5) {
+            // 15초 이상 연속 고충격 폭주 시 센서 자가복구 시도 및 즉시 전송 스로틀
+            Serial.printf("\n⚠️ [MPU6050 연속충격 폭주 차단] %.2fG (%d회 연속) -> 재초기화 점검\n", norm_g, shock_storm_streak);
+            healMpuIfNeeded(now, true);
+            max_g_force = 1.0f;
+          } else {
+            Serial.printf("\n🚨 [충격 감지!] 정규화 충격량: %.2f G (원시: %.2f G, 기준: %.2f G)\n",
+                          norm_g, g_force, baseline_g);
+            transmitTelemetry(norm_g, "충격");
+            max_g_force = 1.0f;
           }
         }
+      } else {
+        if (shock_storm_streak > 0 && (now - lastShockTime >= 6000UL)) {
+          shock_storm_streak = 0;
+        }
       }
+    } else {
+      mpu_i2c_err_streak++;
     }
+    healMpuIfNeeded(now, false);
   }
 
   // 5) 주기적 텔레메트리 전송 (5초 간격)

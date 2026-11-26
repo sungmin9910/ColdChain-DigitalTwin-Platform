@@ -1062,6 +1062,47 @@ def api_create_apc_sorting_qr(req: ApcSortingRequest):
         conn.close()
 
 
+def _downsample_telemetry(records: list, max_points: int = 1200) -> list:
+    """장시간 실험(수만 건)에서도 브라우저 지연 없이 전체 추이와 이상치(온도·조도·충격 피크)를 보존해 다운샘플링"""
+    n = len(records)
+    if n <= max_points or max_points < 20:
+        return records
+    # 균등 버킷 분할 후 각 버킷에서 대표점 + 조도/충격/온도 이상점 보존
+    bucket_cnt = max_points // 2
+    step = n / bucket_cnt
+    selected_idx = {0, n - 1}
+    for b in range(bucket_cnt):
+        s = int(b * step)
+        e = min(n, int((b + 1) * step))
+        if s >= e:
+            continue
+        selected_idx.add(s)
+        best_lux_i = s
+        best_g_i = s
+        best_lux = float(records[s].get("lux") or 0.0)
+        best_g = float(records[s].get("g_force") or 1.0)
+        for i in range(s + 1, e):
+            lx = float(records[i].get("lux") or 0.0)
+            gf = float(records[i].get("g_force") or 1.0)
+            if lx > best_lux:
+                best_lux = lx
+                best_lux_i = i
+            if gf > best_g:
+                best_g = gf
+                best_g_i = i
+        if best_lux >= 10.0:
+            selected_idx.add(best_lux_i)
+        if best_g >= 1.8 and len(selected_idx) < max_points:
+            selected_idx.add(best_g_i)
+        if len(selected_idx) < max_points:
+            selected_idx.add(e - 1)
+    ordered = sorted(selected_idx)
+    if len(ordered) > max_points:
+        stride = len(ordered) / max_points
+        ordered = [ordered[int(i * stride)] for i in range(max_points - 1)] + [n - 1]
+    return [records[i] for i in ordered]
+
+
 @app.get("/api/control/sessions")
 def api_control_sessions(truck_id: str = "truck02", include_lab: bool = False):
     truck = TRUCK_OPTIONS.get(truck_id, TRUCK_OPTIONS["truck02"])
@@ -1091,22 +1132,43 @@ def api_control_sessions(truck_id: str = "truck02", include_lab: bool = False):
                 """,
                 (dev,),
             )
-            return {"ok": True, "device_id": dev, "sessions": list(cur.fetchall())}
+            sessions = list(cur.fetchall())
+
+            # 분할 저장된 일자별 세션을 1개로 묶어 볼 수 있도록 일자 통합 요약 제공
+            cur.execute(
+                f"""
+                SELECT DATE_FORMAT(tr.started_at, '%%Y-%%m-%%d') AS day_str,
+                       COUNT(*) AS run_cnt,
+                       SUM(tr.packet_cnt) AS total_cnt,
+                       DATE_FORMAT(MIN(tr.started_at), '%%H:%%i') AS first_hm,
+                       DATE_FORMAT(MAX(tr.ended_at), '%%m-%%d %%H:%%i') AS last_mdhm
+                FROM `{DB_NAME}`.`transport_runs` tr
+                WHERE tr.device_id = %s AND {type_filter} AND tr.started_at IS NOT NULL
+                GROUP BY day_str
+                ORDER BY day_str DESC
+                LIMIT 10
+                """,
+                (dev,),
+            )
+            daily_groups = list(cur.fetchall())
+            return {"ok": True, "device_id": dev, "sessions": sessions, "daily_groups": daily_groups}
     finally:
         conn.close()
 
 
 @app.get("/api/control/history")
-def api_control_history(truck_id: str = "truck02", run_id: str = "live"):
+def api_control_history(truck_id: str = "truck02", run_id: str = "live", max_points: int = 1200):
     truck = TRUCK_OPTIONS.get(truck_id, TRUCK_OPTIONS["truck02"])
     dev = truck["device_id"]
     conn = get_db_connection()
     try:
         sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_NAME)
         with conn.cursor() as cur:
-            target_run = run_id
-            if run_id == "live":
-                cutoff_kst = (get_kst_now() - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
+            target_runs = []
+            resolved_label = run_id
+
+            if run_id == "recent_24h":
+                cutoff_24h = (get_kst_now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
                 cur.execute(
                     f"""
                     SELECT run_id
@@ -1114,17 +1176,61 @@ def api_control_history(truck_id: str = "truck02", run_id: str = "live"):
                     WHERE device_id = %s
                       AND run_type IN ('FIELD_DRIVE', 'STORAGE')
                       AND ended_at >= %s
-                    ORDER BY ended_at DESC
-                    LIMIT 1
+                    ORDER BY started_at ASC
                     """,
-                    (dev, cutoff_kst),
+                    (dev, cutoff_24h),
                 )
-                latest = cur.fetchone()
-                target_run = latest["run_id"] if latest else None
+                target_runs = [r["run_id"] for r in cur.fetchall()]
+                resolved_label = "recent_24h"
+            elif run_id.startswith("date:"):
+                day_str = run_id.split(":", 1)[1].strip()[:10]
+                cur.execute(
+                    f"""
+                    SELECT run_id
+                    FROM `{DB_NAME}`.`transport_runs`
+                    WHERE device_id = %s
+                      AND run_type IN ('FIELD_DRIVE', 'STORAGE')
+                      AND DATE(started_at) = %s
+                    ORDER BY started_at ASC
+                    """,
+                    (dev, day_str),
+                )
+                target_runs = [r["run_id"] for r in cur.fetchall()]
+                resolved_label = run_id
+            elif run_id == "live":
+                cutoff_dt = get_kst_now().replace(tzinfo=None) - timedelta(hours=6)
+                cur.execute(
+                    f"""
+                    SELECT run_id, started_at, ended_at
+                    FROM `{DB_NAME}`.`transport_runs`
+                    WHERE device_id = %s
+                      AND run_type IN ('FIELD_DRIVE', 'STORAGE')
+                      AND ended_at IS NOT NULL
+                    ORDER BY ended_at DESC
+                    LIMIT 15
+                    """,
+                    (dev,),
+                )
+                recent_runs = list(cur.fetchall())
+                if recent_runs and recent_runs[0]["ended_at"] and recent_runs[0]["ended_at"] >= cutoff_dt:
+                    # 최근 활성 세션과 2시간 이내로 연속된 분할 세션들을 끝까지 거슬러 올라가며 자동 병합
+                    chain = [recent_runs[0]]
+                    for cand in recent_runs[1:]:
+                        earliest_start = chain[-1]["started_at"]
+                        cand_end = cand["ended_at"]
+                        if earliest_start and cand_end and (earliest_start - cand_end).total_seconds() <= 7200:
+                            chain.append(cand)
+                        else:
+                            break
+                    target_runs = [r["run_id"] for r in reversed(chain)]
+                    resolved_label = target_runs[-1]
+            else:
+                target_runs = [run_id]
 
-            if not target_run:
-                return {"ok": True, "run_id": None, "cargo": [], "records": []}
+            if not target_runs:
+                return {"ok": True, "run_id": None, "merged_runs": [], "total_count": 0, "cargo": [], "records": [], "recent_logs": []}
 
+            placeholders = ", ".join(["%s"] * len(target_runs))
             cur.execute(
                 f"""
                 SELECT st.device_id AS device,
@@ -1132,25 +1238,36 @@ def api_control_history(truck_id: str = "truck02", run_id: str = "live"):
                        st.temperature, st.humidity, st.lux, st.g_force, st.speed,
                        st.lat, st.lng, st.raw_status AS status, st.gps_state, st.event_type, st.run_id
                 FROM `{DB_NAME}`.`sensor_telemetry` st
-                WHERE st.run_id = %s AND st.device_id = %s
+                WHERE st.run_id IN ({placeholders}) AND st.device_id = %s
                 ORDER BY st.measured_at ASC, st.telemetry_id ASC
                 """,
-                (target_run, dev),
+                tuple(target_runs) + (dev,),
             )
-            records = list(cur.fetchall())
+            all_records = list(cur.fetchall())
+            total_count = len(all_records)
+            recent_logs = all_records[-50:]
+            chart_records = _downsample_telemetry(all_records, max_points=max(150, min(max_points, 3000)))
 
             cur.execute(
                 f"""
                 SELECT sh.lot_id, sh.pkg_id, sh.leg_no, sh.status, hl.variety, hl.total_qty
                 FROM `{DB_NAME}`.`shipments` sh
                 JOIN `{DB_NAME}`.`harvest_lots` hl ON sh.lot_id = hl.lot_id
-                WHERE sh.run_id = %s
+                WHERE sh.run_id IN ({placeholders})
                 ORDER BY sh.leg_no ASC
                 """,
-                (target_run,),
+                tuple(target_runs),
             )
             cargo = list(cur.fetchall())
-            return {"ok": True, "run_id": target_run, "cargo": cargo, "records": records}
+            return {
+                "ok": True,
+                "run_id": resolved_label,
+                "merged_runs": target_runs,
+                "total_count": total_count,
+                "cargo": cargo,
+                "records": chart_records,
+                "recent_logs": recent_logs,
+            }
     finally:
         conn.close()
 

@@ -446,7 +446,7 @@ with st.sidebar:
         try:
             sync_v1_delta_to_v2(conn, src_db=DB_V1_NAME, dst_db=DB_V2_NAME)
             with conn.cursor() as cursor:
-                type_cond = "tr.run_type IN ('FIELD_DRIVE', 'BENCH', 'MOCK')" if show_lab_sessions else "tr.run_type = 'FIELD_DRIVE'"
+                type_cond = "tr.run_type IN ('FIELD_DRIVE', 'STORAGE', 'BENCH', 'MOCK')" if show_lab_sessions else "tr.run_type IN ('FIELD_DRIVE', 'STORAGE')"
                 cursor.execute(f"""
                     SELECT tr.run_id,
                            tr.run_type,

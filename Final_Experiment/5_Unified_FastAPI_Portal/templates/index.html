@@ -755,11 +755,15 @@
             </select>
           </div>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 flex-wrap">
           <span id="ws-status-badge" class="px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
             🟢 WebSocket Connected
           </span>
-          <button id="ctrl-sync-btn" onclick="loadControlHistory()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-bold text-slate-700">
+          <select id="ctrl-window-select" onchange="renderControlAll()" class="form-input px-2.5 py-1.5 text-xs font-bold text-slate-700">
+            <option value="all" selected>📈 전체 구간 (Full Timeline)</option>
+            <option value="150">🔍 최근 150건 (Zoom Recent)</option>
+          </select>
+          <button id="ctrl-sync-btn" onclick="loadControlSessionsAndHistory()" class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-xs font-bold text-slate-700">
             🔄 Resync DB
           </button>
         </div>
@@ -1412,6 +1416,9 @@
     let controlMap = null, controlLayerGroup = null;
     let chartLux = null, chartGSpeed = null, chartEnv = null;
     let controlRecords = [];
+    let controlRecentLogs = [];
+    let controlTotalCount = 0;
+    let controlMergedRuns = [];
     let apcCandidatesCache = [];
 
     const VARIETY_MAP = {
@@ -2261,8 +2268,8 @@
             responsive: true, maintainAspectRatio: false, animation: false,
             plugins: { legend: makeLineLegendOptions() },
             scales: {
-              y: {type: "linear", position: "left", min: 0.8, max: 3.5},
-              y1: {type: "linear", position: "right", min: 0, max: 110, grid: {drawOnChartArea: false}}
+              y: {type: "linear", position: "left", min: 0.8, suggestedMax: 3.5},
+              y1: {type: "linear", position: "right", min: 0, suggestedMax: 110, grid: {drawOnChartArea: false}}
             }
           }
         });
@@ -2291,17 +2298,51 @@
 
     async function loadControlSessionsAndHistory() {
       const truckId = document.getElementById("ctrl-truck-select").value;
+      const sel = document.getElementById("ctrl-session-select");
+      const prevVal = sel.value || "live";
       const res = await fetch(`/api/control/sessions?truck_id=${encodeURIComponent(truckId)}`);
       const data = await res.json();
-      const sel = document.getElementById("ctrl-session-select");
-      sel.innerHTML = `<option value="live">${csLang === "KO" ? "🟢 실시간 주행 (활성 궤적 자동 복원)" : "🟢 Live Driving (Auto-Restore Active Route)"}</option>`;
+      sel.innerHTML = "";
+
+      const optLive = document.createElement("option");
+      optLive.value = "live";
+      optLive.textContent = csLang === "KO"
+        ? "🟢 실시간 연속 보기 (분할 세션 자동 통합)"
+        : "🟢 Live Continuous (Auto-Merged Active Sessions)";
+      sel.appendChild(optLive);
+
+      const opt24 = document.createElement("option");
+      opt24.value = "recent_24h";
+      opt24.textContent = csLang === "KO"
+        ? "🕒 최근 24시간 전체 통합 보기 (보관+주행)"
+        : "🕒 Last 24h Unified Timeline (Storage + Drive)";
+      sel.appendChild(opt24);
+
+      (data.daily_groups || []).forEach(g => {
+        if (Number(g.run_cnt || 0) >= 1) {
+          const opt = document.createElement("option");
+          opt.value = `date:${g.day_str}`;
+          opt.textContent = csLang === "KO"
+            ? `🗂️ [일자 통합] ${g.day_str} (${g.run_cnt}개 세션 병합, ${g.total_cnt}건)`
+            : `🗂️ [Full Day] ${g.day_str} (${g.run_cnt} sessions merged, ${g.total_cnt} pts)`;
+          sel.appendChild(opt);
+        }
+      });
+
       (data.sessions || []).forEach(s => {
         const opt = document.createElement("option");
         opt.value = s.run_id;
+        const icon = s.run_type === "STORAGE" ? "❄️" : "🚗";
         const cargoTag = s.cargo_summary ? ` [${s.cargo_summary}]` : "";
-        opt.textContent = `🚗 ${s.run_id} (${s.cnt} pts, Max ${Number(s.max_spd || 0).toFixed(0)}km/h)${cargoTag}`;
+        opt.textContent = `${icon} ${s.run_id} (${s.cnt} pts, Max ${Number(s.max_spd || 0).toFixed(0)}km/h)${cargoTag}`;
         sel.appendChild(opt);
       });
+
+      if ([...sel.options].some(o => o.value === prevVal)) {
+        sel.value = prevVal;
+      } else {
+        sel.value = "live";
+      }
       await loadControlHistory();
     }
 
@@ -2311,21 +2352,39 @@
       const res = await fetch(`/api/control/history?truck_id=${encodeURIComponent(truckId)}&run_id=${encodeURIComponent(runId)}`);
       const data = await res.json();
       controlRecords = data.records || [];
+      controlRecentLogs = data.recent_logs || controlRecords.slice(-50);
+      controlTotalCount = Number(data.total_count ?? controlRecords.length);
+      controlMergedRuns = data.merged_runs || [];
       renderControlAll();
     }
 
     function renderControlAll() {
       if (!controlMap || !chartLux || !chartGSpeed || !chartEnv) return;
+      const mergeTag = controlMergedRuns.length > 1
+        ? (csLang === "KO" ? ` · ${controlMergedRuns.length}개 세션 통합` : ` · ${controlMergedRuns.length} sessions merged`)
+        : "";
+      const sampleTag = controlTotalCount > controlRecords.length
+        ? ` (차트 ${controlRecords.length}pt)`
+        : "";
       document.getElementById("ctrl-count-label").textContent =
-        csLang === "KO" ? `수집: ${controlRecords.length}건` : `Records: ${controlRecords.length}`;
+        csLang === "KO"
+          ? `수집: ${controlTotalCount.toLocaleString()}건${sampleTag}${mergeTag}`
+          : `Records: ${controlTotalCount.toLocaleString()}${sampleTag}${mergeTag}`;
 
-      if (controlRecords.length > 0) {
-        const last = controlRecords[controlRecords.length - 1];
+      const latestSource = controlRecentLogs.length > 0 ? controlRecentLogs : controlRecords;
+      if (latestSource.length > 0) {
+        const last = latestSource[latestSource.length - 1];
         document.getElementById("m-temp").textContent = `${Number(last.temperature || 0).toFixed(1)} °C`;
         document.getElementById("m-humi").textContent = `${Number(last.humidity || 0).toFixed(1)} %`;
         document.getElementById("m-lux").textContent = `${Number(last.lux || 0).toFixed(0)} lx`;
         document.getElementById("m-gforce").textContent = `${Number(last.g_force || 1).toFixed(2)} G`;
         document.getElementById("m-speed").textContent = `${Number(last.speed || 0).toFixed(1)} km/h`;
+      } else {
+        document.getElementById("m-temp").textContent = "- °C";
+        document.getElementById("m-humi").textContent = "- %";
+        document.getElementById("m-lux").textContent = "- lx";
+        document.getElementById("m-gforce").textContent = "- G";
+        document.getElementById("m-speed").textContent = "- km/h";
       }
 
       controlLayerGroup.clearLayers();
@@ -2333,36 +2392,45 @@
       if (validGps.length > 0) {
         const pts = validGps.map(r => [Number(r.lat), Number(r.lng)]);
         L.polyline(pts, {color: "#0284c7", weight: 4}).addTo(controlLayerGroup);
-        validGps.filter(r => Number(r.g_force) >= 1.8).forEach(s => {
-          L.circleMarker([Number(s.lat), Number(s.lng)], {radius: 6, color: "#fff", fillColor: "#f43f5e", fillOpacity: 0.95})
+        const shocks = validGps.filter(r => Number(r.g_force) >= 1.8);
+        const maxShockMarkers = 80;
+        const shockStride = Math.max(1, Math.ceil(shocks.length / maxShockMarkers));
+        for (let i = 0; i < shocks.length; i += shockStride) {
+          const s = shocks[i];
+          L.circleMarker([Number(s.lat), Number(s.lng)], {radius: 6, color: "#fff", fillColor: "#f43f5e", fillOpacity: 0.9})
             .bindPopup(`💥 Shock ${Number(s.g_force).toFixed(2)}G (${s.timestamp})`).addTo(controlLayerGroup);
-        });
+        }
         const cur = pts[pts.length - 1];
         L.circleMarker(cur, {radius: 8, color: "#fff", fillColor: "#10b981", fillOpacity: 1})
           .bindPopup("🚚 Current Vehicle Location").addTo(controlLayerGroup);
         controlMap.panTo(cur);
       }
 
-      const tail = controlRecords.slice(-150);
-      const labels = tail.map(r => String(r.timestamp || "").slice(-8));
+      const winMode = (document.getElementById("ctrl-window-select") || {}).value || "all";
+      const series = (winMode === "150") ? controlRecords.slice(-150) : controlRecords;
+      const multiDay = series.length > 1 && String(series[0].timestamp || "").slice(0, 10) !== String(series[series.length - 1].timestamp || "").slice(0, 10);
+      const labels = series.map(r => {
+        const ts = String(r.timestamp || "");
+        return multiDay ? ts.slice(5, 16) : ts.slice(-8);
+      });
 
       chartLux.data.labels = labels;
-      chartLux.data.datasets[0].data = tail.map(r => Number(r.lux || 0));
+      chartLux.data.datasets[0].data = series.map(r => Number(r.lux || 0));
       chartLux.update("none");
 
       chartGSpeed.data.labels = labels;
-      chartGSpeed.data.datasets[0].data = tail.map(r => Number(r.g_force || 1));
-      chartGSpeed.data.datasets[1].data = tail.map(r => Number(r.speed || 0));
+      chartGSpeed.data.datasets[0].data = series.map(r => Number(r.g_force || 1));
+      chartGSpeed.data.datasets[1].data = series.map(r => Number(r.speed || 0));
       chartGSpeed.update("none");
 
       chartEnv.data.labels = labels;
-      chartEnv.data.datasets[0].data = tail.map(r => Number(r.temperature || 0));
-      chartEnv.data.datasets[1].data = tail.map(r => Number(r.humidity || 0));
+      chartEnv.data.datasets[0].data = series.map(r => Number(r.temperature || 0));
+      chartEnv.data.datasets[1].data = series.map(r => Number(r.humidity || 0));
       chartEnv.update("none");
 
       const tbody = document.getElementById("ctrl-log-tbody");
       tbody.innerHTML = "";
-      controlRecords.slice(-50).reverse().forEach(r => {
+      latestSource.slice(-50).reverse().forEach(r => {
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td class="py-1.5 px-2 text-slate-600">${String(r.timestamp || "").slice(-8)}</td>
@@ -2388,8 +2456,11 @@
             const selTruck = document.getElementById("ctrl-truck-select").value;
             const expectedDev = `carrier-c6-0${selTruck.slice(-1)}`;
             const selRun = document.getElementById("ctrl-session-select").value;
-            if (pkt.device === expectedDev && selRun === "live") {
+            if (pkt.device === expectedDev && (selRun === "live" || selRun === "recent_24h")) {
               controlRecords.push(pkt);
+              controlRecentLogs.push(pkt);
+              if (controlRecentLogs.length > 60) controlRecentLogs = controlRecentLogs.slice(-50);
+              controlTotalCount++;
               renderControlAll();
             }
           }

@@ -85,6 +85,9 @@ PubSubClient mqttClient(espClient);
 bool sht_ready    = false;
 bool bh1750_ready = false;
 bool mpu_ready    = false;
+uint8_t mpu_addr  = 0x68;
+int mpu_err_streak = 0;
+unsigned long last_mpu_check_ms = 0;
 bool fs_ready     = false;
 
 char mac_str[20]      = "UNKNOWN";
@@ -502,7 +505,13 @@ void setup() {
 
   sht_ready = initSHT();
   bh1750_ready = lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
-  if (mpu.begin(0x68, &Wire) || mpu.begin(0x69, &Wire)) {
+  if (mpu.begin(0x68, &Wire)) {
+    mpu_addr = 0x68;
+    mpu_ready = true;
+    mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+    mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  } else if (mpu.begin(0x69, &Wire)) {
+    mpu_addr = 0x69;
     mpu_ready = true;
     mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
     mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
@@ -587,16 +596,39 @@ void loop() {
     }
   }
 
-  // Keep 50 Hz IMU polling active so board power dissipation matches field operation
+  // Keep 50 Hz IMU polling active (verified direct I2C read so bus glitches never produce fake 6.95G/10.6G spikes)
   if (mpu_ready && (now_ms - last_imu_ms >= IMU_INTERVAL_MS)) {
     last_imu_ms = now_ms;
-    sensors_event_t a = {0}, g = {0}, temp = {0};
-    if (mpu.getEvent(&a, &g, &temp)) {
-      float gf = sqrtf(a.acceleration.x * a.acceleration.x +
-                       a.acceleration.y * a.acceleration.y +
-                       a.acceleration.z * a.acceleration.z) / 9.80665f;
-      if (gf > max_g_force && gf <= 12.0f) {
-        max_g_force = gf;
+    Wire.beginTransmission(mpu_addr);
+    Wire.write(0x3B);
+    bool i2c_ok = (Wire.endTransmission(false) == 0) &&
+                  (Wire.requestFrom(mpu_addr, (uint8_t)6, (uint8_t)true) == 6);
+    if (i2c_ok) {
+      uint8_t b[6];
+      for (int i = 0; i < 6; i++) b[i] = Wire.read();
+      int16_t rx = (int16_t)((b[0] << 8) | b[1]);
+      int16_t ry = (int16_t)((b[2] << 8) | b[3]);
+      int16_t rz = (int16_t)((b[4] << 8) | b[5]);
+      if (!((rx == 0 && ry == 0 && rz == 0) || (rx == -1 && ry == -1 && rz == -1))) {
+        float gf = sqrtf(((float)rx / 4096.0f) * ((float)rx / 4096.0f) +
+                         ((float)ry / 4096.0f) * ((float)ry / 4096.0f) +
+                         ((float)rz / 4096.0f) * ((float)rz / 4096.0f));
+        if (!isnan(gf) && gf >= 0.05f && gf <= 11.5f) {
+          mpu_err_streak = 0;
+          if (gf > max_g_force) {
+            max_g_force = gf;
+          }
+        }
+      }
+    } else {
+      mpu_err_streak++;
+      if (mpu_err_streak >= 5 && (now_ms - last_mpu_check_ms >= 10000UL)) {
+        last_mpu_check_ms = now_ms;
+        if (mpu.begin(mpu_addr, &Wire)) {
+          mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+          mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+          mpu_err_streak = 0;
+        }
       }
     }
   }

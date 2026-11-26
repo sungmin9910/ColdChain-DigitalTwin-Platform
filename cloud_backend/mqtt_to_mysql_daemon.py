@@ -1,4 +1,5 @@
 import json
+import math
 import time
 import os
 import sys
@@ -51,26 +52,78 @@ def get_kst_now():
     return datetime.now(KST)
 
 # ----------------------------------------------------------------
-# 2. 차량별 독립 세션 트래커
+# 2. 차량별 독립 세션 트래커 (세션 분할 방지 + 시각 역전/IMU 폭주 방어)
 # ----------------------------------------------------------------
+DRIVE_IDLE_TIMEOUT_S = 900.0      # 주행 일시 정차/신호대기/음영 허용 (15분)
+SESSION_RESUME_GAP_S = 1800.0     # 데몬 재시작·자정 경과 시 연속 실험 이어받기 (30분)
+
+def _calc_distance_m(lat1, lng1, lat2, lng2):
+    dlat = (lat2 - lat1) * 111320.0
+    dlng = (lng2 - lng1) * 111320.0 * math.cos(math.radians(lat1))
+    return math.hypot(dlat, dlng)
+
+
 class VehicleSessionTracker:
     def __init__(self, truck_id, device_id):
         self.truck_id = truck_id
         self.device_id = device_id
         self.active_run_id = None
+        self.active_storage_run_id = None
         self.trip_started = False
         self.last_driving_time = 0.0
         self.last_packet_time = 0.0
         self.standby_count = 0
         self.last_valid_gps = (0.0, 0.0)
+        self.gps_anchor = None
+        self.moving_streak = 0
         self.last_db_save_time = 0.0
         self.last_storage_save_time = 0.0
         self.last_db_packet_epoch = 0.0
+        self.last_accepted_dt = None
         self.prev_lux = None
         self.prev_temp = None
+        self.shock_storm_streak = 0
+        self.last_shock_ts = 0.0
+
+    def restore_from_db(self, run_row):
+        """데몬 재시작 시 최근 30분 내 활성 세션을 그대로 이어받아 불필요한 세션 분할을 차단"""
+        if not run_row:
+            return
+        run_id = run_row.get("run_id")
+        run_type = run_row.get("run_type")
+        ended_at = run_row.get("ended_at")
+        if not run_id or not ended_at:
+            return
+        now_kst_naive = get_kst_now().replace(tzinfo=None)
+        if isinstance(ended_at, str):
+            try:
+                ended_at = datetime.strptime(ended_at[:19], "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                return
+        gap_s = (now_kst_naive - ended_at).total_seconds()
+        if gap_s > SESSION_RESUME_GAP_S or gap_s < -300:
+            return
+
+        now_ts = time.time()
+        self.last_packet_time = now_ts - max(0.0, gap_s)
+        self.last_accepted_dt = ended_at
+        if run_type == "FIELD_DRIVE":
+            self.active_run_id = run_id
+            self.trip_started = True
+            self.last_driving_time = self.last_packet_time
+            if run_row.get("last_lat") and run_row.get("last_lng"):
+                self.last_valid_gps = (float(run_row["last_lat"]), float(run_row["last_lng"]))
+            print(f"[{self.truck_id}] [RESUME] 활성 주행 세션 이어받기: '{run_id}' (종료 경과 {int(gap_s)}초)", flush=True)
+        elif run_type == "STORAGE":
+            self.active_storage_run_id = run_id
+            print(f"[{self.truck_id}] [RESUME] 활성 보관 세션 이어받기: '{run_id}' (종료 경과 {int(gap_s)}초)", flush=True)
 
     def process_packet(self, payload):
         now_ts = time.time()
+        now_kst_naive = get_kst_now().replace(tzinfo=None)
+        pkt_gap_s = (now_ts - self.last_packet_time) if self.last_packet_time > 0 else 0.0
+        self.last_packet_time = now_ts
+
         g_force = float(payload.get('g_force', 1.0))
         lux = float(payload.get('lux', 0.0))
         temp = float(payload.get('temperature', 0.0))
@@ -81,28 +134,77 @@ class VehicleSessionTracker:
         sats = int(payload.get('sats', 0))
         status_str = str(payload.get('status', ''))
 
-        # 미동기화 시각(00:00:00 또는 2026-10-01 00:00) 수신 시 서버 KST 현재 시각으로 즉시 보정
+        # 미동기화 시각 및 실내 GPS 시계 되감김(Time-Rewind) 서버 측 방어
         raw_ts = str(payload.get('timestamp_str') or '').strip()
+        parsed_dt = None
         if len(raw_ts) >= 19 and not raw_ts.startswith("00:00") and not raw_ts.startswith("2026-10-01 00:00"):
-            ts_str = raw_ts[:19]
-        else:
-            ts_str = get_kst_now().strftime("%Y-%m-%d %H:%M:%S")
+            try:
+                parsed_dt = datetime.strptime(raw_ts[:19], "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                parsed_dt = None
 
-        # 이상 이벤트 감지 (충격, 조도 급변, 온도 급변)
+        # 오프라인 LittleFS 고속 백필(< 0.4s 간격 연속 도착)이 아닌 실시간 수신 시 시계 역전/이탈 자동 보정
+        is_fast_backfill = (0.0 < pkt_gap_s < 0.45)
+        if parsed_dt is None:
+            parsed_dt = now_kst_naive
+        elif not is_fast_backfill:
+            drift_s = (parsed_dt - now_kst_naive).total_seconds()
+            rewound = (self.last_accepted_dt is not None) and ((parsed_dt - self.last_accepted_dt).total_seconds() < -5.0)
+            if abs(drift_s) > 120.0 or rewound:
+                parsed_dt = now_kst_naive
+
+        self.last_accepted_dt = parsed_dt
+        ts_str = parsed_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        # 이상 이벤트 감지 (충격, 조도 급변, 온도 급변) + MPU6050 고장 연속 폭주 스로틀
         lux_diff = 0.0 if self.prev_lux is None else (lux - self.prev_lux)
         temp_diff = 0.0 if self.prev_temp is None else (temp - self.prev_temp)
         self.prev_lux = lux
         self.prev_temp = temp
 
         is_shock = (g_force >= 1.8)
-        is_anomaly = is_shock or (abs(lux_diff) >= 300.0) or (abs(temp_diff) >= 2.0)
+        if is_shock:
+            if (now_ts - self.last_shock_ts) <= 10.0:
+                self.shock_storm_streak += 1
+            else:
+                self.shock_storm_streak = 1
+            self.last_shock_ts = now_ts
+        elif (now_ts - self.last_shock_ts) > 15.0:
+            self.shock_storm_streak = 0
 
-        # GPS 유효성 판정
-        gps_is_valid = (lat != 0.0 and lng != 0.0)
-        is_moving = (speed > 2.0) or (gps_is_valid and speed > 0.8)
+        # 연속 5회 이상 충격 폭주(센서 이상) 시 즉시 적재 우회를 끄고 정상 주기로 스로틀링
+        shock_throttled = (self.shock_storm_streak >= 5)
+        is_anomaly = (is_shock and not shock_throttled) or (abs(lux_diff) >= 300.0) or (abs(temp_diff) >= 2.0)
+
+        # GPS 유효성 및 실이동 판정 (실내/냉장고 멀티패스 정지 GPS가 주행 세션으로 오분류·분할되는 것 차단)
+        is_indoor_reported = ("대기" in status_str) or ("실내" in status_str) or ("보관" in status_str)
+        gps_is_valid = (lat != 0.0 and lng != 0.0 and abs(lat) > 1.0 and not is_indoor_reported)
+
+        disp_m = 0.0
+        if gps_is_valid:
+            if self.gps_anchor is None:
+                self.gps_anchor = (lat, lng)
+            disp_m = _calc_distance_m(self.gps_anchor[0], self.gps_anchor[1], lat, lng)
+            if speed >= 4.0 and speed <= 180.0:
+                self.moving_streak += 1
+            else:
+                self.moving_streak = 0
+        else:
+            self.moving_streak = 0
+
+        is_real_moving = gps_is_valid and (self.moving_streak >= 3 or (disp_m >= 50.0 and sats >= 4))
+
+        # 오랜 공백(15분 초과) 후 실내 보관 패킷이 들어오면 이전 주행 세션을 깔끔히 종료 (과거 GPS 덮어쓰기 차단)
+        if self.trip_started and is_indoor_reported and pkt_gap_s >= DRIVE_IDLE_TIMEOUT_S:
+            self.trip_started = False
+            self.active_run_id = None
+            self.last_valid_gps = (0.0, 0.0)
+            self.gps_anchor = None
+            self.standby_count = 0
+            print(f"[{self.truck_id}] [STOP] {int(pkt_gap_s)}초 공백 후 실내 보관 전환 -> 이전 주행 세션 종료", flush=True)
 
         # 주행 상태 판정 및 래치
-        if is_moving or (gps_is_valid and "대기" not in status_str):
+        if is_real_moving or (self.trip_started and gps_is_valid):
             self.last_driving_time = now_ts
             self.standby_count = 0
             if gps_is_valid:
@@ -110,33 +212,37 @@ class VehicleSessionTracker:
         else:
             self.standby_count += 1
 
-        # 3분(36패킷) 이상 정지 시 주행 종료 처리
+        # 15분(900초) 이상 정지/실내 유지 시 주행 종료 처리 (일시 정차·신호대기로 세션 쪼개짐 방지)
         if self.trip_started:
-            if self.standby_count >= 36 and (now_ts - self.last_driving_time > 180):
+            if self.standby_count >= 180 and (now_ts - self.last_driving_time > DRIVE_IDLE_TIMEOUT_S):
                 self.trip_started = False
                 self.active_run_id = None
-                print(f"[{self.truck_id}] [STOP] 3분 이상 정지 감지 -> 주행 세션 자동 종료 및 대기 복귀", flush=True)
+                self.last_valid_gps = (0.0, 0.0)
+                self.gps_anchor = None
+                print(f"[{self.truck_id}] [STOP] 15분 이상 정지 감지 -> 주행 세션 자동 종료 및 보관 복귀", flush=True)
 
-        # 신규 주행 시작 감지 (세션 ID 자동 생성)
+        # 신규 주행 시작 감지 (실제 이동이 확인될 때만 FIELD_DRIVE 세션 생성)
         was_stopped = not self.trip_started
-        if (gps_is_valid or speed > 2.0) and "대기" not in status_str and "실내" not in status_str:
+        if is_real_moving and not is_indoor_reported:
             if was_stopped or self.active_run_id is None:
                 dt_part = ts_str[:16].replace(" ", "_").replace(":", "시") + "분"
                 new_run = f"{self.truck_id}_주행_{dt_part}"
                 self.active_run_id = new_run
                 self.trip_started = True
-                print(f"[{self.truck_id}] [START] 새 주행 세션 자동 시작: '{new_run}' (출발시각: {ts_str})", flush=True)
+                self.active_storage_run_id = None
+                print(f"[{self.truck_id}] [START] 새 주행 세션 자동 시작: '{new_run}' (출발시각: {ts_str}, spd={speed:.1f}, disp={disp_m:.0f}m)", flush=True)
 
-        # 터널 보정
+        # 터널 보정 (실내 보관 패킷에는 과거 주행 좌표를 절대 덮어쓰지 않음)
         is_in_tunnel = False
-        if not self.trip_started:
-            pass
+        if not self.trip_started or is_indoor_reported:
+            if is_indoor_reported:
+                lat, lng, speed = 0.0, 0.0, 0.0
         elif not gps_is_valid and self.last_valid_gps != (0.0, 0.0):
             lat, lng = self.last_valid_gps
             is_in_tunnel = True
 
         # 상태 문자열 간결화
-        if not self.trip_started or "대기" in status_str or "실내" in status_str:
+        if not self.trip_started or is_indoor_reported:
             loc_tag = "[대기]"
         elif is_in_tunnel:
             loc_tag = "[터널]"
@@ -154,46 +260,42 @@ class VehicleSessionTracker:
         else:
             final_status = f"정상 {loc_tag}"[:48]
 
-        # DB 저장 조건 판정 (스마트 필터링: 주행 5초 + 창고 실내 보관 30초 + 이상 이벤트 즉시)
-        pkt_epoch = None
-        try:
-            pkt_epoch = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S").timestamp()
-        except Exception:
-            pkt_epoch = None
-
+        # DB 저장 조건 판정 (스마트 필터링: 주행 5초 + 창고/냉장고 실내 보관 30초 + 이상 이벤트 즉시)
+        pkt_epoch = parsed_dt.timestamp()
         should_save = False
         is_storage_save = False
         if is_anomaly:
             should_save = True
-        elif self.trip_started:
+        elif self.trip_started and not is_indoor_reported:
             if (now_ts - self.last_db_save_time >= 5.0) or (
-                pkt_epoch is not None and self.last_db_packet_epoch > 0 and abs(pkt_epoch - self.last_db_packet_epoch) >= 4.5
+                self.last_db_packet_epoch > 0 and abs(pkt_epoch - self.last_db_packet_epoch) >= 4.5
             ):
                 should_save = True
         else:
-            # 창고(A02~A03/B04~B05/C01, 레거시 A01/B12/C10) 실내 보관 중에도 30초 주기로 온습도·조도를 DB에 적재
-            if now_ts - self.last_storage_save_time >= 30.0:
+            # 창고/냉장고 실내 보관 중 30초 주기로 온습도·조도를 단일 보관 세션에 연속 적재
+            if (now_ts - self.last_storage_save_time >= 30.0) or (self.last_storage_save_time == 0.0):
                 should_save = True
                 is_storage_save = True
 
         if should_save:
             if is_storage_save:
                 self.last_storage_save_time = now_ts
-                final_status = "보관 [실내]"
+                if not is_shock and not is_anomaly:
+                    final_status = "보관 [실내]"
             else:
                 self.last_db_save_time = now_ts
-            if pkt_epoch is not None:
-                self.last_db_packet_epoch = pkt_epoch
-            if self.trip_started and self.active_run_id:
+            self.last_db_packet_epoch = pkt_epoch
+
+            if self.trip_started and self.active_run_id and not is_indoor_reported:
                 run_id_val = self.active_run_id
-            elif is_storage_save or not self.trip_started:
-                run_id_val = f"{self.truck_id}_보관_{ts_str[:10]}"
             else:
-                run_id_val = f"{self.truck_id}_기록_{get_kst_now().strftime('%Y-%m-%d_%H시%M분')}"
+                # 연속 보관 실험은 자정(00:00)을 넘겨도 분할하지 않고 동일 run_id 유지 (30분 이상 끊긴 뒤 새 실험 시에만 일자 갱신)
+                if not self.active_storage_run_id or pkt_gap_s > SESSION_RESUME_GAP_S:
+                    self.active_storage_run_id = f"{self.truck_id}_보관_{ts_str[:10]}"
+                run_id_val = self.active_storage_run_id
 
             try:
-                dt_kst = datetime.strptime(ts_str[:19], "%Y-%m-%d %H:%M:%S")
-                dt_utc = dt_kst - timedelta(hours=9)
+                dt_utc = parsed_dt - timedelta(hours=9)
                 created_at_str = dt_utc.strftime("%Y-%m-%d %H:%M:%S")
             except Exception:
                 created_at_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
@@ -467,13 +569,48 @@ def on_disconnect(client, userdata, rc, properties=None):
 # ----------------------------------------------------------------
 # 5. 메인 루프
 # ----------------------------------------------------------------
+def restore_active_sessions_on_startup():
+    """데몬 시작/재시작 시 최근 30분 내 활성 세션을 DB에서 복원하여 세션 분할을 방지"""
+    try:
+        conn = get_db_conn(MYSQL_V2_DATABASE)
+        try:
+            with conn.cursor() as cur:
+                for truck_id, tracker in trackers.items():
+                    cur.execute(
+                        f"""
+                        SELECT tr.run_id, tr.run_type, tr.ended_at,
+                               (SELECT st.lat FROM `{MYSQL_V2_DATABASE}`.`sensor_telemetry` st
+                                WHERE st.run_id = tr.run_id AND st.lat != 0 AND st.lng != 0
+                                ORDER BY st.measured_at DESC LIMIT 1) AS last_lat,
+                               (SELECT st.lng FROM `{MYSQL_V2_DATABASE}`.`sensor_telemetry` st
+                                WHERE st.run_id = tr.run_id AND st.lat != 0 AND st.lng != 0
+                                ORDER BY st.measured_at DESC LIMIT 1) AS last_lng
+                        FROM `{MYSQL_V2_DATABASE}`.`transport_runs` tr
+                        WHERE tr.device_id = %s
+                          AND tr.run_type IN ('FIELD_DRIVE', 'STORAGE')
+                        ORDER BY tr.ended_at DESC
+                        LIMIT 1
+                        """,
+                        (tracker.device_id,),
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        tracker.restore_from_db(row)
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f" [Startup Resume Warn] {e}", flush=True)
+
+
 def main():
     print(f"\n=======================================================")
-    print(f" ColdChain DigitalTwin Cloud Backend Daemon v2.0 (Dual-Write) ")
+    print(f" ColdChain DigitalTwin Cloud Backend Daemon v2.1 (Anti-Split) ")
     print(f" Target MySQL: {MYSQL_HOST}:{MYSQL_PORT} -> [{MYSQL_DATABASE} & {MYSQL_V2_DATABASE}] ")
     print(f" Target HiveMQ: {MQTT_BROKER}:{MQTT_PORT} ")
     print(f" Monitored Fleet: 1호차 ~ 4호차 전체 (truck01 ~ truck04) ")
     print(f"=======================================================\n", flush=True)
+
+    restore_active_sessions_on_startup()
 
     t_db = threading.Thread(target=db_worker_thread, daemon=True)
     t_db.start()
