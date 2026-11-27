@@ -63,10 +63,10 @@ struct WiFiCredential {
 };
 
 const WiFiCredential default_wifi_list[] = {
+  {"Equipment Test", "koat0907"},
   {"smroom", ""},
   {"225", "123698745"},
   {"hani", "12345687"}
-  // , {"현장공유기_SSID", "현장공유기_비밀번호"}
 };
 const int num_default_wifi = sizeof(default_wifi_list) / sizeof(default_wifi_list[0]);
 
