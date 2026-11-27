@@ -108,9 +108,10 @@ def prep_single_board(
 
         # 2) Register field Wi-Fi AP (if provided)
         if ssid:
-            if " " in ssid:
-                print("  [경고] SSID에 공백이 포함되어 있습니다! 펌웨어 파서가 공백을 구분자로 사용합니다.")
-            wifi_cmd = f"wifi {ssid} {password}".strip()
+            if " " in ssid or " " in password:
+                wifi_cmd = f"wifi {ssid}|{password}"
+            else:
+                wifi_cmd = f"wifi {ssid} {password}".strip()
             print(f"[2/4] 현장 Wi-Fi 등록 및 연결 시도 -> SSID='{ssid}'")
             for ln in send_cmd(ser, wifi_cmd, timeout=10.0):
                 print("  ", ln)

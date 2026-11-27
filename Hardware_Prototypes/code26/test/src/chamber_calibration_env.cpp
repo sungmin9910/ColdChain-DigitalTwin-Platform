@@ -441,17 +441,41 @@ void handleSerialCommand(String cmd) {
     live_end_ms = millis() + (unsigned long)(sec * 1000.0f);
     Serial.printf("[LIVE] Monitoring SHT45 & BH1750 at 1 Hz for %.0f s...\n", sec);
   } else if (lower.startsWith("wifi ")) {
+    // Supports:
+    //   1) wifi Equipment Test|password   (pipe or tab delimiter — supports spaces in SSID)
+    //   2) wifi "Equipment Test" password (quoted SSID)
+    //   3) wifi MySSID password           (legacy space delimiter)
     String rest = cmd.substring(5);
     rest.trim();
-    int sp = rest.indexOf(' ');
-    if (sp > 0) {
-      extra_ssid = rest.substring(0, sp);
-      extra_pass = rest.substring(sp + 1);
-      extra_pass.trim();
+    int sep_tab = rest.indexOf('\t');
+    int sep_pipe = rest.indexOf('|');
+    if (sep_tab >= 0) {
+      extra_ssid = rest.substring(0, sep_tab);
+      extra_pass = rest.substring(sep_tab + 1);
+    } else if (sep_pipe >= 0) {
+      extra_ssid = rest.substring(0, sep_pipe);
+      extra_pass = rest.substring(sep_pipe + 1);
+    } else if (rest.startsWith("\"")) {
+      int end_q = rest.indexOf('\"', 1);
+      if (end_q > 1) {
+        extra_ssid = rest.substring(1, end_q);
+        extra_pass = rest.substring(end_q + 1);
+      } else {
+        extra_ssid = rest;
+        extra_pass = "";
+      }
     } else {
-      extra_ssid = rest;
-      extra_pass = "";
+      int sp = rest.indexOf(' ');
+      if (sp > 0) {
+        extra_ssid = rest.substring(0, sp);
+        extra_pass = rest.substring(sp + 1);
+      } else {
+        extra_ssid = rest;
+        extra_pass = "";
+      }
     }
+    extra_ssid.trim();
+    extra_pass.trim();
     if (fs_ready && extra_ssid.length() > 0) {
       File f = LittleFS.open(extra_wifi_path, FILE_WRITE);
       if (f) {

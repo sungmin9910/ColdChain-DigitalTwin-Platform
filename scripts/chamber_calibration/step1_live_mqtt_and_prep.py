@@ -76,7 +76,10 @@ def run_board_prep(args: argparse.Namespace) -> None:
             print("  ", ln)
 
         if args.wifi_ssid:
-            wifi_cmd = f"wifi {args.wifi_ssid} {args.wifi_pass}".strip()
+            if " " in args.wifi_ssid or " " in args.wifi_pass:
+                wifi_cmd = f"wifi {args.wifi_ssid}|{args.wifi_pass}"
+            else:
+                wifi_cmd = f"wifi {args.wifi_ssid} {args.wifi_pass}".strip()
             print(f"[2/4] 현장 Wi-Fi AP 등록 중 -> SSID='{args.wifi_ssid}'")
             for ln in send_cmd(ser, wifi_cmd, timeout=10.0):
                 print("  ", ln)
