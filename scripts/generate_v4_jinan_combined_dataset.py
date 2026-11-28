@@ -1,24 +1,27 @@
 """
-ColdChain DigitalTwin Platform - Supply Chain v4 Combined Experimental Dataset Builder
---------------------------------------------------------------------------------------
-목적:
-  센서 기기가 없는 상태에서 기존 AWS RDS 실측 자산(장거리 도로 주행 GPS/속도/충격 +
-  항온항습 챔버 저온 실측 온습도)을 결합하여 Supply Chain v4(17자리 LotID, A01~D01 13단계,
-  상/중/하 전 등급, 3구간 운송) 정상 콜드체인 실험 데이터를 비파괴적으로 생성·적재합니다.
-
-안전 원칙:
-  1. 기존 로트(v2/v3), 기존 주행/보관 세션, 진행 중인 실시간 데이터는 절대 수정·삭제하지 않음.
-  2. 신규 17자리 LotID(55451071411261123/24/25)와 신규 비중복 run_id만 INSERT(멱등) 적재.
-  3. carrier-c6-02(truck02)의 기존 타임스탬프(11/22, 11/25 12:11~11/26 14:58)와
-     단 1초도 겹치지 않는 시간 윈도우만 사용.
+ColdChain DigitalTwin Platform - Supply Chain v4 Single-Lot Multi-Destination/Multi-Truck Builder
+--------------------------------------------------------------------------------------------------
+설계 핵심:
+  1. 1차 단일 로트(55451071411261125: 진안 마령면 55451 / 농가 071 / 홍로 사과 411 / 2026-11-25 수확 / 500상자)
+  2. 농가 저장고(A02~A03) 및 APC 저장고(B04~B05) 포함, v4 13단계 전 공정 완주.
+  3. APC 선별(B02) 이후 상(A)/중(B)/하(C) 등급별로 서로 다른 유통창고·판매처 목적지 및 서로 다른 호차 배정:
+     - 공통 1구간 (원물 500상자): 1호차 (truck01 / carrier-c6-01) | 진안 마령면 농가 -> 함양 거점 APC
+     - 상(A) 등급 (400상자)     : 2호차 (truck02 / carrier-c6-02) | 함양 APC -> 창원 광역물류센터 -> 부산 해운대 판매처
+     - 중(B) 등급 (60상자)      : 3호차 (truck03 / carrier-c6-03) | 함양 APC -> 진주 물류센터     -> 김해 판매처
+     - 하(C) 등급 (32상자)      : 4호차 (truck04 / carrier-c6-04) | 함양 APC -> 산청 거점창고     -> 진주 로컬 판매처
+     - 결점과     (8상자)       : REJECTED (출하 제외)
 
 데이터 출처 (100% RDS 실측 기반):
-  - GPS / 속도 / 충격 / 조도: lab225_v2.sensor_telemetry
-      run_id = 'truck04_주행_2026-10-20_15시27분' (1,518건, 전북 진안 인근 -> 경남 -> 부산 실주행)
-      ※ 정상 콜드체인 유지 시나리오를 위해 비주행 충격 스파이크(>=1.8G, 2건)만 직전 정상값으로 완화.
-  - 온도 / 습도: lab225_v2.chamber_calibration_logs
-      저온 실측 구간(1.5~3.9°C, carrier-c6-02 & carrier-c6-03, 2026-11-27~28)의 실측 온도 시계열을
-      그대로 사용하고, 실측 습도 변동 패턴은 사과 저온저장 적정 RH(85~89%) 중심값으로 평행 보정.
+  - GPS / 속도 / 진동: lab225_v2.sensor_telemetry (run_id='truck04_주행_2026-10-20_15시27분', 1,518건)
+      모든 구간이 APC 좌표(35.5510, 127.7590)에서 단절 없이 실제 고속도로/국도 궤적으로 연결됨.
+      정상 콜드체인 유지 시나리오를 위해 비주행 충격 스파이크(>=1.8G, 2건)만 완화.
+  - 온도 / 습도: lab225_v2.chamber_calibration_logs (2026-11-27~28 저온 1.5~3.9°C 실측 구간)
+      등급/차량별 서로 다른 실측 저온 구간 적용 + 실측 습도 변동 곡선을 사과 저온 적정 RH(86~88%)로 보정.
+
+안전 원칙:
+  - 기존 실증 데이터(v2 16건, v3 1건, 기존 주행/보관 세션)는 단 1건도 수정·삭제하지 않음.
+  - 오직 본 스크립트가 생성한 합성 로트(55451071411261123/24/25) 및 '%진안071%' run_id만 정리/갱신.
+  - 1~4호차의 모든 기존 세션 타임스탬프와 충돌(겹침) 여부를 사전 검사하여 0건일 때만 적재.
 
 사용법:
   python scripts/generate_v4_jinan_combined_dataset.py --dry-run
@@ -46,119 +49,115 @@ DB_PASSWORD = os.getenv("MYSQL_PASSWORD", "12345678")
 DB_V2 = os.getenv("MYSQL_V2_DATABASE", "lab225_v2")
 
 SOURCE_DRIVE_RUN_ID = "truck04_주행_2026-10-20_15시27분"
-TARGET_DEVICE_ID = "carrier-c6-02"  # 관제 2호차 (truck02)
 
-# 1,518개 실주행 포인트 3구간 분할 인덱스 (진안 -> 함양/산청 APC -> 창원/경남 유통창고 -> 부산 판매처)
-# idx 0    : 35.7694, 127.3610 (전북 진안군 마령면 인근 출발)
-# idx 101  : 35.5510, 127.7590 (1구간 도착 / APC 거점, 약 44분)
-# idx 707  : 35.2798, 128.6250 (2구간 도착 / 유통창고 거점, 약 1시간 40분)
-# idx 1517 : 35.1623, 129.1580 (3구간 도착 / 부산 판매처, 약 1시간 46분)
-LEG_SLICES = [
-    (1, 0, 102),      # Leg 1: idx 0..101 (102 pts)
-    (2, 101, 708),    # Leg 2: idx 101..707 (607 pts, 끝점-시작점 연속 연결)
-    (3, 707, 1518),   # Leg 3: idx 707..1517 (811 pts, 끝점-시작점 연속 연결)
-]
+# 이전 다중 로트 테스트에서 본 스크립트가 생성했던 합성 ID 정리 대상 (기존 v2/v3 실증 데이터는 절대 포함 불가)
+MANAGED_SYNTH_LOT_IDS = (
+    "55451071411261123",
+    "55451071411261124",
+    "55451071411261125",
+)
+MANAGED_RUN_LIKE = "%진안071%"
 
-# 3개 로트 정의 (진안 마령면 55451, 농가 071, 사과/홍로 411, 총 500상자, 1~3회차)
-# 기존 carrier-c6-02 세션(11/22, 11/25 12:11 ~ 11/26 14:58)과 시간 중복이 전혀 없도록 배치
-LOT_SPECS = [
-    {
-        "area_code": "55451",  # 전북 진안군 (마령면)
-        "farmer_code": "071",
-        "fruit_type": "Apples",
-        "variety": "Hongro Apple",
-        "crop_code": "411",
-        "farmer_phone": "010-7100-5451",
-        "cultivation": "GAP",
-        "harvest_no": 1,
-        "total_qty": 500,
-        "grades": {"A": 395, "B": 65, "C": 30, "DEFECT": 10},
-        "harvest_date": "2026-11-23",
-        "chamber_profile": {
+# 1차 단일 로트 정의 (11/25 수확 -> 농가 저온저장 -> 11/26 APC 입고·선별·저장 -> 11/27 등급별 분기 운송·도착)
+LOT_SPEC = {
+    "area_code": "55451",  # 전북 진안군 (마령면)
+    "farmer_code": "071",
+    "fruit_type": "Apples",
+    "variety": "Hongro Apple",
+    "crop_code": "411",
+    "farmer_phone": "010-7100-5451",
+    "cultivation": "GAP",
+    "harvest_no": 1,
+    "total_qty": 500,
+    "grades": {"A": 400, "B": 60, "C": 32, "DEFECT": 8},
+    "harvest_date": "2026-11-25",
+    "common_schedule": {
+        "A01": "2026-11-25 08:30:00",
+        "A02": "2026-11-25 09:30:00",
+        "A03": "2026-11-26 15:30:00",  # 약 30시간 농가 저온저장
+        "leg1_start": "2026-11-26 16:00:00",  # -> B01 ~ 16:44:17
+        "B02": "2026-11-26 17:30:00",  # APC 선별 및 A/B/C 유색 QR 발급
+    },
+    # 공통 1구간: 1호차 (truck01 / carrier-c6-01), 진안 마령면(idx 0) -> 함양 APC(idx 101)
+    "leg1": {
+        "device_id": "carrier-c6-01",
+        "truck_prefix": "truck01",
+        "slice": (0, 102),
+        "run_suffix": "진안071_1구간_원물",
+        "chamber": {
             "device_id": "carrier-c6-03",
             "t_start": "2026-11-27 23:25:00",
-            "t_end": "2026-11-28 00:15:00",
-            "target_rh": 87.5,
+            "t_end": "2026-11-28 00:05:00",
+            "target_rh": 87.6,
         },
-        "schedule": {
-            "A01": "2026-11-23 08:30:00",
-            "A02": "2026-11-23 09:30:00",
-            "A03": "2026-11-24 07:30:00",
-            "leg1_start": "2026-11-24 08:00:00",  # -> B01 ~ 08:44:17
-            "B02": "2026-11-24 09:30:00",
-            "B03": "2026-11-24 10:15:00",
-            "B04": "2026-11-24 10:40:00",
-            "B05": "2026-11-24 16:30:00",
-            "leg2_start": "2026-11-24 17:00:00",  # -> C01 ~ 18:39:41
-            "leg3_start": "2026-11-25 07:00:00",  # -> D01 ~ 08:46:25 (기존 11/25 12:11 세션 이전 완료)
-        },
-        "run_tag": "진안071_1차",
     },
-    {
-        "area_code": "55451",
-        "farmer_code": "071",
-        "fruit_type": "Apples",
-        "variety": "Hongro Apple",
-        "crop_code": "411",
-        "farmer_phone": "010-7100-5451",
-        "cultivation": "GAP",
-        "harvest_no": 2,
-        "total_qty": 500,
-        "grades": {"A": 405, "B": 55, "C": 30, "DEFECT": 10},
-        "harvest_date": "2026-11-24",
-        "chamber_profile": {
-            "device_id": "carrier-c6-03",
-            "t_start": "2026-11-27 23:45:00",
-            "t_end": "2026-11-28 00:18:00",
-            "target_rh": 86.8,
-        },
-        "schedule": {
-            "A01": "2026-11-24 09:00:00",
-            "A02": "2026-11-24 10:00:00",
-            "A03": "2026-11-26 15:30:00",  # 2일 저온저장 (기존 11/25~26 14:58 세션 이후 출고)
-            "leg1_start": "2026-11-26 16:00:00",  # -> B01 ~ 16:44:17
-            "B02": "2026-11-26 17:20:00",
-            "B03": "2026-11-26 17:55:00",
+    # 선별 이후 A / B / C 등급별 서로 다른 호차 · 서로 다른 유통창고/판매처 목적지 · 서로 다른 실측 온습도 구간
+    "grade_plans": {
+        "A": {
+            "label_ko": "상",
+            "device_id": "carrier-c6-02",  # 2호차 (truck02)
+            "truck_prefix": "truck02",
+            "dest_desc": "창원 광역물류센터 -> 부산 해운대 판매처",
+            "B03": "2026-11-26 18:00:00",
             "B04": "2026-11-26 18:20:00",
             "B05": "2026-11-27 07:30:00",
-            "leg2_start": "2026-11-27 08:00:00",  # -> C01 ~ 09:39:41
-            "leg3_start": "2026-11-27 14:00:00",  # -> D01 ~ 15:46:25
+            "leg2_start": "2026-11-27 08:00:00",  # 함양 APC(101) -> 창원 광역물류센터(707)
+            "leg2_slice": (101, 708),
+            "leg2_suffix": "진안071_A상_2구간_창원",
+            "leg3_start": "2026-11-27 14:00:00",  # 창원(707) -> 부산 해운대 판매처(1517)
+            "leg3_slice": (707, 1518),
+            "leg3_suffix": "진안071_A상_3구간_부산",
+            "chamber": {
+                "device_id": "carrier-c6-03",
+                "t_start": "2026-11-27 23:45:00",
+                "t_end": "2026-11-28 00:18:00",
+                "target_rh": 87.2,
+            },
         },
-        "run_tag": "진안071_2차",
+        "B": {
+            "label_ko": "중",
+            "device_id": "carrier-c6-03",  # 3호차 (truck03)
+            "truck_prefix": "truck03",
+            "dest_desc": "진주 물류센터 -> 김해 판매처",
+            "B03": "2026-11-26 18:10:00",
+            "B04": "2026-11-26 18:30:00",
+            "B05": "2026-11-27 08:30:00",
+            "leg2_start": "2026-11-27 09:00:00",  # 함양 APC(101) -> 진주 물류센터(404)
+            "leg2_slice": (101, 405),
+            "leg2_suffix": "진안071_B중_2구간_진주",
+            "leg3_start": "2026-11-27 13:00:00",  # 진주(404) -> 김해 판매처(808)
+            "leg3_slice": (404, 809),
+            "leg3_suffix": "진안071_B중_3구간_김해",
+            "chamber": {
+                "device_id": "carrier-c6-03",
+                "t_start": "2026-11-27 23:25:00",
+                "t_end": "2026-11-28 00:10:00",
+                "target_rh": 86.8,
+            },
+        },
+        "C": {
+            "label_ko": "하",
+            "device_id": "carrier-c6-04",  # 4호차 (truck04)
+            "truck_prefix": "truck04",
+            "dest_desc": "산청 거점창고 -> 진주 로컬 판매처",
+            "B03": "2026-11-26 18:20:00",
+            "B04": "2026-11-26 18:40:00",
+            "B05": "2026-11-27 09:30:00",
+            "leg2_start": "2026-11-27 10:00:00",  # 함양 APC(101) -> 산청 거점창고(202)
+            "leg2_slice": (101, 203),
+            "leg2_suffix": "진안071_C하_2구간_산청",
+            "leg3_start": "2026-11-27 12:00:00",  # 산청(202) -> 진주 로컬 판매처(404)
+            "leg3_slice": (202, 405),
+            "leg3_suffix": "진안071_C하_3구간_진주",
+            "chamber": {
+                "device_id": "carrier-c6-02",
+                "t_start": "2026-11-28 00:00:01",
+                "t_end": "2026-11-28 00:40:00",
+                "target_rh": 86.2,
+            },
+        },
     },
-    {
-        "area_code": "55451",
-        "farmer_code": "071",
-        "fruit_type": "Apples",
-        "variety": "Hongro Apple",
-        "crop_code": "411",
-        "farmer_phone": "010-7100-5451",
-        "cultivation": "GAP",
-        "harvest_no": 3,
-        "total_qty": 500,
-        "grades": {"A": 400, "B": 60, "C": 32, "DEFECT": 8},
-        "harvest_date": "2026-11-25",
-        "chamber_profile": {
-            "device_id": "carrier-c6-02",
-            "t_start": "2026-11-28 00:00:01",
-            "t_end": "2026-11-28 00:42:00",
-            "target_rh": 86.2,
-        },
-        "schedule": {
-            "A01": "2026-11-25 08:30:00",
-            "A02": "2026-11-25 09:30:00",
-            "A03": "2026-11-27 16:30:00",  # 2일 저온저장 후 출고
-            "leg1_start": "2026-11-27 17:00:00",  # -> B01 ~ 17:44:17
-            "B02": "2026-11-27 18:20:00",
-            "B03": "2026-11-27 18:50:00",
-            "B04": "2026-11-27 19:15:00",
-            "B05": "2026-11-28 06:30:00",
-            "leg2_start": "2026-11-28 07:00:00",  # -> C01 ~ 08:39:41
-            "leg3_start": "2026-11-28 11:30:00",  # -> D01 ~ 13:16:25
-        },
-        "run_tag": "진안071_3차",
-    },
-]
+}
 
 GRADE_LABELS = {"A": "상", "B": "중", "C": "하", "DEFECT": "결점과"}
 
@@ -217,20 +216,15 @@ def load_chamber_slice(cur, device_id: str, t_start: str, t_end: str, target_rh:
         raise RuntimeError(f"Chamber slice too small for {device_id} [{t_start}..{t_end}]: {len(rows)}")
     avg_rh = sum(float(r["humidity"]) for r in rows) / len(rows)
     rh_offset = target_rh - avg_rh
-    series = []
-    for r in rows:
-        t_val = round(float(r["temperature"]), 2)
-        h_val = round(min(92.0, max(82.0, float(r["humidity"]) + rh_offset)), 1)
-        series.append((t_val, h_val))
-    return series
+    return [
+        (round(float(r["temperature"]), 2), round(min(92.0, max(82.0, float(r["humidity"]) + rh_offset)), 1))
+        for r in rows
+    ]
 
 
 def sanitize_normal_g_force(raw_g: float) -> float:
-    """정상 콜드체인 유지 시나리오: 실주행 미세 진동(1.0~1.55G)은 그대로 보존, 비주행 스파이크(>=1.8G)만 완화"""
     g = float(raw_g or 1.0)
-    if g >= 1.8:
-        return 1.32
-    return round(g, 2)
+    return 1.32 if g >= 1.8 else round(g, 2)
 
 
 def sanitize_normal_status(raw_status: str, g_val: float) -> str:
@@ -241,20 +235,18 @@ def sanitize_normal_status(raw_status: str, g_val: float) -> str:
 
 
 def build_leg_packets(drive_slice: list, target_start: datetime, chamber_series: list, phase_offset: int):
-    """실주행 슬라이스의 상대 시간 간격을 유지하며 목표 시작 시각으로 이동, 챔버 저온 온습도 결합"""
     base_t = drive_slice[0]["measured_at"]
     m = len(chamber_series)
     packets = []
     seen_ts = set()
     for i, r in enumerate(drive_slice):
-        delta = r["measured_at"] - base_t
-        new_dt = target_start + delta
+        new_dt = target_start + (r["measured_at"] - base_t)
         while new_dt in seen_ts:
             new_dt += timedelta(seconds=1)
         seen_ts.add(new_dt)
         temp_v, humi_v = chamber_series[(i + phase_offset) % m]
         g_v = sanitize_normal_g_force(r["g_force"])
-        lux_v = round(min(float(r["lux"] or 0.0), 2.0), 1)  # 밀폐 냉장탑차 정상 암실 유지
+        lux_v = round(min(float(r["lux"] or 0.0), 2.0), 1)
         packets.append(
             {
                 "measured_at": new_dt,
@@ -273,100 +265,167 @@ def build_leg_packets(drive_slice: list, target_start: datetime, chamber_series:
     return packets
 
 
-def check_existing_conflicts(cur, planned_lots: list, planned_runs: list):
-    """기존 데이터 보호를 위해 carrier-c6-02의 기존 타 세션과의 시간 충돌 사전 검사"""
-    planned_run_ids = {r["run_id"] for r in planned_runs}
+def summarize_leg(leg_no: int, device_id: str, run_id: str, pkts: list):
+    return {
+        "leg_no": leg_no,
+        "device_id": device_id,
+        "run_id": run_id,
+        "started_at": pkts[0]["measured_at"],
+        "ended_at": pkts[-1]["measured_at"],
+        "packets": pkts,
+        "avg_temp": round(sum(p["temperature"] for p in pkts) / len(pkts), 2),
+        "min_temp": round(min(p["temperature"] for p in pkts), 2),
+        "max_temp": round(max(p["temperature"] for p in pkts), 2),
+        "avg_humi": round(sum(p["humidity"] for p in pkts) / len(pkts), 1),
+        "max_g": round(max(p["g_force"] for p in pkts), 2),
+        "max_spd": round(max(p["speed"] for p in pkts), 1),
+        "start_coord": (pkts[0]["lat"], pkts[0]["lng"]),
+        "end_coord": (pkts[-1]["lat"], pkts[-1]["lng"]),
+    }
+
+
+def check_existing_conflicts(cur, planned_runs: list):
+    """모든 기존(비합성) 세션과의 시간 충돌을 차량(device_id)별로 사전 검사"""
     cur.execute(
         """
-        SELECT run_id, started_at, ended_at
+        SELECT device_id, run_id, started_at, ended_at
         FROM transport_runs
-        WHERE device_id = %s AND run_type IN ('FIELD_DRIVE', 'STORAGE')
+        WHERE run_id NOT LIKE %s
+          AND run_type IN ('FIELD_DRIVE', 'STORAGE')
           AND started_at IS NOT NULL AND ended_at IS NOT NULL
         """,
-        (TARGET_DEVICE_ID,),
+        (MANAGED_RUN_LIKE,),
     )
-    existing_runs = [r for r in cur.fetchall() if r["run_id"] not in planned_run_ids]
+    existing_runs = list(cur.fetchall())
 
     conflicts = []
     for pr in planned_runs:
         ps, pe = pr["started_at"], pr["ended_at"]
         for er in existing_runs:
+            if er["device_id"] != pr["device_id"]:
+                continue
             es, ee = er["started_at"], er["ended_at"]
-            # 5분 안전 여유 포함 비중첩 확인
             if ps <= (ee + timedelta(minutes=5)) and pe >= (es - timedelta(minutes=5)):
-                conflicts.append((pr["run_id"], ps, pe, er["run_id"], es, ee))
+                conflicts.append((pr["device_id"], pr["run_id"], ps, pe, er["run_id"], es, ee))
     return conflicts
 
 
 def build_plan(cur):
+    spec = LOT_SPEC
+    assert sum(spec["grades"].values()) == spec["total_qty"], "Grade sum != total_qty"
+    lot_id = build_lot_id_17(
+        spec["area_code"],
+        spec["farmer_code"],
+        spec["fruit_type"],
+        spec["variety"],
+        spec["harvest_date"],
+        crop_code=spec["crop_code"],
+    )
     drive_rows = load_source_drive(cur)
-    planned_lots = []
     planned_runs = []
 
-    for lot_idx, spec in enumerate(LOT_SPECS):
-        assert sum(spec["grades"].values()) == spec["total_qty"], "Grade sum != total_qty"
-        lot_id = build_lot_id_17(
-            spec["area_code"],
-            spec["farmer_code"],
-            spec["fruit_type"],
-            spec["variety"],
-            spec["harvest_date"],
-            crop_code=spec["crop_code"],
+    # 1) 공통 1구간 (1호차: 진안 마령면 -> 함양 APC)
+    l1_cfg = spec["leg1"]
+    l1_chamber = load_chamber_slice(
+        cur,
+        l1_cfg["chamber"]["device_id"],
+        l1_cfg["chamber"]["t_start"],
+        l1_cfg["chamber"]["t_end"],
+        l1_cfg["chamber"]["target_rh"],
+    )
+    s1, e1 = l1_cfg["slice"]
+    l1_start = parse_dt(spec["common_schedule"]["leg1_start"])
+    l1_pkts = build_leg_packets(drive_rows[s1:e1], l1_start, l1_chamber, phase_offset=11)
+    l1_run_id = f"{l1_cfg['truck_prefix']}_주행_{l1_start.strftime('%Y-%m-%d_%H시%M분')}_{l1_cfg['run_suffix']}"
+    leg1 = summarize_leg(1, l1_cfg["device_id"], l1_run_id, l1_pkts)
+    planned_runs.append(leg1)
+
+    farm_storage_env = {"A02": l1_chamber[5], "A03": l1_chamber[25]}
+
+    # 2) 등급별(A/B/C) 서로 다른 호차 · 서로 다른 목적지 2·3구간
+    grade_bundles = {}
+    for g_idx, g_code in enumerate(("A", "B", "C")):
+        gp = spec["grade_plans"][g_code]
+        g_chamber = load_chamber_slice(
+            cur,
+            gp["chamber"]["device_id"],
+            gp["chamber"]["t_start"],
+            gp["chamber"]["t_end"],
+            gp["chamber"]["target_rh"],
         )
-        cp = spec["chamber_profile"]
-        chamber_series = load_chamber_slice(cur, cp["device_id"], cp["t_start"], cp["t_end"], cp["target_rh"])
+        s2, e2 = gp["leg2_slice"]
+        t2_start = parse_dt(gp["leg2_start"])
+        pkts2 = build_leg_packets(drive_rows[s2:e2], t2_start, g_chamber, phase_offset=31 + g_idx * 17)
+        run2_id = f"{gp['truck_prefix']}_주행_{t2_start.strftime('%Y-%m-%d_%H시%M분')}_{gp['leg2_suffix']}"
+        leg2 = summarize_leg(2, gp["device_id"], run2_id, pkts2)
+        planned_runs.append(leg2)
 
-        sch = spec["schedule"]
-        leg_data = {}
-        for leg_no, s_idx, e_idx in LEG_SLICES:
-            sl = drive_rows[s_idx:e_idx]
-            t_start = parse_dt(sch[f"leg{leg_no}_start"])
-            pkts = build_leg_packets(sl, t_start, chamber_series, phase_offset=leg_no * 37 + lot_idx * 19)
-            run_id = f"truck02_주행_{t_start.strftime('%Y-%m-%d_%H시%M분')}_{spec['run_tag']}_{leg_no}구간"
-            leg_info = {
-                "leg_no": leg_no,
-                "run_id": run_id,
-                "device_id": TARGET_DEVICE_ID,
-                "started_at": pkts[0]["measured_at"],
-                "ended_at": pkts[-1]["measured_at"],
-                "packets": pkts,
-                "avg_temp": round(sum(p["temperature"] for p in pkts) / len(pkts), 2),
-                "min_temp": round(min(p["temperature"] for p in pkts), 2),
-                "max_temp": round(max(p["temperature"] for p in pkts), 2),
-                "avg_humi": round(sum(p["humidity"] for p in pkts) / len(pkts), 1),
-                "max_g": round(max(p["g_force"] for p in pkts), 2),
-                "max_spd": round(max(p["speed"] for p in pkts), 1),
-                "start_coord": (pkts[0]["lat"], pkts[0]["lng"]),
-                "end_coord": (pkts[-1]["lat"], pkts[-1]["lng"]),
-            }
-            leg_data[leg_no] = leg_info
-            planned_runs.append(leg_info)
+        s3, e3 = gp["leg3_slice"]
+        t3_start = parse_dt(gp["leg3_start"])
+        pkts3 = build_leg_packets(drive_rows[s3:e3], t3_start, g_chamber, phase_offset=73 + g_idx * 23)
+        run3_id = f"{gp['truck_prefix']}_주행_{t3_start.strftime('%Y-%m-%d_%H시%M분')}_{gp['leg3_suffix']}"
+        leg3 = summarize_leg(3, gp["device_id"], run3_id, pkts3)
+        planned_runs.append(leg3)
 
-        # 저장고 대표 온습도 (챔버 실측 저온 구간에서 직접 추출)
-        storage_env = {
-            "A02": chamber_series[5],
-            "A03": chamber_series[25],
-            "B04": chamber_series[45 % len(chamber_series)],
-            "B05": chamber_series[65 % len(chamber_series)],
-            "C01": chamber_series[85 % len(chamber_series)],
+        grade_bundles[g_code] = {
+            "cfg": gp,
+            "leg2": leg2,
+            "leg3": leg3,
+            "storage_env": {
+                "B04": g_chamber[10 % len(g_chamber)],
+                "B05": g_chamber[35 % len(g_chamber)],
+                "C01": g_chamber[60 % len(g_chamber)],
+            },
         }
 
-        planned_lots.append(
-            {
-                "lot_id": lot_id,
-                "spec": spec,
-                "legs": leg_data,
-                "storage_env": storage_env,
-            }
-        )
+    conflicts = check_existing_conflicts(cur, planned_runs)
+    return {
+        "lot_id": lot_id,
+        "spec": spec,
+        "leg1": leg1,
+        "farm_storage_env": farm_storage_env,
+        "grade_bundles": grade_bundles,
+        "planned_runs": planned_runs,
+        "conflicts": conflicts,
+    }
 
-    conflicts = check_existing_conflicts(cur, planned_lots, planned_runs)
-    return planned_lots, planned_runs, conflicts
+
+def cleanup_previous_managed_synth(cur):
+    """오직 본 스크립트가 이전에 생성한 합성 로트/세션만 정밀 삭제 (기존 v2/v3 및 타 세션 100% 보존)"""
+    placeholders = ", ".join(["%s"] * len(MANAGED_SYNTH_LOT_IDS))
+    cur.execute(
+        f"SELECT lot_id, protocol_ver FROM harvest_lots WHERE lot_id IN ({placeholders})",
+        MANAGED_SYNTH_LOT_IDS,
+    )
+    found_lots = cur.fetchall()
+    for row in found_lots:
+        assert row["protocol_ver"] == "v4", f"Refusing to touch non-v4 lot: {row}"
+
+    if found_lots:
+        # FK ON DELETE CASCADE로 sorted_lots, stage_events, shipments의 해당 합성 행만 함께 정리됨
+        cur.execute(f"DELETE FROM harvest_lots WHERE lot_id IN ({placeholders})", MANAGED_SYNTH_LOT_IDS)
+        print(f"Cleaned previous managed synthetic lots: {[r['lot_id'] for r in found_lots]}")
+
+    cur.execute("SELECT run_id FROM transport_runs WHERE run_id LIKE %s", (MANAGED_RUN_LIKE,))
+    found_runs = [r["run_id"] for r in cur.fetchall()]
+    if found_runs:
+        # FK ON DELETE CASCADE로 sensor_telemetry의 해당 합성 run_id 패킷만 함께 정리됨
+        cur.execute("DELETE FROM transport_runs WHERE run_id LIKE %s", (MANAGED_RUN_LIKE,))
+        print(f"Cleaned previous managed synthetic runs: {len(found_runs)} runs")
 
 
-def apply_plan(conn, cur, planned_lots, planned_runs):
-    # 1) transport_runs + sensor_telemetry
-    for r in planned_runs:
+def apply_plan(conn, cur, plan: dict):
+    # 0) 기존에 본 스크립트가 넣었던 이전 합성 데이터(1·2·3차)만 안전 정리
+    cleanup_previous_managed_synth(cur)
+
+    lot_id = plan["lot_id"]
+    spec = plan["spec"]
+    sch = spec["common_schedule"]
+    leg1 = plan["leg1"]
+    f_env = plan["farm_storage_env"]
+
+    # 1) transport_runs + sensor_telemetry (1~4호차 총 7개 주행 세션)
+    for r in plan["planned_runs"]:
         pkts = r["packets"]
         cur.execute(
             """
@@ -374,11 +433,6 @@ def apply_plan(conn, cur, planned_lots, planned_runs):
                 (run_id, device_id, run_type, started_at, ended_at, packet_cnt, valid_gps_cnt,
                  min_temp, max_temp, avg_temp, max_g_force, max_speed, shock_cnt)
             VALUES (%s, %s, 'FIELD_DRIVE', %s, %s, %s, %s, %s, %s, %s, %s, %s, 0)
-            ON DUPLICATE KEY UPDATE
-                started_at=VALUES(started_at), ended_at=VALUES(ended_at),
-                packet_cnt=VALUES(packet_cnt), valid_gps_cnt=VALUES(valid_gps_cnt),
-                min_temp=VALUES(min_temp), max_temp=VALUES(max_temp), avg_temp=VALUES(avg_temp),
-                max_g_force=VALUES(max_g_force), max_speed=VALUES(max_speed), shock_cnt=0
             """,
             (
                 r["run_id"],
@@ -400,10 +454,6 @@ def apply_plan(conn, cur, planned_lots, planned_runs):
                 (run_id, device_id, measured_at, temperature, humidity, lux, g_force,
                  speed, lat, lng, gps_state, event_type, raw_status)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                temperature=VALUES(temperature), humidity=VALUES(humidity), lux=VALUES(lux),
-                g_force=VALUES(g_force), speed=VALUES(speed), lat=VALUES(lat), lng=VALUES(lng),
-                gps_state=VALUES(gps_state), event_type=VALUES(event_type), raw_status=VALUES(raw_status)
             """,
             [
                 (
@@ -426,197 +476,160 @@ def apply_plan(conn, cur, planned_lots, planned_runs):
         )
         refresh_run_stats_v2(cur, r["run_id"], dst_db=DB_V2)
 
-    # 2) harvest_lots + sorted_lots + stage_events + shipments
-    for item in planned_lots:
-        lot_id = item["lot_id"]
-        spec = item["spec"]
-        sch = spec["schedule"]
-        leg1, leg2, leg3 = item["legs"][1], item["legs"][2], item["legs"][3]
-        env = item["storage_env"]
+    # 2) harvest_lots (단일 1차 v4 로트)
+    farm_lat, farm_lng = leg1["start_coord"]
+    apc_lat, apc_lng = leg1["end_coord"]
 
-        farm_lat, farm_lng = leg1["start_coord"]
-        apc_lat, apc_lng = leg1["end_coord"]
-        dist_lat, dist_lng = leg2["end_coord"]
-        retail_lat, retail_lng = leg3["end_coord"]
+    cur.execute(
+        """
+        INSERT INTO harvest_lots
+            (lot_id, origin_zip, farmer_code, crop_code, fruit_type, variety,
+             farmer_phone, cultivation, harvest_no, total_qty,
+             harvest_date, storage_date, deliver_date,
+             ag_practice, current_stage, protocol_ver, is_test, created_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, 'B02', 'v4', 0, %s)
+        """,
+        (
+            lot_id,
+            spec["area_code"],
+            spec["farmer_code"],
+            spec["crop_code"],
+            spec["fruit_type"],
+            spec["variety"],
+            spec["farmer_phone"],
+            spec["cultivation"],
+            spec["harvest_no"],
+            spec["total_qty"],
+            spec["harvest_date"],
+            sch["A02"][:10],
+            fmt_dt(leg1["started_at"])[:10],
+            sch["A01"],
+        ),
+    )
 
-        # harvest_lots
+    # 3) sorted_lots (A/B/C -> D01 완주, DEFECT -> REJECTED)
+    for g_code in ("A", "B", "C", "DEFECT"):
+        pkg_id = f"{lot_id}-DEF" if g_code == "DEFECT" else f"{lot_id}-{g_code}"
         cur.execute(
             """
-            INSERT INTO harvest_lots
-                (lot_id, origin_zip, farmer_code, crop_code, fruit_type, variety,
-                 farmer_phone, cultivation, harvest_no, total_qty,
-                 harvest_date, storage_date, deliver_date,
-                 ag_practice, current_stage, protocol_ver, is_test, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NULL, 'B02', 'v4', 0, %s)
-            ON DUPLICATE KEY UPDATE
-                origin_zip=VALUES(origin_zip), farmer_code=VALUES(farmer_code), crop_code=VALUES(crop_code),
-                fruit_type=VALUES(fruit_type), variety=VALUES(variety), farmer_phone=VALUES(farmer_phone),
-                cultivation=VALUES(cultivation), harvest_no=VALUES(harvest_no), total_qty=VALUES(total_qty),
-                harvest_date=VALUES(harvest_date), storage_date=VALUES(storage_date), deliver_date=VALUES(deliver_date),
-                current_stage='B02', protocol_ver='v4', is_test=0
+            INSERT INTO sorted_lots
+                (pkg_id, lot_id, grade_code, grade_label_ko, grade_qty, is_shippable, current_stage, sorted_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
+                pkg_id,
                 lot_id,
-                spec["area_code"],
-                spec["farmer_code"],
-                spec["crop_code"],
-                spec["fruit_type"],
-                spec["variety"],
-                spec["farmer_phone"],
-                spec["cultivation"],
-                spec["harvest_no"],
-                spec["total_qty"],
-                spec["harvest_date"],
-                sch["A02"][:10],
-                fmt_dt(leg1["started_at"])[:10],
-                sch["A01"],
+                g_code,
+                GRADE_LABELS[g_code],
+                spec["grades"][g_code],
+                0 if g_code == "DEFECT" else 1,
+                "REJECTED" if g_code == "DEFECT" else "D01",
+                sch["B02"],
             ),
         )
 
-        # sorted_lots (A, B, C -> D01 완주, DEFECT -> REJECTED)
-        for g_code in ("A", "B", "C", "DEFECT"):
-            pkg_id = f"{lot_id}-DEF" if g_code == "DEFECT" else f"{lot_id}-{g_code}"
-            is_ship = 0 if g_code == "DEFECT" else 1
-            cur_st = "REJECTED" if g_code == "DEFECT" else "D01"
-            cur.execute(
-                """
-                INSERT INTO sorted_lots
-                    (pkg_id, lot_id, grade_code, grade_label_ko, grade_qty, is_shippable, current_stage, sorted_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    grade_qty=VALUES(grade_qty), current_stage=VALUES(current_stage), sorted_at=VALUES(sorted_at)
-                """,
-                (pkg_id, lot_id, g_code, GRADE_LABELS[g_code], spec["grades"][g_code], is_ship, cur_st, sch["B02"]),
-            )
+    # 4) 공통 단계 stage_events (A01~B02, pkg_id=NULL) + 1구간 shipment (1호차)
+    h_a01 = make_sha256(
+        {
+            "lot_id": lot_id,
+            "stage": "A01",
+            "ac": spec["area_code"],
+            "fm": spec["farmer_code"],
+            "cc": spec["crop_code"],
+            "qt": spec["total_qty"],
+            "hd": spec["harvest_date"],
+        }
+    )
+    h_b02 = make_sha256({"lot_id": lot_id, "stage": "B02", **spec["grades"], "rt": sch["B02"]})
 
-        # 공통 단계 stage_events (pkg_id = NULL): A01 ~ B02
-        h_a01 = make_sha256(
-            {
-                "lot_id": lot_id,
-                "stage": "A01",
-                "ac": spec["area_code"],
-                "fm": spec["farmer_code"],
-                "cc": spec["crop_code"],
-                "qt": spec["total_qty"],
-                "hd": spec["harvest_date"],
-            }
-        )
-        h_b02 = make_sha256(
-            {
-                "lot_id": lot_id,
-                "stage": "B02",
-                **spec["grades"],
-                "rt": sch["B02"],
-            }
+    for st_code, ev_at, lat_v, lng_v, tp_v, hm_v, tx_h in [
+        ("A01", sch["A01"], farm_lat, farm_lng, None, None, h_a01),
+        ("A02", sch["A02"], farm_lat, farm_lng, f_env["A02"][0], f_env["A02"][1], None),
+        ("A03", sch["A03"], farm_lat, farm_lng, f_env["A03"][0], f_env["A03"][1], None),
+        ("A04", fmt_dt(leg1["started_at"]), farm_lat, farm_lng, None, None, None),
+        ("B01", fmt_dt(leg1["ended_at"]), apc_lat, apc_lng, None, None, None),
+        ("B02", sch["B02"], apc_lat, apc_lng, None, None, h_b02),
+    ]:
+        cur.execute(
+            """
+            INSERT INTO stage_events (lot_id, pkg_id, stage_code, event_at, lat, lng, temp, humi, tx_hash)
+            VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (lot_id, st_code, ev_at, lat_v, lng_v, tp_v, hm_v, tx_h),
         )
 
-        common_events = [
-            ("A01", sch["A01"], farm_lat, farm_lng, None, None, h_a01),
-            ("A02", sch["A02"], farm_lat, farm_lng, env["A02"][0], env["A02"][1], None),
-            ("A03", sch["A03"], farm_lat, farm_lng, env["A03"][0], env["A03"][1], None),
-            ("A04", fmt_dt(leg1["started_at"]), farm_lat, farm_lng, None, None, None),
-            ("B01", fmt_dt(leg1["ended_at"]), apc_lat, apc_lng, None, None, None),
-            ("B02", sch["B02"], apc_lat, apc_lng, None, None, h_b02),
-        ]
-        for st_code, ev_at, lat_v, lng_v, tp_v, hm_v, tx_h in common_events:
+    cur.execute(
+        """
+        INSERT INTO shipments
+            (leg_no, lot_id, pkg_id, device_id, run_id, departed_at, arrived_at, status,
+             gps_points_cnt, avg_temp, max_g_force)
+        VALUES (1, %s, NULL, %s, %s, %s, %s, 'ARRIVED', %s, %s, %s)
+        """,
+        (
+            lot_id,
+            leg1["device_id"],
+            leg1["run_id"],
+            fmt_dt(leg1["started_at"]),
+            fmt_dt(leg1["ended_at"]),
+            len(leg1["packets"]),
+            leg1["avg_temp"],
+            leg1["max_g"],
+        ),
+    )
+
+    # 5) 등급별 독립 stage_events (B03~D01) + 등급별 독립 2·3구간 shipments (2·3·4호차)
+    for g_code in ("A", "B", "C"):
+        pkg_id = f"{lot_id}-{g_code}"
+        bundle = plan["grade_bundles"][g_code]
+        gp = bundle["cfg"]
+        leg2, leg3 = bundle["leg2"], bundle["leg3"]
+        s_env = bundle["storage_env"]
+
+        dist_lat, dist_lng = leg2["end_coord"]
+        retail_lat, retail_lng = leg3["end_coord"]
+        t_d01 = fmt_dt(leg3["ended_at"])
+        h_d01 = make_sha256(
+            {"lot_id": lot_id, "pkg_id": pkg_id, "stage": "D01", "device": gp["device_id"], "at": t_d01}
+        )
+
+        for st_code, ev_at, lat_v, lng_v, tp_v, hm_v, tx_h in [
+            ("B03", gp["B03"], apc_lat, apc_lng, None, None, None),
+            ("B04", gp["B04"], apc_lat, apc_lng, s_env["B04"][0], s_env["B04"][1], None),
+            ("B05", gp["B05"], apc_lat, apc_lng, s_env["B05"][0], s_env["B05"][1], None),
+            ("B06", fmt_dt(leg2["started_at"]), apc_lat, apc_lng, None, None, None),
+            ("C01", fmt_dt(leg2["ended_at"]), dist_lat, dist_lng, s_env["C01"][0], s_env["C01"][1], None),
+            ("C02", fmt_dt(leg3["started_at"]), dist_lat, dist_lng, None, None, None),
+            ("D01", t_d01, retail_lat, retail_lng, None, None, h_d01),
+        ]:
             cur.execute(
                 """
                 INSERT INTO stage_events (lot_id, pkg_id, stage_code, event_at, lat, lng, temp, humi, tx_hash)
-                VALUES (%s, NULL, %s, %s, %s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    event_at=VALUES(event_at), lat=VALUES(lat), lng=VALUES(lng),
-                    temp=VALUES(temp), humi=VALUES(humi), tx_hash=COALESCE(VALUES(tx_hash), tx_hash)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                (lot_id, st_code, ev_at, lat_v, lng_v, tp_v, hm_v, tx_h),
+                (lot_id, pkg_id, st_code, ev_at, lat_v, lng_v, tp_v, hm_v, tx_h),
             )
 
-        # 1구간 shipment (pkg_id = NULL)
-        cur.execute(
-            """
-            INSERT INTO shipments
-                (leg_no, lot_id, pkg_id, device_id, run_id, departed_at, arrived_at, status,
-                 gps_points_cnt, avg_temp, max_g_force)
-            VALUES (1, %s, NULL, %s, %s, %s, %s, 'ARRIVED', %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                device_id=VALUES(device_id), run_id=VALUES(run_id),
-                departed_at=VALUES(departed_at), arrived_at=VALUES(arrived_at),
-                status='ARRIVED', gps_points_cnt=VALUES(gps_points_cnt),
-                avg_temp=VALUES(avg_temp), max_g_force=VALUES(max_g_force)
-            """,
-            (
-                lot_id,
-                leg1["device_id"],
-                leg1["run_id"],
-                fmt_dt(leg1["started_at"]),
-                fmt_dt(leg1["ended_at"]),
-                len(leg1["packets"]),
-                leg1["avg_temp"],
-                leg1["max_g"],
-            ),
-        )
-
-        # 등급별 단계 stage_events & 2·3구간 shipments (A / B / C 모두 완주)
-        for g_idx, g_code in enumerate(("A", "B", "C")):
-            pkg_id = f"{lot_id}-{g_code}"
-            scan_offset = timedelta(minutes=g_idx * 2)  # B03/B04/B05 등급별 순차 스캔 (2분 간격)
-            t_b03 = fmt_dt(parse_dt(sch["B03"]) + scan_offset)
-            t_b04 = fmt_dt(parse_dt(sch["B04"]) + scan_offset)
-            t_b05 = fmt_dt(parse_dt(sch["B05"]) + scan_offset)
-            t_b06 = fmt_dt(leg2["started_at"])
-            t_c01 = fmt_dt(leg2["ended_at"])
-            t_c02 = fmt_dt(leg3["started_at"])
-            t_d01 = fmt_dt(leg3["ended_at"])
-
-            h_d01 = make_sha256({"lot_id": lot_id, "pkg_id": pkg_id, "stage": "D01", "at": t_d01})
-
-            grade_events = [
-                ("B03", t_b03, apc_lat, apc_lng, None, None, None),
-                ("B04", t_b04, apc_lat, apc_lng, env["B04"][0], env["B04"][1], None),
-                ("B05", t_b05, apc_lat, apc_lng, env["B05"][0], env["B05"][1], None),
-                ("B06", t_b06, apc_lat, apc_lng, None, None, None),
-                ("C01", t_c01, dist_lat, dist_lng, env["C01"][0], env["C01"][1], None),
-                ("C02", t_c02, dist_lat, dist_lng, None, None, None),
-                ("D01", t_d01, retail_lat, retail_lng, None, None, h_d01),
-            ]
-            for st_code, ev_at, lat_v, lng_v, tp_v, hm_v, tx_h in grade_events:
-                cur.execute(
-                    """
-                    INSERT INTO stage_events (lot_id, pkg_id, stage_code, event_at, lat, lng, temp, humi, tx_hash)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE
-                        event_at=VALUES(event_at), lat=VALUES(lat), lng=VALUES(lng),
-                        temp=VALUES(temp), humi=VALUES(humi), tx_hash=COALESCE(VALUES(tx_hash), tx_hash)
-                    """,
-                    (lot_id, pkg_id, st_code, ev_at, lat_v, lng_v, tp_v, hm_v, tx_h),
-                )
-
-            # 2구간 & 3구간 shipments
-            for leg_no, leg_obj in ((2, leg2), (3, leg3)):
-                cur.execute(
-                    """
-                    INSERT INTO shipments
-                        (leg_no, lot_id, pkg_id, device_id, run_id, departed_at, arrived_at, status,
-                         gps_points_cnt, avg_temp, max_g_force)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, 'ARRIVED', %s, %s, %s)
-                    ON DUPLICATE KEY UPDATE
-                        device_id=VALUES(device_id), run_id=VALUES(run_id),
-                        departed_at=VALUES(departed_at), arrived_at=VALUES(arrived_at),
-                        status='ARRIVED', gps_points_cnt=VALUES(gps_points_cnt),
-                        avg_temp=VALUES(avg_temp), max_g_force=VALUES(max_g_force)
-                    """,
-                    (
-                        leg_no,
-                        lot_id,
-                        pkg_id,
-                        leg_obj["device_id"],
-                        leg_obj["run_id"],
-                        fmt_dt(leg_obj["started_at"]),
-                        fmt_dt(leg_obj["ended_at"]),
-                        len(leg_obj["packets"]),
-                        leg_obj["avg_temp"],
-                        leg_obj["max_g"],
-                    ),
-                )
+        for leg_no, leg_obj in ((2, leg2), (3, leg3)):
+            cur.execute(
+                """
+                INSERT INTO shipments
+                    (leg_no, lot_id, pkg_id, device_id, run_id, departed_at, arrived_at, status,
+                     gps_points_cnt, avg_temp, max_g_force)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'ARRIVED', %s, %s, %s)
+                """,
+                (
+                    leg_no,
+                    lot_id,
+                    pkg_id,
+                    leg_obj["device_id"],
+                    leg_obj["run_id"],
+                    fmt_dt(leg_obj["started_at"]),
+                    fmt_dt(leg_obj["ended_at"]),
+                    len(leg_obj["packets"]),
+                    leg_obj["avg_temp"],
+                    leg_obj["max_g"],
+                ),
+            )
 
     conn.commit()
 
@@ -651,26 +664,38 @@ def verify_loaded(cur):
             ev = cur.fetchone()
             cur.execute(
                 """
-                SELECT leg_no, run_id, gps_points_cnt, avg_temp, max_g_force, status
+                SELECT leg_no, device_id, run_id, gps_points_cnt, avg_temp, max_g_force, status
                 FROM shipments WHERE lot_id=%s AND (pkg_id IS NULL OR pkg_id=%s)
                 ORDER BY leg_no ASC
                 """,
                 (lid, pkg),
             )
             sh = cur.fetchall()
-            print(f"   grade {g}: stages={ev['cnt']} ({ev['stages']}), legs={[(x['leg_no'], x['gps_points_cnt'], x['avg_temp'], x['max_g_force']) for x in sh]}")
+            cur.execute("SELECT lat, lng FROM stage_events WHERE lot_id=%s AND pkg_id=%s AND stage_code='D01'", (lid, pkg))
+            d01_pos = cur.fetchone()
+            print(f"   grade {g}: stages={ev['cnt']} | D01={d01_pos}")
+            for x in sh:
+                print(f"     leg{x['leg_no']}: {x['device_id']} | {x['run_id']} | pts={x['gps_points_cnt']} | avgT={x['avg_temp']}C | maxG={x['max_g_force']}G")
 
-    print("\n=== VERIFICATION: Existing v2/v3 lots untouched ===")
+    print("\n=== VERIFICATION: Existing v2/v3 lots & vehicle run counts ===")
     cur.execute("SELECT protocol_ver, COUNT(*) AS cnt FROM harvest_lots GROUP BY protocol_ver ORDER BY protocol_ver")
-    print(" ", cur.fetchall())
-    cur.execute("SELECT COUNT(*) AS cnt FROM transport_runs WHERE device_id='carrier-c6-02' AND run_type IN ('FIELD_DRIVE', 'STORAGE')")
-    print("  carrier-c6-02 FIELD_DRIVE/STORAGE total runs:", cur.fetchone())
+    print("  lots by protocol_ver:", cur.fetchall())
+    cur.execute(
+        """
+        SELECT device_id, COUNT(*) AS cnt
+        FROM transport_runs
+        WHERE run_type IN ('FIELD_DRIVE', 'STORAGE')
+        GROUP BY device_id
+        ORDER BY device_id
+        """
+    )
+    print("  FIELD_DRIVE/STORAGE runs by device:", cur.fetchall())
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build & load v4 Jinan Hongro Apple combined dataset")
+    parser = argparse.ArgumentParser(description="Build & load v4 1st-lot multi-destination/multi-truck dataset")
     parser.add_argument("--dry-run", action="store_true", help="Preview plan without writing to RDS")
-    parser.add_argument("--apply", action="store_true", help="Insert v4 combined dataset into lab225_v2")
+    parser.add_argument("--apply", action="store_true", help="Apply to lab225_v2 (cleans only previous managed synth rows)")
     parser.add_argument("--verify", action="store_true", help="Verify loaded v4 dataset in lab225_v2")
     args = parser.parse_args()
 
@@ -681,31 +706,34 @@ def main():
                 verify_loaded(cur)
                 return
 
-            planned_lots, planned_runs, conflicts = build_plan(cur)
-            print(f"Planned v4 lots: {len(planned_lots)}, planned runs: {len(planned_runs)}")
-            for item in planned_lots:
-                s = item["spec"]
-                print(f"\nLotID={item['lot_id']} | {s['area_code']} 진안 | FmID={s['farmer_code']} | {s['variety']} | Qt={s['total_qty']} | HN={s['harvest_no']}")
-                print(f"  Storage env (chamber): {item['storage_env']}")
-                for leg_no in (1, 2, 3):
-                    lg = item["legs"][leg_no]
+            plan = build_plan(cur)
+            print(f"LotID={plan['lot_id']} | 55451 진안 마령면 | FmID=071 | Hongro Apple | Qt=500 | HN=1")
+            l1 = plan["leg1"]
+            print(
+                f"  [공통 1구간] {l1['device_id']} | {l1['run_id']} | {fmt_dt(l1['started_at'])} ~ {fmt_dt(l1['ended_at'])} "
+                f"| pts={len(l1['packets'])} | avgT={l1['avg_temp']}C | maxG={l1['max_g']}G | {l1['start_coord']} -> {l1['end_coord']}"
+            )
+            for g_code in ("A", "B", "C"):
+                b = plan["grade_bundles"][g_code]
+                gp = b["cfg"]
+                print(f"  [등급 {g_code}({gp['label_ko']}) | {gp['device_id']} | {gp['dest_desc']}] storage_env={b['storage_env']}")
+                for lg in (b["leg2"], b["leg3"]):
                     print(
-                        f"  Leg {leg_no}: {lg['run_id']} | {fmt_dt(lg['started_at'])} ~ {fmt_dt(lg['ended_at'])} "
-                        f"| pts={len(lg['packets'])} | temp={lg['min_temp']}~{lg['max_temp']}C (avg {lg['avg_temp']}C) "
-                        f"| maxG={lg['max_g']}G | maxSpd={lg['max_spd']}km/h"
+                        f"    Leg {lg['leg_no']}: {lg['run_id']} | {fmt_dt(lg['started_at'])} ~ {fmt_dt(lg['ended_at'])} "
+                        f"| pts={len(lg['packets'])} | avgT={lg['avg_temp']}C | maxG={lg['max_g']}G | {lg['start_coord']} -> {lg['end_coord']}"
                     )
 
-            if conflicts:
-                print("\n[ABORT] Timestamp conflict detected with existing carrier-c6-02 runs:")
-                for c in conflicts:
+            if plan["conflicts"]:
+                print("\n[ABORT] Timestamp conflict detected with existing runs:")
+                for c in plan["conflicts"]:
                     print(" ", c)
                 sys.exit(2)
             else:
-                print("\n[OK] Zero timestamp conflicts with existing carrier-c6-02 runs.")
+                print("\n[OK] Zero timestamp conflicts across carrier-c6-01 ~ carrier-c6-04.")
 
             if args.apply:
-                apply_plan(conn, cur, planned_lots, planned_runs)
-                print("\n[SUCCESS] Applied v4 combined dataset to lab225_v2!")
+                apply_plan(conn, cur, plan)
+                print("\n[SUCCESS] Applied single-lot multi-destination v4 dataset to lab225_v2!")
                 verify_loaded(cur)
             else:
                 print("\n(Dry-run complete. Use --apply to write to lab225_v2.)")
